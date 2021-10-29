@@ -1,0 +1,99 @@
+﻿<Window x:Class="CircuitGENUS.Windows.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+		xmlns:dr="clr-namespace:TINS.Ephys.Display"
+        xmlns:local="clr-namespace:CircuitGENUS.Windows"
+        mc:Ignorable="d"
+        Title="CircuitGENUS" 
+		Width="1800" Height="900"
+		MinWidth="1000" MinHeight="700" 
+		Background="#383838"
+		WindowStyle="None" WindowStartupLocation="CenterScreen" ResizeMode="CanResizeWithGrip" AllowsTransparency="True"
+		Closing="Window_Closing">
+    <Grid x:Name="grdMainLayout">
+		<Grid.RowDefinitions>
+			<RowDefinition Height="40"/>
+			<RowDefinition Height="60"/>
+			<RowDefinition Height="*"/>
+			<RowDefinition Height="30"/>
+		</Grid.RowDefinitions>
+
+		<!-- title bar -->
+		<dr:TitleBar Grid.Row="0" x:Name="titleBar"/>
+
+		<!-- header -->
+		<Grid Grid.Row="1" Name="grdHeader">
+			<Grid.ColumnDefinitions>
+				<ColumnDefinition Width="50"/>
+				<ColumnDefinition Width="50"/>
+				<ColumnDefinition Width="50"/>
+				<ColumnDefinition Width="50"/>
+				<ColumnDefinition Width="50"/>
+				<ColumnDefinition Width="200"/>
+				<ColumnDefinition Width="*"/>
+				<ColumnDefinition Width="50"/>
+				<ColumnDefinition Width="50"/>
+				<ColumnDefinition Width="50"/>
+				<ColumnDefinition Width="100"/>
+				<ColumnDefinition Width="50"/>
+				<ColumnDefinition Width="50"/>
+			</Grid.ColumnDefinitions>
+
+			<Button Grid.Column="0" Style="{StaticResource TitleBarButtonStyle}" Margin="8" Content="{StaticResource OpenIcon}"		 
+					Name="btnLoadSettings"	Click="btnLoadSettings_Click" ToolTip="Load configuration"/>
+			<Button Grid.Column="1" Style="{StaticResource TitleBarButtonStyle}" Margin="8" Content="{StaticResource SettingsIcon}"	 
+					Name="btnSettings"		Click="btnSettings_Click" ToolTip="Configuration settings"/>
+			<Button Grid.Column="3" Style="{StaticResource TitleBarButtonStyle}" Margin="8" Content="{StaticResource RecordOffIcon}" 
+					Name="btnRecordToggle"	Click="btnRecordToggle_Click" ToolTip="Start recording"/>
+			<Button Grid.Column="4" Style="{StaticResource TitleBarButtonStyle}" Margin="8" Content="{StaticResource PlayIcon}"		 
+					Name="btnStreamToggle"	Click="btnStreamToggle_Click" ToolTip="Start acquisition"/>
+
+			<Grid Grid.Column="5">
+				<Grid.RowDefinitions>
+					<RowDefinition Height="*"/>
+					<RowDefinition Height="*"/>
+				</Grid.RowDefinitions>
+			</Grid>
+
+			<Button Grid.Column="7" Style="{StaticResource TitleBarButtonStyle}" Margin="8" Content="{StaticResource RobotIcon}"		
+					Name="btnProtoWizard"	Click="btnProtoWizard_Click" ToolTip="Protocol wizard"/>
+			<Button Grid.Column="8" Style="{StaticResource TitleBarButtonStyle}" Margin="8" Content="{StaticResource ProtLoadIcon}"		
+					Name="btnLoadProtocol"	Click="btnLoadProtocol_Click" ToolTip="Load protocol"/>
+			<Button Grid.Column="9" Style="{StaticResource TitleBarButtonStyle}" Margin="8" Content="{StaticResource ProtStartIcon}"	
+					Name="btnToggleProtocol" Click="btnToggleProtocol_Click" ToolTip="Start protocol"/>
+			
+
+			<Label Grid.Column="11" Name="lblTrigger" Foreground="White" FontSize="28" Content="0" 
+				   VerticalAlignment="Center" HorizontalAlignment="Center" ToolTip="Trigger"/>
+			
+			<!-- stimulus status -->
+			<dr:StimulusDisplay Grid.Column="12" x:Name="stmDisplay" ToolTip="Stimulus display"/>
+		</Grid>
+
+		<!-- data -->
+		<Grid Grid.Row="2" Name="grdDataDisplay">
+			<Grid.ColumnDefinitions>
+				<ColumnDefinition Width="*"/>
+				<ColumnDefinition Width="*"/>
+			</Grid.ColumnDefinitions>
+			<dr:MultiunitDisplay Grid.Column="0" x:Name="drawMua" Margin="10"/>
+			<dr:ContinuousDisplay Grid.Column="1" x:Name="drawLfp" Margin="10"/>
+		</Grid>
+
+		<!-- status bar -->
+		<Grid Grid.Row="3">
+			<Grid.ColumnDefinitions>
+				<ColumnDefinition Width="*"/>
+				<ColumnDefinition Width="200"/>
+				<ColumnDefinition Width="200"/>
+			</Grid.ColumnDefinitions>
+			
+			<Label Grid.Column="0" Name="lblStatus" Content="No configuration loaded" FontSize="12" Foreground="White" VerticalAlignment="Center" Margin="10,0,0,0"/>
+			<ProgressBar Grid.Column="1" x:Name="pgbTrials" Background="#383838" Margin="2,5" Foreground="White"/>
+			<Label Grid.Column="2" Name="lblTrialStatus" Content="No protocol loaded." FontSize="12" Foreground="White" VerticalAlignment="Center" Margin="10,0,0,0"/>
+		</Grid>
+		
+    </Grid>
+</Window>

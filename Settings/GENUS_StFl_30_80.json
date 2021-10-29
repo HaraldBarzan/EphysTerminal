@@ -1,0 +1,54 @@
+{
+  "protocolType": "genus",
+  "supportedSamplingPeriod": 0.25,
+  "prestimTrigger": 1,
+  "stimTrigger": 2,
+  "poststimTrigger": 4,
+  "trialEndTrigger": 8,
+  "randomize": true,
+  "intertrialTimeout": 2,
+  "trials": [
+    {
+      "count": 20,
+      "preTimeout": 4,
+      "stimTimeout": 20,
+      "postTimeout": 4,
+      "stimFrequency": 30
+    },
+    {
+      "count": 20,
+      "preTimeout": 4,
+      "stimTimeout": 20,
+      "postTimeout": 4,
+      "stimFrequency": 40
+    },
+    {
+      "count": 20,
+      "preTimeout": 4,
+      "stimTimeout": 20,
+      "postTimeout": 4,
+      "stimFrequency": 50
+    },
+    {
+      "count": 20,
+      "preTimeout": 4,
+      "stimTimeout": 20,
+      "postTimeout": 4,
+      "stimFrequency": 60
+    },
+    {
+      "count": 20,
+      "preTimeout": 4,
+      "stimTimeout": 20,
+      "postTimeout": 4,
+      "stimFrequency": 70
+    },
+    {
+      "count": 20,
+      "preTimeout": 4,
+      "stimTimeout": 20,
+      "postTimeout": 4,
+      "stimFrequency": 80
+    }
+  ]
+}
