@@ -41,7 +41,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\CircuitGENUS\EphysStream.csproj" />
+    <ProjectReference Include="..\EphysStream\EphysStream.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -70,9 +70,15 @@
     <Resource Include="Resources\play.png">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </Resource>
-    <Resource Include="Resources\protocolFolder.png" />
-    <Resource Include="Resources\protocolRun.png" />
-    <Resource Include="Resources\protocolStop.png" />
+    <Resource Include="Resources\protocolFolder.png">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Resource>
+      <Resource Include="Resources\protocolRun.png">
+    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      </Resource>
+    <Resource Include="Resources\protocolStop.png">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Resource>
     <Resource Include="Resources\recordingOff.png">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </Resource>

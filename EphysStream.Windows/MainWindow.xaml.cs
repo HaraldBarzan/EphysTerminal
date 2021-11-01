@@ -210,7 +210,7 @@ namespace CircuitGENUS.Windows
 					{
 						Title				= "Save EEG Processor Dataset",
 						Filter				= "EEG Processor Dataset (*.epd) | *.epd",
-						InitialDirectory	= @"C:\_data\ephys"
+						InitialDirectory	= @"C:\_data\ephys\mouse"
 					};
 
 					// open the file dialog
@@ -280,7 +280,7 @@ namespace CircuitGENUS.Windows
 				var ofd = new OpenFileDialog()
 				{
 					Title				= "Open configuration file",
-					InitialDirectory	= @"C:\_code\CircuitGENUS\Settings\",
+					InitialDirectory	= @"C:\_code\ephysstream\settings",
 					Filter				= "Settings files (*.ini) | *.ini",
 					Multiselect			= false
 				};
@@ -289,7 +289,7 @@ namespace CircuitGENUS.Windows
 					try
 					{
 						var settings = new EphysSettings();
-						settings.Serialize(new INI(ofd.FileName), "CIRCUIT_GENUS", SerializationDirection.In);
+						settings.Serialize(new INI(ofd.FileName), EphysSettings.HeaderSection, SerializationDirection.In);
 
 						// get local dataset path
 						string localDatasetPath = null;
@@ -505,7 +505,7 @@ namespace CircuitGENUS.Windows
 				var ofd = new OpenFileDialog()
 				{
 					Title				= "Open protocol configuration file",
-					InitialDirectory	= @"C:\_code\CircuitGENUS\Settings\",
+					InitialDirectory	= @"C:\_code\ephysstream\settings",
 					Filter				= "Configuration files (*.json) | *.json",
 					Multiselect			= false
 				};

@@ -11,7 +11,7 @@ namespace TINS.Ephys.Settings
 		/// <summary>
 		/// The root section of the ini file.
 		/// </summary>
-		public const string HeaderSection = "CIRCUITGENUS_SETTINGS";
+		public const string HeaderSection = "ELECTROPHYSIOLOGY_CONFIGURATION";
 
 		/// <summary>
 		/// The section name for the input settings.

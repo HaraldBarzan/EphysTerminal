@@ -142,7 +142,7 @@ namespace TINS.Ephys
 			// open a file dialog
 			var ofd = new OpenFileDialog()
 			{
-				InitialDirectory	= @"C:\_code\CircuitGENUS\Settings",
+				InitialDirectory	= @"C:\_code\ephysstream\settings",
 				Filter				= "Protocol files (*.json) | *.json",
 				Multiselect			= false
 			};
@@ -168,7 +168,7 @@ namespace TINS.Ephys
 			// open a file dialog
 			var sfd = new SaveFileDialog()
 			{
-				InitialDirectory	= @"C:\_code\CircuitGENUS\Settings",
+				InitialDirectory	= @"C:\_code\ephysstream\settings",
 				FileName			= "Select the output folder."
 			};
 
