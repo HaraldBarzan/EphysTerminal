@@ -11,6 +11,19 @@ namespace TINS.Ephys.Stimulation
 		public int ExperimentTimeout { get; set; }
 	}
 
+
+	/// <summary>
+	/// A dummy stimulus controller that does absolutely nothing.
+	/// </summary>
+	public class DummyStimulusController : StimulusController
+	{
+		public override void ChangeParameters(float? brightness, float? frequency, byte? trigger) { }
+		public override void ConnectToDevice(string port = null) { }
+		public override void Disconnect() { }
+	}
+
+
+
 	/// <summary>
 	/// Dummy protocol.
 	/// </summary>
@@ -33,6 +46,7 @@ namespace TINS.Ephys.Stimulation
 		public override void Start()
 		{
 			_timeout = Config.ExperimentTimeout;
+			_isRunning = true;
 			RaiseProtocolStarted();
 			RaiseUpdateProgress(0, 1);
 		}
@@ -42,9 +56,10 @@ namespace TINS.Ephys.Stimulation
 		/// </summary>
 		public override void ProcessBlock()
 		{
-			if (_timeout == 0)
+			if (_isRunning && _timeout == 0)
 				Stop();
-			--_timeout;
+			else
+				--_timeout;
 		}
 
 		/// <summary>
@@ -52,14 +67,20 @@ namespace TINS.Ephys.Stimulation
 		/// </summary>
 		public override void Stop()
 		{
-			RaiseProtocolEnded();
+			if (_isRunning)
+			{
+				_isRunning	= false;
+				_timeout	= 0;
+				RaiseProtocolEnded();
+			}
 		}
 
 		/// <summary>
 		/// Assert whether the protocol is running.
 		/// </summary>
-		public override bool IsRunning => _timeout > 0;
+		public override bool IsRunning => _isRunning;
 
-		protected int _timeout;
+		protected int	_timeout;
+		protected bool	_isRunning;
 	}
 }

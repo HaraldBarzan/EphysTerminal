@@ -50,8 +50,8 @@ namespace CircuitGENUS.Windows
 						EphysStream.StartProtocol();
 					}
 				},
-				stopProtocol: () => EphysStream?.StopProtocol(),
-				stopRecording: () => EphysStream?.StopStream());
+				stopProtocol:	() => EphysStream?.StopProtocol(),
+				stopRecording:	() => EphysStream?.StopStream());
 		}
 
 
@@ -588,10 +588,21 @@ namespace CircuitGENUS.Windows
 						{
 							UpdateTrialIndicator(genusProtocol.TrialCount, genusProtocol.TrialCount);
 							ProtocolWizard.NotifyProtocolEnded();
-							if (!ProtocolWizard.IsExecuting) 
-								App.MessageBoxAsync("Protocol run finished.", "Finish!");
 						};
 						protocol = genusProtocol;
+						break;
+
+					case "dummy":
+						var dummyProtocol = new DummyProtocol(
+							parent: EphysStream,
+							config: JsonSerializer.Deserialize<DummyProtocolConfig>(fileData));
+						dummyProtocol.UpdateProgress += UpdateTrialIndicator;
+						dummyProtocol.ProtocolEnded += () =>
+						{
+							UpdateTrialIndicator(1, 1);
+							ProtocolWizard.NotifyProtocolEnded();
+						};
+						protocol = dummyProtocol;
 						break;
 
 					default:

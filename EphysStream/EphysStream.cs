@@ -226,10 +226,13 @@ namespace TINS.Ephys
 				return BeginInvoke(new Func<IStimulationProtocol, IAsyncResult>(SetStimulationProtocolAsync), protocol);
 			else
 			{
-				StimulationProtocol			?.Stop();
-				StimulationProtocol			= protocol;
-				protocol.ProtocolStarted	+= RaiseStateChanged; 
-				protocol.ProtocolEnded		+= RaiseStateChanged; 
+				StimulationProtocol?.Stop();
+				StimulationProtocol = protocol;
+				if (protocol is not null)
+				{
+					protocol.ProtocolStarted	+= RaiseStateChanged; 
+					protocol.ProtocolEnded		+= RaiseStateChanged; 
+				}
 
 				return Task.CompletedTask;
 			}
@@ -337,7 +340,6 @@ namespace TINS.Ephys
 				}
 
 				InputStream.StartAcquisition();
-				//StateChanged?.Invoke();
 			}	
 		}
 
@@ -355,7 +357,6 @@ namespace TINS.Ephys
 				}
 
 				InputStream.StopAcquisition();
-				//StateChanged?.Invoke();
 			}
 		}
 
@@ -372,7 +373,7 @@ namespace TINS.Ephys
 			// get the raw buffer and start the output stream
 			OutputStream = new DataOutputStream(path, Settings.Input.SamplingRate, Settings.Input.ChannelLabels);
 			new Thread(() => OutputStream.Start()).Start();
-			//StateChanged?.Invoke();
+			RaiseStateChanged();
 		}
 
 		/// <summary>
@@ -386,7 +387,7 @@ namespace TINS.Ephys
 			{
 				OutputStream?.Dispose();
 				OutputStream = null;
-				//StateChanged?.Invoke();
+				RaiseStateChanged();
 			}
 		}
 
@@ -398,7 +399,6 @@ namespace TINS.Ephys
 			if (StimulationProtocol is not null && !StimulationProtocol.IsRunning)
 			{
 				StimulationProtocol.Start();
-				//StateChanged?.Invoke();
 			}
 		}
 
@@ -410,7 +410,6 @@ namespace TINS.Ephys
 			if (StimulationProtocol is not null && StimulationProtocol.IsRunning)
 			{
 				StimulationProtocol.Stop();
-				//StateChanged?.Invoke();
 			}
 		}
 

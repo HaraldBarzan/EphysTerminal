@@ -93,8 +93,8 @@ namespace TINS.Ephys
 					WizardEvent.Cancel			=> Stop(),
 					_							=> CurrentState
 				},
-				enterStateAction: () => _startProtocol?.Invoke(_protocolPath),
-				exitStateAction: () => _stopProtocol?.Invoke());
+				enterStateAction:	() => _startProtocol?.Invoke(_protocolPath),
+				exitStateAction:	() => _stopProtocol?.Invoke());
 
 			// POSTRUN
 			AddState(WizardState.Postrun,
@@ -104,8 +104,8 @@ namespace TINS.Ephys
 					WizardEvent.Cancel      => Stop(),
 					_						=> CurrentState
 				},
-				enterStateAction: () => _currentStateTimeout = _timeouts.Post,
-				exitStateAction: () => Stop());
+				enterStateAction:	() => _currentStateTimeout = _timeouts.Post,
+				exitStateAction:	() => Stop());
 		}
 
 		/// <summary>
@@ -129,7 +129,7 @@ namespace TINS.Ephys
 			_stopRecording?.Invoke();
 			if (_p.ShowOnProtocolFinish)
 				_p.Visibility = Visibility.Visible;
-			App.MessageBoxAsync("Protocol run completed.", "Complete!");
+			MessageBox.Show("Protocol run complete!", "Complete!");
 			return WizardState.Idle;
 		}
 

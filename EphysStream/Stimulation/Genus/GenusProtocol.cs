@@ -84,12 +84,15 @@ namespace TINS.Ephys.Stimulation.Genus
 		/// </summary>
 		public override void Stop()
 		{
-			_stateMachine.ProcessEvent(GenusEvent.Stop);
-			
-			TextOutput?.Dispose();
-			TextOutput = null;
+			if (IsRunning)
+			{
+				_stateMachine.ProcessEvent(GenusEvent.Stop);
 
-			RaiseProtocolEnded();
+				TextOutput?.Dispose();
+				TextOutput = null;
+
+				RaiseProtocolEnded();
+			}
 		}
 
 		/// <summary>
