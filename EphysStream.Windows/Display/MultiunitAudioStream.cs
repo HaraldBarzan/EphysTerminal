@@ -1,6 +1,7 @@
 ﻿using NAudio.CoreAudioApi;
 using NAudio.Wave;
 using System;
+using System.Diagnostics;
 using System.Threading;
 using TINS.Containers;
 using TINS.Ephys.Processing;
@@ -30,11 +31,10 @@ namespace TINS.Ephys.Display
 			
 			// initialize the audio stream
 			WaveFormat		= WaveFormat.CreateIeeeFloatWaveFormat(Numerics.Floor(_targetBuffer.SamplingRate), 1);
-			_audioOutput	= new WasapiOut(AudioClientShareMode.Shared, Numerics.Round(1000 * stream.Settings.Input.PollingPeriod));
+			_audioOutput	= new WasapiOut(AudioClientShareMode.Shared, true, Numerics.Round(1000 * stream.Settings.Input.PollingPeriod));
 			_audioOutput	.Init(this);
-			_streamBuffer	.Resize(Numerics.Floor(_targetBuffer.SamplingRate));
+			_streamBuffer	.Resize(Numerics.Floor(_targetBuffer.SamplingRate * 2));
 			_targetChannel	= stream.Settings.UI.DefaultAudioChannel;
-			_resetEvent		.Reset();
 		}
 
 		/// <summary>
@@ -60,7 +60,6 @@ namespace TINS.Ephys.Display
 			{
 				_streamBuffer	?.Dispose();
 				_audioOutput	?.Dispose();
-				_resetEvent		?.Dispose();
 			}
 
 			_targetBuffer	= null;
@@ -95,6 +94,7 @@ namespace TINS.Ephys.Display
 			}
 
 			_audioOutput.Play();
+			_writePos = EphysStream.Settings.SamplesPerBlock * 4;
 		}
 
 		/// <summary>
@@ -105,7 +105,6 @@ namespace TINS.Ephys.Display
 			if (_disposed) 
 				return;
 			_audioOutput.Stop();
-			_resetEvent	.Set();
 		}
 
 		/// <summary>
@@ -127,22 +126,16 @@ namespace TINS.Ephys.Display
 		/// <returns>The actual number of samples read (may differ from <paramref name="count"/>).</returns>
 		public virtual int Read(float[] buffer, int offset, int count)
 		{
-			if (buffer is null)
+			if (buffer is null || _disposed)
 				return 0;
 
-			// wait until we have enough samples
-			while (_writePos < count)
-			{
-				if (_disposed)
-					return 0;
-				_resetEvent.WaitOne();
-			}
-
+			// process request for delay
 			lock (_streamBuffer)
 			{
 				_streamBuffer.CopyTo(new Span<float>(buffer).Slice(offset, count));
-				_streamBuffer.RotateLeft(count);
-				_writePos -= count;
+				int rot = Math.Min(_writePos, count);
+				_streamBuffer.RotateLeft(rot);
+				_writePos -= rot;
 			}
 
 			return count;
@@ -154,6 +147,9 @@ namespace TINS.Ephys.Display
 		/// <param name="count">Number of samples to write.</param>
 		public int WriteFromSourceBuffer(int count)
 		{
+			if (count != 8000)
+				Debugger.Break();
+
 			if (_disposed || _targetBuffer is null)
 				return 0;
 
@@ -165,7 +161,6 @@ namespace TINS.Ephys.Display
 			{
 				_streamBuffer.CopyFrom(buffer, _writePos);
 				_writePos += count;
-				_resetEvent?.Set();
 			}
 
 			return count;
@@ -178,7 +173,6 @@ namespace TINS.Ephys.Display
 
 
 
-		protected AutoResetEvent		_resetEvent		= new(false);
 		protected Ring<float>			_streamBuffer	= new();
 		protected int					_writePos		= 0;
 		protected MultichannelBuffer	_targetBuffer	= null;
