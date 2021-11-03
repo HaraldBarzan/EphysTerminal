@@ -75,6 +75,18 @@ namespace TINS.Ephys.Settings
 		public string MUASpikeDetector { get; set; }
 
 		/// <summary>
+		/// The name of the source buffer.
+		/// </summary>
+		[INILine(Key = "AUDIO_SOURCE_BUFFER", Default = "MUA")]
+		public string AudioSourceBuffer { get; set; }
+
+		/// <summary>
+		/// The default audio channel to stream.
+		/// </summary>
+		[INILine(Key = "AUDIO_DEFAULT_CHANNEL", Default = "El_01")]
+		public string DefaultAudioChannel { get; set; }
+
+		/// <summary>
 		/// The number of cell rows for MUA and LFP displays.
 		/// </summary>
 		[INILine(Key = "DISPLAY_GRID_ROWS", Default = 8)]

@@ -51,7 +51,7 @@ void setup()
 
   // initialize settings
   Settings s;
-  s.Frequency = 60;
+  s.Frequency = 0;
   s.Trigger   = 0b000000;
   
   // process the settings

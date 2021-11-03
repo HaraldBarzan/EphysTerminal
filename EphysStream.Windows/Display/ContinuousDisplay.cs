@@ -29,6 +29,7 @@ namespace TINS.Ephys.Display
 
 			foreach (var g in _graphs)
 				g?.Dispose();
+			_graphs.Clear();
 			_graphs.Resize(channelMapping.Dimensions);
 		}
 

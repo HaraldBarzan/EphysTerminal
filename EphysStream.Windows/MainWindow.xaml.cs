@@ -30,7 +30,8 @@ namespace CircuitGENUS.Windows
 		{
 			InitializeComponent();
 			titleBar.HookWindow(this);
-			drawMua.ThresholdChanged += OnMUAThresholdChange;
+			drawMua.ThresholdChanged	+= OnMUAThresholdChange;
+			drawMua.LiveChannelChanged	+= OnMUALiveChannelChange; 
 
 			// set up the protocol wizard
 			ProtocolWizard = new ProtocolWizard(this);
@@ -55,16 +56,7 @@ namespace CircuitGENUS.Windows
 		}
 
 
-		/// <summary>
-		/// The ephys stream.
-		/// </summary>
-		public EphysStream EphysStream { get; protected set; }
-
-		/// <summary>
-		/// Protocol wizard.
-		/// </summary>
-		public ProtocolWizard ProtocolWizard { get; protected init; }
-
+		#region IUserInterface
 		/// <summary>
 		/// Update user interface activity regarding multiunit activity (spikes).
 		/// </summary>
@@ -127,29 +119,137 @@ namespace CircuitGENUS.Windows
 					: "Protocol run completed.";
 			}
 		}
+		#endregion
+
+
+		/// <summary>
+		/// The ephys stream.
+		/// </summary>
+		public EphysStream EphysStream { get; protected set; }
+
+		/// <summary>
+		/// Protocol wizard.
+		/// </summary>
+		public ProtocolWizard ProtocolWizard { get; protected init; }
+
+		/// <summary>
+		/// Audio stream.
+		/// </summary>
+		public MultiunitAudioStream AudioStream { get; protected set; }
 
 		/// <summary>
 		/// Check whether the input stream is on.
 		/// </summary>
 		protected bool IsStreaming 
-			=>	EphysStream is object && 
-				EphysStream.IsStreaming;
+			=> EphysStream is object
+			&& EphysStream.IsStreaming;
 
 		/// <summary>
 		/// Check whether the recording stream is on.
 		/// </summary>
 		protected bool IsRecording 
-			=>	EphysStream is object && 
-				EphysStream.IsRecording;
+			=> EphysStream is object
+			&& EphysStream.IsRecording;
 
 		/// <summary>
 		/// Check whether a protocol is running.
 		/// </summary>
 		protected bool IsProtocolRunning 
-			=>	EphysStream is object && 
-				EphysStream.StimulationProtocol is object && 
-				EphysStream.StimulationProtocol.IsRunning;
+			=>EphysStream is object
+			&& EphysStream.IsRunningProtocol;
 
+
+		#region Processing events
+		/// <summary>
+		/// Called on a successful settings loading operation to create a new recorder object.
+		/// </summary>
+		/// <param name="settings">Stream configuration.</param>
+		/// <param name="localDatasetPath">Path to local dataset (if necessary).</param>
+		private void OnLoadSuccessful(EphysSettings settings, string localDatasetPath)
+		{
+			// create the necessary input stream
+			DataInputStream inputStream = null;
+			switch (settings.Input.InputDevice)
+			{
+				case InputDevice.Dummy:
+					inputStream = new DummyDataStream(settings);
+					break;
+
+				case InputDevice.Local:
+					if (string.IsNullOrEmpty(localDatasetPath))
+						throw new Exception("The parameter \'localDatasetPath\' must be provided when the input device is set to \'Local\'.");
+					inputStream = new LocalDataStream(settings, localDatasetPath);
+					break;
+
+				case InputDevice.MEA64USB:
+					inputStream = new MCSDataStream(settings);
+					break;
+
+				default:
+					throw new Exception("Invalid input device specified.");
+			}
+
+			// create stream and start it on a new thread
+			EphysStream = new EphysStream(
+				settings:			settings,		// the settings item
+				ui:					this,			// the UI for the streamer
+				dataInputStream:	inputStream);   // the input stream (platform specific));
+			EphysStream.StateChanged	+= UpdateInterfaceControls;
+			EphysStream.InputReceived	+= (_, _) => ProtocolWizard.NotifyNewBlock();
+			new Thread(() => EphysStream.Start()).Start();
+
+			UpdateChannelDisplay();
+			UpdateInterfaceControls();
+
+			// create an audio channel
+			AudioStream			= new MultiunitAudioStream(EphysStream);
+			EphysStream.ProcessingComplete += EphysStream_ProcessingComplete;
+			drawMua.LiveChannel = settings.UI.DefaultAudioChannel;
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="sender"></param>
+		/// <param name="newSampleCount"></param>
+		private void EphysStream_ProcessingComplete(object sender, int newSampleCount)
+		{
+			if (sender == EphysStream && AudioStream is not null)
+				AudioStream.WriteFromSourceBuffer(newSampleCount);
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="sender"></param>
+		/// <param name="e"></param>
+		private void OnMUAThresholdChange(object sender, ThresholdChangedEventArgs e)
+		{
+			if (sender == drawMua && EphysStream is object)
+			{
+				EphysStream.ChangeDetectorThresholdAsync(e.Mapping.SourceIndex, e.NewValue);
+			}
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="sender"></param>
+		/// <param name="e"></param>
+		private void OnMUALiveChannelChange(object sender, LiveChannelChangedEventArgs e)
+		{
+			if (sender == drawMua && EphysStream is object && AudioStream is object)
+			{
+				if (e.NewChannelLabel is null)
+					AudioStream.Stop();
+				else
+					AudioStream.ChangeSourceChannel(e.NewChannelLabel);
+			}
+		}
+		#endregion
+
+
+		#region Window events (clicks, etc)
 		/// <summary>
 		/// Test recorder creation.
 		/// </summary>
@@ -167,6 +267,7 @@ namespace CircuitGENUS.Windows
 			if (EphysStream.IsStreaming)
 			{
 				// stop the ephys stream
+				AudioStream.Stop();
 				EphysStream.StopProtocol();
 				EphysStream.StopRecording();
 				EphysStream.StopStream();
@@ -177,11 +278,10 @@ namespace CircuitGENUS.Windows
 				drawMua.Clear();
 
 				// start the ephys stream
+				AudioStream.Start();
 				EphysStream.StartStream();
 			}
 		}
-
-		
 
 		/// <summary>
 		/// Test drawing.
@@ -307,13 +407,8 @@ namespace CircuitGENUS.Windows
 								MessageBox.Show("A local dataset must be selected for input device \'Local\'.", "Error!", MessageBoxButton.OK, MessageBoxImage.Error);
 						}
 
-						// stop acquisition and delete the old recorder
-						if (EphysStream is not null)
-						{
-							EphysStream.StateChanged -= UpdateInterfaceControls;
-							EphysStream.DisposeAsync();
-							EphysStream = null;
-						}
+						// close the ephys stream
+						CloseEphysStream();
 						
 						// return to the old thread
 						Dispatcher.BeginInvoke(new Action<EphysSettings, string>(OnLoadSuccessful), settings, localDatasetPath);
@@ -347,133 +442,6 @@ namespace CircuitGENUS.Windows
 		{
 			EphysStream		?.Dispose();
 			ProtocolWizard	?.Dispose();
-		}
-
-		/// <summary>
-		/// Called on a successful settings loading operation to create a new recorder object.
-		/// </summary>
-		/// <param name="settings">Stream configuration.</param>
-		/// <param name="localDatasetPath">Path to local dataset (if necessary).</param>
-		private void OnLoadSuccessful(EphysSettings settings, string localDatasetPath)
-		{
-			// create the necessary input stream
-			DataInputStream inputStream = null;
-			switch (settings.Input.InputDevice)
-			{
-				case InputDevice.Dummy:
-					inputStream = new DummyDataStream(settings);
-					break;
-
-				case InputDevice.Local:
-					if (string.IsNullOrEmpty(localDatasetPath))
-						throw new Exception("The parameter \'localDatasetPath\' must be provided when the input device is set to \'Local\'.");
-					inputStream = new LocalDataStream(settings, localDatasetPath);
-					break;
-
-				case InputDevice.MEA64USB:
-					inputStream = new MCSDataStream(settings);
-					break;
-
-				default:
-					throw new Exception("Invalid input device specified.");
-			}
-
-			// create stream and start it on a new thread
-			EphysStream = new EphysStream(
-				settings:			settings,		// the settings item
-				ui:					this,			// the UI for the streamer
-				dataInputStream:	inputStream);   // the input stream (platform specific));
-			EphysStream.StateChanged	+= UpdateInterfaceControls;
-			EphysStream.InputReceived	+= (_, _) => ProtocolWizard.NotifyNewBlock(); 
-			new Thread(() => EphysStream.Start()).Start();
-
-			// create channel mapping matrix
-			var mapping		= new Matrix<DataDisplay.Mapping>(settings.UI.DisplayGridRows, settings.UI.DisplayGridColumns);
-			var channels	= settings.UI.DisplayChannels;
-			for (int i = 0; i < channels.Size; ++i)
-			{
-				int sourceIndex;
-				if (!string.IsNullOrEmpty(channels[i])										&&	// valid label
-					(sourceIndex = settings.Input.ChannelLabels.IndexOf(channels[i])) >= 0)		// label found in inputs
-				{
-					mapping[i] = new() { Label = channels[i], SourceIndex = sourceIndex };
-				}
-			}
-
-			// setup MUA axes
-			drawMua.Setup(
-				channelMapping: mapping,
-				xRange: (0, settings.Input.PollingPeriod * settings.UI.MUARefreshRate * 1000 /*conv to ms*/),
-				yRange: (settings.UI.MUAYRangeMin, settings.UI.MUAYRangeMax));
-
-			// set thresholds and waveform size
-			foreach (var set in settings.Analysis.Pipes)
-			{
-				if (set.Name == settings.UI.MUASpikeDetector && 
-					set is SpikeSettings spikeSet)
-				{
-					drawMua.WaveformXRange = (-spikeSet.PeakOffset, MathF.Round(spikeSet.SpikeCutWidth - spikeSet.PeakOffset, 2));
-					using var thr = new Matrix<float>(mapping.Dimensions);
-						thr.Fill(spikeSet.Threshold);
-					drawMua.SetThresholds(thr);
-				}
-			}
-
-			// setup LFP axes
-			drawLfp.Setup(
-				channelMapping: mapping,
-				xRange: (0, settings.Input.PollingPeriod * settings.UI.LFPRefreshRate * 1000 /*conv to ms*/),
-				yRange: (settings.UI.LFPYRangeMin, settings.UI.LFPYRangeMax));
-
-			// update the controls
-			UpdateInterfaceControls();
-		}
-
-		/// <summary>
-		/// Update the button icons and status text.
-		/// </summary>
-		private void UpdateInterfaceControls()
-		{
-			if (!Dispatcher.CheckAccess())
-				Dispatcher.BeginInvoke(new Action(UpdateInterfaceControls));
-			else
-			{
-				bool stream = IsStreaming;
-				bool record = IsRecording;
-				bool proto	= IsProtocolRunning;
-
-				// update buttons
-				btnStreamToggle.Content		= App.GetResource<Image>(stream		? "StopIcon" : "PlayIcon");
-				btnRecordToggle.Content		= App.GetResource<Image>(record		? "RecordOnIcon" : "RecordOffIcon");
-				btnToggleProtocol.Content	= App.GetResource<Image>(proto		? "ProtStopIcon" : "ProtStartIcon"); 
-
-				// update status label
-				if (EphysStream is null)
-					lblStatus.Content = "No configuration loaded";
-				else if (!stream && !record && !proto)
-					lblStatus.Content = "Idle";
-				else
-				{
-					var str = string.Empty;
-					if (stream)	str += "Streaming";
-					if (record)	str += stream ? ", recording" : "Recording";
-					if (proto)	str += stream || record ? ", running protocol" : "Running protocol";
-					lblStatus.Content = str;
-				}
-			}
-		}
-
-		/// <summary>
-		/// 
-		/// </summary>
-		/// <param name="sender"></param>
-		/// <param name="e"></param>
-		private void OnMUAThresholdChange(object sender, ThresholdChangedEventArgs e)
-		{
-			if (sender == drawMua && EphysStream is object)
-			{
-				EphysStream.ChangeDetectorThresholdAsync(e.Mapping.SourceIndex, e.NewValue);
-			}
 		}
 		
 		/// <summary>
@@ -561,6 +529,20 @@ namespace CircuitGENUS.Windows
 		/// <summary>
 		/// 
 		/// </summary>
+		/// <param name="sender"></param>
+		/// <param name="e"></param>
+		private void btnProtoWizard_Click(object sender, RoutedEventArgs e)
+		{
+			ProtocolWizard.Show();
+		}
+		#endregion
+
+
+		#region Protected members
+
+		/// <summary>
+		/// 
+		/// </summary>
 		/// <param name="path"></param>
 		private bool TryLoadProtocol(string path, out IStimulationProtocol protocol, out string excMessage)
 		{
@@ -619,13 +601,96 @@ namespace CircuitGENUS.Windows
 		}
 
 		/// <summary>
-		/// 
+		/// Close the ephys stream.
 		/// </summary>
-		/// <param name="sender"></param>
-		/// <param name="e"></param>
-		private void btnProtoWizard_Click(object sender, RoutedEventArgs e)
+		private void CloseEphysStream()
 		{
-			ProtocolWizard.Show();
+			AudioStream?.Dispose();
+			EphysStream?.DisposeAsync();
+			AudioStream = null;
+			EphysStream = null;
 		}
+
+		/// <summary>
+		/// Update the MUA and LFP channel display matrices.
+		/// </summary>
+		private void UpdateChannelDisplay()
+		{
+			var settings = EphysStream.Settings;
+
+			// create channel mapping matrix
+			var mapping		= new Matrix<DataDisplay.Mapping>(settings.UI.DisplayGridRows, settings.UI.DisplayGridColumns);
+			var channels	= settings.UI.DisplayChannels;
+			for (int i = 0; i < channels.Size; ++i)
+			{
+				int sourceIndex;
+				if (!string.IsNullOrEmpty(channels[i])										&&	// valid label
+					(sourceIndex = settings.Input.ChannelLabels.IndexOf(channels[i])) >= 0)		// label found in inputs
+				{
+					mapping[i] = new() { Label = channels[i], SourceIndex = sourceIndex };
+				}
+			}
+
+			// setup MUA axes
+			drawMua.Setup(
+				channelMapping: mapping,
+				xRange: (0, settings.Input.PollingPeriod * settings.UI.MUARefreshRate * 1000 /*conv to ms*/),
+				yRange: (settings.UI.MUAYRangeMin, settings.UI.MUAYRangeMax));
+
+			// set thresholds and waveform size
+			foreach (var set in settings.Analysis.Pipes)
+			{
+				if (set.Name == settings.UI.MUASpikeDetector && 
+					set is SpikeSettings spikeSet)
+				{
+					drawMua.WaveformXRange = (-spikeSet.PeakOffset, MathF.Round(spikeSet.SpikeCutWidth - spikeSet.PeakOffset, 2));
+					using var thr = new Matrix<float>(mapping.Dimensions);
+						thr.Fill(spikeSet.Threshold);
+					drawMua.SetThresholds(thr);
+				}
+			}
+
+			// setup LFP axes
+			drawLfp.Setup(
+				channelMapping: mapping,
+				xRange: (0, settings.Input.PollingPeriod * settings.UI.LFPRefreshRate * 1000 /*conv to ms*/),
+				yRange: (settings.UI.LFPYRangeMin, settings.UI.LFPYRangeMax));
+		}
+
+		/// <summary>
+		/// Update the button icons and status text.
+		/// </summary>
+		private void UpdateInterfaceControls()
+		{
+			if (!Dispatcher.CheckAccess())
+				Dispatcher.BeginInvoke(new Action(UpdateInterfaceControls));
+			else
+			{
+				bool stream = IsStreaming;
+				bool record = IsRecording;
+				bool proto	= IsProtocolRunning;
+
+				// update buttons
+				btnStreamToggle.Content		= App.GetResource<Image>(stream		? "StopIcon" : "PlayIcon");
+				btnRecordToggle.Content		= App.GetResource<Image>(record		? "RecordOnIcon" : "RecordOffIcon");
+				btnToggleProtocol.Content	= App.GetResource<Image>(proto		? "ProtStopIcon" : "ProtStartIcon"); 
+
+				// update status label
+				if (EphysStream is null)
+					lblStatus.Content = "No configuration loaded";
+				else if (!stream && !record && !proto)
+					lblStatus.Content = "Idle";
+				else
+				{
+					var str = string.Empty;
+					if (stream)	str += "Streaming";
+					if (record)	str += stream ? ", recording" : "Recording";
+					if (proto)	str += stream || record ? ", running protocol" : "Running protocol";
+					lblStatus.Content = str;
+				}
+			}
+		}
+
+		#endregion
 	}
 }

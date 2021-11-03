@@ -33,6 +33,17 @@ namespace TINS.Ephys.Display
 	}
 
 	/// <summary>
+	/// Event args for the ThresholdChanged event.
+	/// </summary>
+	public struct LiveChannelChangedEventArgs
+	{
+		/// <summary>
+		/// The new live channel label.
+		/// </summary>
+		public string NewChannelLabel { get; init; }
+	}
+
+	/// <summary>
 	/// A multiunit display with switchable MUA and waveforms views.
 	/// </summary>
 	public class MultiunitDisplay : DataDisplay
@@ -43,23 +54,23 @@ namespace TINS.Ephys.Display
 		public struct Spike 
 		{
 			/// <summary>
-			/// 
+			/// Spike position in buffer.
 			/// </summary>
 			public float Position { get; init; }
 			
 			/// <summary>
-			/// 
+			/// Spike minimum value.
 			/// </summary>
 			public float Min { get; init; }
 			
 			/// <summary>
-			/// 
+			/// Spike maximum value.
 			/// </summary>
 			public float Max { get; init; }
 		}
 
 		/// <summary>
-		/// 
+		/// A draggable threshold slider.
 		/// </summary>
 		public class ThresholdSlider
 		{
@@ -79,9 +90,9 @@ namespace TINS.Ephys.Display
 			public float Value { get; set; }
 
 			/// <summary>
-			/// 
+			/// Get a representation of this object.
 			/// </summary>
-			/// <returns></returns>
+			/// <returns>A string representation of this object.</returns>
 			public override string ToString() => $"{Viewport}, {InteractionArea}, {Value}";
 		}
 
@@ -89,6 +100,11 @@ namespace TINS.Ephys.Display
 		/// Raised when a threshold value is changed.
 		/// </summary>
 		public event EventHandler<ThresholdChangedEventArgs> ThresholdChanged;
+
+		/// <summary>
+		/// 
+		/// </summary>
+		public event EventHandler<LiveChannelChangedEventArgs> LiveChannelChanged;
 
 		/// <summary>
 		/// Default constructor.
@@ -281,6 +297,29 @@ namespace TINS.Ephys.Display
 					UpdateDisplay();
 			}
 		}
+
+		/// <summary>
+		/// Get or set the live channel.
+		/// </summary>
+		public string LiveChannel
+		{
+			get => _liveChannel.HasValue
+				? _channelMapping[_liveChannel.Value.Row, _liveChannel.Value.Col].Label
+				: null;
+			set
+			{
+				_liveChannel = null;
+				for (int i = 0; i < _channelMapping.Rows; ++i)
+				for (int j = 0; j < _channelMapping.Cols; ++j)
+				{
+					if (_channelMapping[i, j].Label == value)
+						_liveChannel = (i, j);
+				}
+
+				LiveChannelChanged?.Invoke(this, new() { NewChannelLabel = value });
+			}
+		}
+			
 
 		/// <summary>
 		/// 
@@ -685,11 +724,16 @@ namespace TINS.Ephys.Display
 		/// <param name="e"></param>
 		private void MitSetLiveChannel_Click(object sender, RoutedEventArgs e)
 		{
-			if (ReferenceEquals(mitSetLiveChannel, sender) &&  _contextMenuLocation.HasValue &&
-				TryGetChannelAt(_contextMenuLocation.Value, out _, out var row, out var col))
+			if (ReferenceEquals(mitSetLiveChannel, sender)	&&  
+				_contextMenuLocation.HasValue				&&
+				TryGetChannelAt(_contextMenuLocation.Value, out var mapping, out var row, out var col))
 			{
+				// set the live channel
 				_liveChannel = (row, col);
 				over.InvalidateVisual();
+
+				// raise event
+				LiveChannelChanged?.Invoke(this, new() { NewChannelLabel = mapping.Label });
 			}
 		}
 

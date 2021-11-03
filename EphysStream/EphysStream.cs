@@ -68,7 +68,7 @@ namespace TINS.Ephys
 		/// <summary>
 		/// Triggered after the processing step is complete.
 		/// </summary>
-		public event EventHandler ProcessingComplete;
+		public event EventHandler<int> ProcessingComplete;
 
 		/// <summary>
 		/// Triggered after the analysis step is complete.
@@ -283,6 +283,8 @@ namespace TINS.Ephys
 		/// </summary>
 		public bool IsRecording => OutputStream is object;
 
+		public bool IsRunningProtocol => StimulationProtocol is object && StimulationProtocol.IsRunning;
+
 		/// <summary>
 		/// Process an input data block.
 		/// </summary>
@@ -309,7 +311,7 @@ namespace TINS.Ephys
 
 			// run processing step
 			ProcessingPipeline.RunPipeline(e);
-			ProcessingComplete?.Invoke(this, null);
+			ProcessingComplete?.Invoke(this, e.AnalogInput.Cols);
 
 			// run analysis step
 			AnalysisPipeline.RunPipeline();
@@ -444,6 +446,16 @@ namespace TINS.Ephys
 		/// </summary>
 		protected void RaiseStateChanged() => StateChanged?.Invoke();
 
+		///// <summary>
+		///// Raise StateChanged event.
+		///// </summary>
+		//protected void RaiseStateChanged() => StateChanged?.Invoke(this, new() 
+		//{ 
+		//	IsStreaming = this.IsStreaming,
+		//	IsRecording = this.IsRecording,
+		//	IsRunningProtocol = this.Is
+		//});
+
 		/// <summary>
 		/// Debug function for the assembly.
 		/// </summary>
@@ -460,6 +472,26 @@ namespace TINS.Ephys
 		protected ContinuousDisplayAccumulator	_muaAcc			= null;
 		protected SpikeDisplayAccumulator		_spikeAcc		= null;
 		protected EventFinder					_eventFinder	= new();
-
 	}
+
+	///// <summary>
+	///// EphysStream StateChanged event args.
+	///// </summary>
+	//public struct EphysStreamState
+	//{
+	//	/// <summary>
+	//	/// The stream is streaming data.
+	//	/// </summary>
+	//	public bool IsStreaming { get; set; }
+	//	
+	//	/// <summary>
+	//	/// The stream is recording data.
+	//	/// </summary>
+	//	public bool IsRecording { get; set; }
+	//	
+	//	/// <summary>
+	//	/// The stream is running a protocol.
+	//	/// </summary>
+	//	public bool IsRunningProtocol { get; set; }
+	//}
 }
