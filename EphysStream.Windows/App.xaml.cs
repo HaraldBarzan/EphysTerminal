@@ -6,9 +6,14 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using TINS.Ephys.ModuleImplementations;
+using TINS.Ephys.Stimulation;
+using TINS.Ephys.Stimulation.Genus;
 
 namespace CircuitGENUS.Windows
 {
+	using Instruction = TINS.Ephys.Stimulation.GenusMk2Controller.Instruction;
+
 	/// <summary>
 	/// Interaction logic for App.xaml
 	/// </summary>
@@ -21,7 +26,7 @@ namespace CircuitGENUS.Windows
 		/// <param name="resourceName">The name of the resource.</param>
 		/// <returns>A resource object, if found, null otherwise.</returns>
 		public static T GetResource<T>(string resourceName) where T : class
-			=> Application.Current.TryFindResource(resourceName) as T;
+			=> Current.TryFindResource(resourceName) as T;
 
 		/// <summary>
 		/// Show a non-blocking message box.
@@ -47,6 +52,18 @@ namespace CircuitGENUS.Windows
 
 			// return the await handle
 			return result;
+		}
+
+		/// <summary>
+		/// Startup routine.
+		/// </summary>
+		/// <param name="e"></param>
+		protected override void OnStartup(StartupEventArgs e)
+		{
+			ProtocolFactory.RegisterProtocol(typeof(GenusMk1),			"genus1");
+			ProtocolFactory.RegisterProtocol(typeof(GenusMk2Static),	"genus2static");
+			ProtocolFactory.RegisterProtocol(typeof(GenusMk2Cached),	"genus2cached");
+			//ProtocolFactory.LoadProtocol(null, @"C:\_code\EphysStream\Settings\GENUS_StFl_30_80.json");
 		}
 	}
 }

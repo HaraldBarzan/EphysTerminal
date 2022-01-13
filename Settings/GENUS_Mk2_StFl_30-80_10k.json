@@ -1,0 +1,67 @@
+{
+  "protocolType": "genus2",
+  "supportedSamplingPeriod": 0.25,
+  "prestimTrigger": 1,
+  "stimTrigger": 2,
+  "poststimTrigger": 4,
+  "trialEndTrigger": 8,
+  "randomize": true,
+  "intertrialTimeout": 2,
+  "trials": [
+    {
+      "count": 10,
+      "preTimeout": 4,
+      "stimTimeout": 20,
+      "postTimeout": 4,
+      "flickerFrequencyLeft": 30,
+      "flickerFrequencyRight": 30,
+      "audioFrequency": 10000
+    },
+    {
+      "count": 10,
+      "preTimeout": 4,
+      "stimTimeout": 20,
+      "postTimeout": 4,
+      "flickerFrequencyLeft": 40,
+      "flickerFrequencyRight": 40,
+      "audioFrequency": 10000
+    },
+    {
+      "count": 10,
+      "preTimeout": 4,
+      "stimTimeout": 20,
+      "postTimeout": 4,
+      "flickerFrequencyLeft": 50,
+      "flickerFrequencyRight": 50,
+      "audioFrequency": 10000
+    },
+    {
+      "count": 10,
+      "preTimeout": 4,
+      "stimTimeout": 20,
+      "postTimeout": 4,
+      "flickerFrequencyLeft": 60,
+      "flickerFrequencyRight": 60,
+      "audioFrequency": 10000
+    },
+    {
+      "count": 10,
+      "preTimeout": 4,
+      "stimTimeout": 20,
+      "postTimeout": 4,
+      "stimFrequency": 70,
+      "flickerFrequencyLeft": 70,
+      "flickerFrequencyRight": 70,
+      "audioFrequency": 10000
+    },
+    {
+      "count": 10,
+      "preTimeout": 4,
+      "stimTimeout": 20,
+      "postTimeout": 4,
+      "flickerFrequencyLeft": 80,
+      "flickerFrequencyRight": 80,
+      "audioFrequency": 10000
+    }
+  ]
+}

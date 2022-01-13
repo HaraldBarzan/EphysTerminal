@@ -15,6 +15,8 @@ namespace TINS.Ephys.Display
 		: ISampleProvider
 		, IDisposable
 	{
+		const float DataScale = 0.1f;
+
 		/// <summary>
 		/// Create a new audio stream.
 		/// </summary>
@@ -132,10 +134,16 @@ namespace TINS.Ephys.Display
 			// process request for delay
 			lock (_streamBuffer)
 			{
-				_streamBuffer.CopyTo(new Span<float>(buffer).Slice(offset, count));
+				var writeBuffer = new Span<float>(buffer).Slice(offset, count);
+				_streamBuffer.CopyTo(writeBuffer);
+
 				int rot = Math.Min(_writePos, count);
 				_streamBuffer.RotateLeft(rot);
 				_writePos -= rot;
+
+				// rescale samples to an acceptable domain
+				for (int i = 0; i < writeBuffer.Length; ++i)
+					writeBuffer[i] *= DataScale;
 			}
 
 			return count;

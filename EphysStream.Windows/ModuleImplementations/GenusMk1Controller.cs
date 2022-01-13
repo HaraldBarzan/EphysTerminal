@@ -1,13 +1,30 @@
 ﻿using System;
 using System.IO.Ports;
+using TINS.Ephys.Stimulation.Genus;
 
 namespace TINS.Ephys.Stimulation
 {
 	/// <summary>
 	/// Class used to control an Arduino microcontroller as a stimulation device.
 	/// </summary>
-	public class ArduinoStimulusController : StimulusController
+	public class GenusMk1Controller 
+		: StimulusController
 	{
+		/// <summary>
+		/// The operating frequency range of the stimulator.
+		/// </summary>
+		public static (float Lower, float Upper) FrequencyRange { get; } = (0, 100);
+
+		/// <summary>
+		/// The range of the brightness, in percentage.
+		/// </summary>
+		public static (float Lower, float Upper) BrightnessRange { get; } = (0, 100);
+
+		/// <summary>
+		/// The range of the triggers.
+		/// </summary>
+		public static (byte Lower, byte Upper) TriggerRange { get; } = (0, 63);
+
 		/// <summary>
 		/// The clock frequency of the stimulator.
 		/// </summary>
@@ -26,7 +43,7 @@ namespace TINS.Ephys.Stimulation
 		/// Connect to a USB stimulation device.
 		/// </summary>
 		/// <param name="portName"></param>
-		public override void ConnectToDevice(string portName = null)
+		public override void Connect(string portName = null)
 		{
 			CloseCurrentPort();
 
@@ -49,7 +66,7 @@ namespace TINS.Ephys.Stimulation
 
 			try
 			{
-				ResetParameters();
+				Reset();
 				IsConnected = true;
 			}
 			catch
@@ -70,7 +87,7 @@ namespace TINS.Ephys.Stimulation
 		/// <param name="brightness">The brightness of the screen, in percentage. If null or NaN, the brightness will not change.</param>
 		/// <param name="frequency">The new stimulation frequency, in Hz. If null or NaN, the frequency will not change.</param>
 		/// <param name="trigger">A trigger to emit when the stimulation frequency actually changes. If null or <c>255</c>, the emitted trigger will not change.</param>
-		public override void ChangeParameters(float? brightness, float? frequency, byte? trigger)
+		public virtual void ChangeParameters(float? brightness, float? frequency, byte? trigger)
 		{
 			if (!IsConnected || _port is null)
 				return;
@@ -92,6 +109,23 @@ namespace TINS.Ephys.Stimulation
 
 			// send to port
 			_port.Write(_portBuffer, 0, _portBuffer.Length);
+		}
+
+		/// <summary>
+		/// Reset the stimulation parameters to their default values.
+		/// </summary>
+		public override void Reset() => ChangeParameters(0, 0, 0);
+
+		/// <summary>
+		/// Emit a trigger.
+		/// </summary>
+		/// <param name="triggerValue">The trigger value.</param>
+		public override void EmitTrigger(byte triggerValue)
+		{
+			if (triggerValue is 255)
+				ChangeParameters(null, null, 255);
+			else
+				ChangeParameters(null, null, Numerics.Clamp(triggerValue, TriggerRange));
 		}
 
 		/// <summary>

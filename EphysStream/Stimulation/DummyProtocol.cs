@@ -17,9 +17,10 @@ namespace TINS.Ephys.Stimulation
 	/// </summary>
 	public class DummyStimulusController : StimulusController
 	{
-		public override void ChangeParameters(float? brightness, float? frequency, byte? trigger) { }
-		public override void ConnectToDevice(string port = null) { }
+		public override void Connect(string port = null) { }
 		public override void Disconnect() { }
+		public override void Reset() { }
+		public override void EmitTrigger(byte triggerValue) { }
 	}
 
 
@@ -35,7 +36,8 @@ namespace TINS.Ephys.Stimulation
 		/// </summary>
 		/// <param name="parent">Parent ephys stream.</param>
 		/// <param name="config">Configuration.</param>
-		public DummyProtocol(EphysStream parent, DummyProtocolConfig config)
+		/// <param name="stim">Stimulus controller (unused).</param>
+		public DummyProtocol(EphysStream parent, DummyProtocolConfig config, StimulusController stim = null)
 			: base(parent, config)
 		{
 		}

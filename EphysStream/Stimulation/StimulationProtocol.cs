@@ -40,6 +40,12 @@ namespace TINS.Ephys.Stimulation
 		public void Stop();
 
 		/// <summary>
+		/// Set the stimulus controller.
+		/// </summary>
+		/// <param name="stimulusController">The stimulus controller.</param>
+		public void SetStimulusController(StimulusController stimulusController);
+
+		/// <summary>
 		/// Assert whether the protocol is running.
 		/// </summary>
 		public bool IsRunning { get; }
@@ -58,7 +64,6 @@ namespace TINS.Ephys.Stimulation
 		[JsonPropertyName("protocolType")]
 		public string ProtocolType { get; set; }
 	}
-
 
 
 
@@ -134,6 +139,30 @@ namespace TINS.Ephys.Stimulation
 		public abstract void Stop();
 
 		/// <summary>
+		/// Set the stimulus controller.
+		/// </summary>
+		/// <param name="controller">The stimulus controller.</param>
+		public virtual void SetStimulusController(StimulusController controller)
+		{
+			if (controller is null)
+				throw new NullReferenceException("Controller is null.");
+
+			if (controller is not TStim c)
+				throw new Exception($"Invalid controller type ({typeof(TStim).Name} expected).");
+
+			SetStimulusController(c);
+		}
+
+		/// <summary>
+		/// Set the stimulus controller.
+		/// </summary>
+		/// <param name="controller">The stimulus controller.</param>
+		public virtual void SetStimulusController(TStim controller)
+		{
+			StimulusController = controller;
+		}
+
+		/// <summary>
 		/// Assert whether the protocol is running.
 		/// </summary>
 		public abstract bool IsRunning { get; }
@@ -141,7 +170,7 @@ namespace TINS.Ephys.Stimulation
 		/// <summary>
 		/// Stimulus controller.
 		/// </summary>
-		public TStim StimulusController { get; init; }
+		public TStim StimulusController { get; protected set; }
 
 		/// <summary>
 		/// Configuration.

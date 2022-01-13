@@ -1,5 +1,5 @@
 {
-  "protocolType": "genus",
+  "protocolType": "genus1",
   "supportedSamplingPeriod": 0.25,
   "prestimTrigger": 1,
   "stimTrigger": 2,

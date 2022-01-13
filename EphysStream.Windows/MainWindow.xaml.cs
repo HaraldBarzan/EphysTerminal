@@ -544,60 +544,73 @@ namespace CircuitGENUS.Windows
 		/// 
 		/// </summary>
 		/// <param name="path"></param>
-		private bool TryLoadProtocol(string path, out IStimulationProtocol protocol, out string excMessage)
+		private bool TryLoadProtocol(string path, out IStimulationProtocol protocol, out Exception loadException)
 		{
-			protocol	= null;
-			excMessage	= null;
+			protocol		= null;
+			loadException	= null;
 
 			try
 			{
-				var fileData = File.ReadAllText(path);
-
-				// preload config
-				var config = JsonSerializer.Deserialize<ProtocolConfig>(fileData);
-
-				// check protocol name
-				switch (config.ProtocolType)
-				{
-					case "genus":
-						// start protocol stream
-						var genusProtocol = new GenusProtocol(
-							parent: EphysStream,
-							config: JsonSerializer.Deserialize<GenusConfig>(fileData),
-							stimulusController: new ArduinoStimulusController());
-						genusProtocol.UpdateProgress	+= UpdateTrialIndicator;
-						genusProtocol.ProtocolEnded		+= () => 
-						{
-							UpdateTrialIndicator(genusProtocol.TrialCount, genusProtocol.TrialCount);
-							ProtocolWizard.NotifyProtocolEnded();
-						};
-						protocol = genusProtocol;
-						break;
-
-					case "dummy":
-						var dummyProtocol = new DummyProtocol(
-							parent: EphysStream,
-							config: JsonSerializer.Deserialize<DummyProtocolConfig>(fileData));
-						dummyProtocol.UpdateProgress += UpdateTrialIndicator;
-						dummyProtocol.ProtocolEnded += () =>
-						{
-							UpdateTrialIndicator(1, 1);
-							ProtocolWizard.NotifyProtocolEnded();
-						};
-						protocol = dummyProtocol;
-						break;
-
-					default:
-						throw new Exception($"Protocol name \'{config.ProtocolType}\' not recognized.");
-				}
-
+				protocol = ProtocolFactory.LoadProtocol(EphysStream, path);
+				protocol.UpdateProgress += UpdateTrialIndicator;
+				protocol.ProtocolEnded	+= () => ProtocolWizard.NotifyProtocolEnded();
 				return true;
 			}
 			catch (Exception e)
 			{
-				excMessage = e.Message;
+				loadException = e;
 				return false;
 			}
+
+			//try
+			//{
+			//	var fileData = File.ReadAllText(path);
+			//
+			//	// preload config
+			//	var config = JsonSerializer.Deserialize<ProtocolConfig>(fileData);
+			//
+			//	// check protocol name
+			//	switch (config.ProtocolType)
+			//	{
+			//		case "genus":
+			//			// start protocol stream
+			//			var genusProtocol = new Genus1Protocol(
+			//				parent: EphysStream,
+			//				config: JsonSerializer.Deserialize<Genus1Config>(fileData),
+			//				stimulusController: new ArduinoStimulusController());
+			//			genusProtocol.UpdateProgress	+= UpdateTrialIndicator;
+			//			genusProtocol.ProtocolEnded		+= () => 
+			//			{
+			//				UpdateTrialIndicator(genusProtocol.TrialCount, genusProtocol.TrialCount);
+			//				ProtocolWizard.NotifyProtocolEnded();
+			//			};
+			//			protocol = genusProtocol;
+			//			break;
+			//
+			//		case "dummy":
+			//			var dummyProtocol = new DummyProtocol(
+			//				parent: EphysStream,
+			//				config: JsonSerializer.Deserialize<DummyProtocolConfig>(fileData));
+			//			dummyProtocol.UpdateProgress += UpdateTrialIndicator;
+			//			dummyProtocol.ProtocolEnded += () =>
+			//			{
+			//				UpdateTrialIndicator(1, 1);
+			//				ProtocolWizard.NotifyProtocolEnded();
+			//			};
+			//			protocol = dummyProtocol;
+			//			break;
+			//
+			//		default:
+			//			throw new Exception($"Protocol name \'{config.ProtocolType}\' not recognized.");
+			//	}
+			//
+			//	return true;
+			//}
+			//catch (Exception e)
+			//{
+			//	excMessage = e.Message;
+			//	return false;
+			//}
 		}
 
 		/// <summary>
