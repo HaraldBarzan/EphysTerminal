@@ -5,7 +5,7 @@
 
 struct Instruction
 {
-  enum Commands : int
+  enum Commands : long
   {
         NoOp,
         FreqFlickerL,               // float left frequency bounded (0, 100), 0 means turn off
@@ -18,7 +18,8 @@ struct Instruction
         ChangeFlickerTriggersL,     // change left LED rise and fall triggers (s1 = rise, s2 = fall)
         Sleep,                      // wait a number of milliseconds (int)
         SleepMicroseconds,          // wait a number of microseconds (int)
-        Reset                       // reset all parameters and stop flickering
+        Reset,                      // reset all parameters and stop flickering
+        Feedback                    // send feedback to the computer
   };
 
   Commands  Command;
@@ -32,7 +33,11 @@ struct Instruction
 };
 
 
-
+enum Feedback : byte
+{
+  OK,
+  Error
+};
 
 
 // objects
@@ -42,16 +47,17 @@ IntervalTimer           TimerFlickerAudio;
 AudioSynthWaveformSine  AudioSine;
 AudioOutputAnalog       DAC;
 AudioConnection         PatchCord(AudioSine, DAC);
-const byte              LedPinL     = 17;
-const byte              LedPinR     = 16;
-byte                    LedStateL   = LOW;
-byte                    LedStateR   = LOW;
-byte                    AudioState  = LOW;
-float                   AudioAmpOff = 0;
-float                   AudioAmpOn  = 0.2;
-bool                    UseFlickerTriggers = false;
-byte                    LedRiseTrigger = 0;
-byte                    LedFallTrigger = 0;
+const byte              LedPinL             = 17;
+const byte              LedPinR             = 16;
+byte                    LedStateL           = LOW;
+byte                    LedStateR           = LOW;
+byte                    AudioState          = LOW;
+float                   AudioAmpOff         = 0;
+float                   AudioAmpOn          = 0.2;
+bool                    UseFlickerTriggers  = false;
+byte                    LedRiseTrigger      = 0;
+byte                    LedFallTrigger      = 0  ;
+float                   DefaultAudioTone    = 10000;
 
 // helpers
 int GetMicrosecondHalfPeriod(float f)
@@ -74,6 +80,12 @@ void ToggleAudio()
 {
   AudioState = !AudioState;
   AudioSine.amplitude(AudioState ? AudioAmpOn : AudioAmpOff);
+}
+
+// send feedback to the computer
+void SendFeedback(Feedback fb)
+{
+  Serial.write(fb);
 }
 
 // helper for conversions
@@ -151,7 +163,7 @@ void Instruction::ProcessInstruction()
 
       // start again if frequency is non-zero
       if (GetPFloat() > 0)
-        TimerFlickerR.begin(ToggleAudio, GetMicrosecondHalfPeriod(GetPFloat()));
+        TimerFlickerAudio.begin(ToggleAudio, GetMicrosecondHalfPeriod(GetPFloat()));
       break;
 
     case Commands::FreqToneAudio:
@@ -188,7 +200,7 @@ void Instruction::ProcessInstruction()
       
       digitalWrite(LedPinL, LOW);
       digitalWrite(LedPinR, LOW);
-      AudioSine.frequency(5000);
+      AudioSine.frequency(10000);
       AudioSine.amplitude(AudioAmpOff);
       PORTD = 0b00000000;
       
@@ -199,6 +211,14 @@ void Instruction::ProcessInstruction()
       UseFlickerTriggers = false;
       LedRiseTrigger = 0;
       LedFallTrigger = 0;
+      break;
+
+    case Commands::Feedback:
+      SendFeedback((byte)Parameter);
+      break;
+
+    default:
+      break;
   }
 }
 

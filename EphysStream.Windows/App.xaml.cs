@@ -63,7 +63,19 @@ namespace CircuitGENUS.Windows
 			ProtocolFactory.RegisterProtocol(typeof(GenusMk1),			"genus1");
 			ProtocolFactory.RegisterProtocol(typeof(GenusMk2Static),	"genus2static");
 			ProtocolFactory.RegisterProtocol(typeof(GenusMk2Cached),	"genus2cached");
+
+			//var stc = new GenusMk2Controller();
+			//stc.Connect();
+			//stc.FeedbackReceived += (_, _) => Environment.Exit(0);
+			//stc.SendInstructionList(GenusMk2CachedInstructions.Get("ramp-v-6000ms-10:10:60Hz-notriggers").Instructions);
+			//
+			//Thread.Sleep(20000);
+
+
+			// DEBUG
 			//ProtocolFactory.LoadProtocol(null, @"C:\_code\EphysStream\Settings\GENUS_StFl_30_80.json");
+			//ProtocolFactory.LoadProtocol(null, @"C:\_code\EphysStream\Settings\GENUS_Mk2_Ramp_10-60-Minified.json");
+			//Environment.Exit(0);
 		}
 	}
 }

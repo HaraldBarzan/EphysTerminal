@@ -7,28 +7,6 @@ using TINS.Utilities;
 namespace TINS.Ephys.Stimulation.Genus
 {
 	/// <summary>
-	/// The possible states of the Genus protocol.
-	/// </summary>
-	public enum GenusState
-	{
-		Idle,
-		Prestimulus,
-		Stimulus,
-		Poststimulus,
-		Intertrial
-	}
-
-	/// <summary>
-	/// The possible events registered by the Genus protocol.
-	/// </summary>
-	public enum GenusEvent
-	{
-		Start,
-		NewBlock,
-		Stop
-	}
-
-	/// <summary>
 	/// Genus protocol.
 	/// </summary>
 	public class GenusMk1

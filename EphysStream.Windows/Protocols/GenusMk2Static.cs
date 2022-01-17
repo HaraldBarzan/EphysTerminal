@@ -30,9 +30,6 @@ namespace TINS.Ephys.Stimulation.Genus
 			if (Config.SupportedSamplingPeriod != ParentStream.Settings.Input.PollingPeriod)
 				throw new Exception("The protocol's polling period does not match the current settings.");
 
-			stimulusController.Connect();
-			stimulusController.Reset();
-
 			// initialize the state machine
 			_stateMachine = new(this);
 			_stateMachine.TrialBegin	+= (iTrial) => RaiseUpdateProgress(iTrial, TrialCount);
@@ -48,6 +45,10 @@ namespace TINS.Ephys.Stimulation.Genus
 		/// </summary>
 		public override void Start()
 		{
+			StimulusController.Connect();
+			StimulusController.Reset();
+
+
 			_stateMachine.ProcessEvent(GenusEvent.Start);
 
 			// create a text writer 
@@ -73,6 +74,8 @@ namespace TINS.Ephys.Stimulation.Genus
 			if (IsRunning)
 			{
 				_stateMachine.ProcessEvent(GenusEvent.Stop);
+
+				StimulusController?.Disconnect();
 
 				TextOutput?.Dispose();
 				TextOutput = null;
@@ -129,8 +132,11 @@ namespace TINS.Ephys.Stimulation.Genus
 			[JsonPropertyName("flickerFrequencyRight")]
 			public float FlickerFrequencyRight { get; set; }
 
+			[JsonPropertyName("audioFrequency")]
+			public float AudioFlickerFrequency { get; set; }
+
 			[JsonPropertyName("toneFrequency")]
-			public float AudioFrequency { get; set; }
+			public float ToneFrequency { get; set; }
 		}
 
 		/// <summary>
@@ -212,10 +218,11 @@ namespace TINS.Ephys.Stimulation.Genus
 						_stim.ChangeParameters(
 							_trials[CurrentTrialIndex].FlickerFrequencyLeft,
 							_trials[CurrentTrialIndex].FlickerFrequencyRight,
-							_trials[CurrentTrialIndex].AudioFrequency,
+							_trials[CurrentTrialIndex].AudioFlickerFrequency,
+							_trials[CurrentTrialIndex].ToneFrequency,
 							_p.Config.StimulusTrigger);
 					},
-					exitStateAction: () => _stim.ChangeParameters(0, 0, 0, null));
+					exitStateAction: () => _stim.ChangeParameters(0, 0, 0, 0, null));
 
 
 				// POSTSTIMULUS
@@ -244,7 +251,7 @@ namespace TINS.Ephys.Stimulation.Genus
 							{
 								// emit line
 								if (Numerics.IsClamped(CurrentTrialIndex, (0, TrialCount - 1)) && _p.TextOutput is not null)
-									_p.TextOutput.WriteLine($"{CurrentTrialIndex + 1},{CurrentTrial.FlickerFrequencyLeft},{CurrentTrial.FlickerFrequencyRight},{CurrentTrial.AudioFrequency}");
+									_p.TextOutput.WriteLine($"{CurrentTrialIndex + 1},{CurrentTrial.FlickerFrequencyLeft},{CurrentTrial.FlickerFrequencyRight},{CurrentTrial.ToneFrequency}");
 
 								CurrentTrialIndex++;
 								
@@ -317,7 +324,7 @@ namespace TINS.Ephys.Stimulation.Genus
 
 
 
-			protected GenusMk2Static				_p;
+			protected GenusMk2Static		_p;
 			protected GenusMk2Controller	_stim;
 			protected IUserInterface		_ui;
 

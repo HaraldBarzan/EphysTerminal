@@ -703,15 +703,18 @@ namespace TINS.Ephys.Display
 			mitSelectMultiunit			= new MenuItem() { Header = "Multiunit", IsCheckable = false, IsChecked = true };
 			mitSelectWaveforms			= new MenuItem() { Header = "Waveforms", IsCheckable = false };
 			mitSetLiveChannel			= new MenuItem() { Header = "Set live channel" };
+			mitDisableLiveChannel		= new MenuItem() { Header = "Disable live channel" };
 			mitSelectMultiunit.Click	+= MenuMultiunit_Click;
 			mitSelectWaveforms.Click	+= MenuMultiunit_Click;
 			mitSetLiveChannel.Click		+= MitSetLiveChannel_Click;
+			mitDisableLiveChannel.Click += MitSetLiveChannel_Click;
 
 			ContextMenu.Items.Insert(0, mitSelectMultiunit);
 			ContextMenu.Items.Insert(1, mitSelectWaveforms);
 			ContextMenu.Items.Insert(2, new Separator());
 			ContextMenu.Items.Insert(3, mitSetLiveChannel);
-			ContextMenu.Items.Insert(4, new Separator());
+			ContextMenu.Items.Insert(4, mitDisableLiveChannel);
+			ContextMenu.Items.Insert(5, new Separator());
 
 			ContextMenu.Opened += (_, _) => _contextMenuLocation = Mouse.GetPosition(this);
 			ContextMenu.Closed += (_, _) => _contextMenuLocation = null;
@@ -734,6 +737,10 @@ namespace TINS.Ephys.Display
 
 				// raise event
 				LiveChannelChanged?.Invoke(this, new() { NewChannelLabel = mapping.Label });
+			}
+			else if (ReferenceEquals(mitDisableLiveChannel, sender))
+			{
+				LiveChannelChanged?.Invoke(this, new() { NewChannelLabel = null });
 			}
 		}
 
@@ -783,6 +790,7 @@ namespace TINS.Ephys.Display
 		private MenuItem mitSelectMultiunit;
 		private MenuItem mitSelectWaveforms;
 		private MenuItem mitSetLiveChannel;
+		private MenuItem mitDisableLiveChannel;
 
 		/// <summary>
 		/// Find the maximum of a list of values.

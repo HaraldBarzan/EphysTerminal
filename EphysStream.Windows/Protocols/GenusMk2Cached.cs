@@ -8,10 +8,33 @@ using TINS.Utilities;
 namespace TINS.Ephys.Stimulation.Genus
 {
 	/// <summary>
+	/// The possible states of the Genus protocol.
+	/// </summary>
+	public enum GenusState
+	{
+		Idle,
+		Prestimulus,
+		Stimulus,
+		Poststimulus,
+		Intertrial
+	}
+
+	/// <summary>
+	/// The possible events registered by the Genus protocol.
+	/// </summary>
+	public enum GenusEvent
+	{
+		Start,
+		NewBlock,
+		StimulationComplete,
+		Stop
+	}
+
+	/// <summary>
 	/// Genus protocol.
 	/// </summary>
 	public class GenusMk2Cached
-		: StimulationProtocol<GenusMk2StaticConfig, GenusMk2Controller>
+		: StimulationProtocol<GenusMk2CachedConfig, GenusMk2Controller>
 	{
 		/// <summary>
 		/// Create a new Genus protocol.
@@ -19,7 +42,7 @@ namespace TINS.Ephys.Stimulation.Genus
 		/// <param name="parent">The parent ephys stream.</param>
 		/// <param name="config">The configuration for this protocol.</param>
 		/// <param name="stimulusController">The stimulus controller for the protocol.</param>
-		public GenusMk2Cached(EphysStream parent, GenusMk2StaticConfig config, GenusMk2Controller stimulusController)
+		public GenusMk2Cached(EphysStream parent, GenusMk2CachedConfig config, GenusMk2Controller stimulusController)
 			: base(parent, config, stimulusController)
 		{
 			// load the configuration
@@ -30,8 +53,8 @@ namespace TINS.Ephys.Stimulation.Genus
 			if (Config.SupportedSamplingPeriod != ParentStream.Settings.Input.PollingPeriod)
 				throw new Exception("The protocol's polling period does not match the current settings.");
 
-			stimulusController.Connect();
-			stimulusController.Reset();
+			// attach feedback detector
+			stimulusController.FeedbackReceived += OnDeviceFeedback;
 
 			// initialize the state machine
 			_stateMachine = new(this);
@@ -43,11 +66,23 @@ namespace TINS.Ephys.Stimulation.Genus
 			};
 		}
 
+		protected override void Dispose(bool disposing)
+		{
+			if (StimulusController is not null)
+				StimulusController.FeedbackReceived -= OnDeviceFeedback;
+			base.Dispose(disposing);
+		}
+
 		/// <summary>
 		/// Start the protocol.
 		/// </summary>
 		public override void Start()
 		{
+			// connect to stimulus controller
+			StimulusController.Connect();
+			StimulusController.Reset();
+
+			// start state machine
 			_stateMachine.ProcessEvent(GenusEvent.Start);
 
 			// create a text writer 
@@ -59,7 +94,8 @@ namespace TINS.Ephys.Stimulation.Genus
 				
 				// create the text writer
 				TextOutput = new StreamWriter(outputPath);
-				TextOutput.WriteLine($"Trials,{_stateMachine.TrialCount}\nFields,2\n\nTrial,FlickerFreqL,FlickerFreqR,AudioFreq");
+				TextOutput.WriteLine(	"Trials,TrialName,TrialType,Audio,Visual,StimulationRuntime," +
+										"StepCount,AudioToneFrequency,UseFlickerTriggers,UseTransitionTriggers");
 			}
 
 			RaiseProtocolStarted();
@@ -77,6 +113,8 @@ namespace TINS.Ephys.Stimulation.Genus
 				TextOutput?.Dispose();
 				TextOutput = null;
 
+				StimulusController?.Disconnect();
+
 				RaiseProtocolEnded();
 			}
 		}
@@ -87,6 +125,17 @@ namespace TINS.Ephys.Stimulation.Genus
 		public override void ProcessBlock()
 		{
 			_stateMachine.ProcessEvent(GenusEvent.NewBlock);
+		}
+
+		/// <summary>
+		/// Raised when the device signals 
+		/// </summary>
+		/// <param name="sender"></param>
+		/// <param name="feedback"></param>
+		protected virtual void OnDeviceFeedback(object sender, GenusMk2Controller.Feedback feedback)
+		{
+			if (feedback is GenusMk2Controller.Feedback.StimulationComplete)
+				_stateMachine.ProcessEvent(GenusEvent.StimulationComplete);
 		}
 
 		/// <summary>
@@ -114,14 +163,16 @@ namespace TINS.Ephys.Stimulation.Genus
 			[JsonPropertyName("count")]
 			public int Count { get; set; }
 
-			[JsonPropertyName("name")]
-			public string Name { get; set; }
+			[JsonPropertyName("instructionList")]
+			public string InstructionList { get; set; }
 
 			[JsonPropertyName("preTimeout")]
 			public int PrestimulusTimeout { get; set; }
 
 			[JsonPropertyName("postTimeout")]
 			public int PoststimulusTimeout { get; set; }
+
+			public GenusMk2CachedTrial Instructions { get; set; }
 		}
 
 		/// <summary>
@@ -185,7 +236,7 @@ namespace TINS.Ephys.Stimulation.Genus
 					enterStateAction: () =>
 					{
 						_stateTimeout = _trials[CurrentTrialIndex].PrestimulusTimeout;
-						_stim.EmitTrigger(_p.Config.PrestimulusTrigger);
+						_stim.EmitTrigger(_p.Config.TrialStartTrigger);
 					});
 
 
@@ -193,20 +244,14 @@ namespace TINS.Ephys.Stimulation.Genus
 				AddState(GenusState.Stimulus,
 					eventAction: (e) => e switch
 					{
-						GenusEvent.NewBlock => Elapse(GenusState.Poststimulus),
-						GenusEvent.Stop		=> GenusState.Idle,
-						_					=> CurrentState
+						GenusEvent.StimulationComplete	=> GenusState.Poststimulus,
+						GenusEvent.Stop					=> GenusState.Idle,
+						_								=> CurrentState
 					},
 					enterStateAction: () =>
 					{
-						_stateTimeout = _trials[CurrentTrialIndex].StimulusTimeout;
-						_stim.ChangeParameters(
-							_trials[CurrentTrialIndex].FlickerFrequencyLeft,
-							_trials[CurrentTrialIndex].FlickerFrequencyRight,
-							_trials[CurrentTrialIndex].AudioFrequency,
-							_p.Config.StimulusTrigger);
-					},
-					exitStateAction: () => _stim.ChangeParameters(0, 0, 0, null));
+						_stim.SendInstructionList(CurrentTrial.Instructions.Instructions);
+					});
 
 
 				// POSTSTIMULUS
@@ -217,12 +262,8 @@ namespace TINS.Ephys.Stimulation.Genus
 						GenusEvent.Stop		=> GenusState.Idle,
 						_					=> CurrentState
 					},
-					enterStateAction: () =>
-					{
-						_stateTimeout = _trials[CurrentTrialIndex].PoststimulusTimeout;
-						_stim.EmitTrigger(_p.Config.PoststimulusTrigger);
-					},
-					exitStateAction: () => _stim.EmitTrigger(_p.Config.TrialEndTrigger));
+					enterStateAction:	() => _stateTimeout = CurrentTrial.PoststimulusTimeout,
+					exitStateAction:	() => _stim.EmitTrigger(_p.Config.TrialEndTrigger));
 
 
 				// INTERTRIAL
@@ -234,9 +275,7 @@ namespace TINS.Ephys.Stimulation.Genus
 							if (_stateTimeout == 0)
 							{
 								// emit line
-								if (Numerics.IsClamped(CurrentTrialIndex, (0, TrialCount - 1)) && _p.TextOutput is not null)
-									_p.TextOutput.WriteLine($"{CurrentTrialIndex + 1},{CurrentTrial.FlickerFrequencyLeft},{CurrentTrial.FlickerFrequencyRight},{CurrentTrial.AudioFrequency}");
-
+								EmitEtiLine();
 								CurrentTrialIndex++;
 								
 								// check stopping condition
@@ -275,7 +314,6 @@ namespace TINS.Ephys.Stimulation.Genus
 			/// </summary>
 			public Trial CurrentTrial => _trials.IsEmpty ? null : _trials[CurrentTrialIndex];
 
-
 			/// <summary>
 			/// Reset the trial list and the current index.
 			/// </summary>
@@ -287,10 +325,34 @@ namespace TINS.Ephys.Stimulation.Genus
 				foreach (var t in _p.Config.Trials)
 					for (int i = 0; i < t.Count; ++i)
 						_trials.PushBack(t);
-
+				
 				// shuffle if necessary
 				if (_p.Config.Randomize)
 					new RNG().Shuffle(_trials);
+
+				// assign each trial its instruction list
+				foreach (var t in _trials)
+				{
+					var instructions = GenusMk2CachedTrial.Get(t.InstructionList);
+					if (instructions is null)
+						throw new Exception($"Instruction list \'{t.InstructionList}\' not found for trial.");
+					t.Instructions = instructions;
+				}
+			}
+
+			/// <summary>
+			/// 
+			/// </summary>
+			protected void EmitEtiLine()
+			{
+				if (Numerics.IsClamped(CurrentTrialIndex, (0, TrialCount - 1)) && _p.TextOutput is not null)
+				{
+					var il = CurrentTrial.Instructions;
+					string Binarize(bool p) => p ? "1" : "0";
+
+					_p.TextOutput.WriteLine($"{CurrentTrialIndex + 1},{il.Name},{il.Type},{Binarize(il.Audio)},{Binarize(il.Visual)}," +
+						$"{il.StimulationRuntime},{il.StepCount},{il.ToneFrequency},{Binarize(il.UseFlickerTriggers)},{Binarize(il.UseTransitionTriggers)}");
+				}
 			}
 
 			/// <summary>
@@ -327,7 +389,7 @@ namespace TINS.Ephys.Stimulation.Genus
 		public float SupportedSamplingPeriod { get; set; }
 
 		[JsonPropertyName("trialStartTrigger")]
-		public byte PrestimulusTrigger { get; set; }
+		public byte TrialStartTrigger { get; set; }
 
 		[JsonPropertyName("trialEndTrigger")]
 		public byte TrialEndTrigger { get; set; }

@@ -63,6 +63,12 @@ namespace TINS.Ephys.Stimulation
 		/// </summary>
 		[JsonPropertyName("protocolType")]
 		public string ProtocolType { get; set; }
+
+		/// <summary>
+		/// Output EPD file will only contain the listed triggers.
+		/// </summary>
+		[JsonPropertyName("supportedTriggers")]
+		public Vector<int> SupportedTriggers { get; set; } = new();
 	}
 
 

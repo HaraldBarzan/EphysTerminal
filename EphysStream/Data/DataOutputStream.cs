@@ -8,7 +8,7 @@ using TINS.Utilities;
 namespace TINS.Ephys.Data
 {
 	/// <summary>
-	/// 
+	/// A continuous data output stream that saves to EPD format.
 	/// </summary>
 	public class DataOutputStream
 		: AsynchronousObject
@@ -26,12 +26,14 @@ namespace TINS.Ephys.Data
 		public readonly EventHandler<Vector<EventMarker>> WriteEvents = default;
 
 		/// <summary>
-		/// 
+		/// Create a data output stream (to EPD format).
 		/// </summary>
-		/// <param name="outputPath"></param>
-		/// <param name="samplingRate"></param>
-		/// <param name="channelLabels"></param>
-		public DataOutputStream(string outputPath, float samplingRate, Vector<string> channelLabels)
+		/// <param name="outputPath">The path to the output dataset. Will overwrite an existing one.</param>
+		/// <param name="samplingRate">The sampling rate for the new dataset.</param>
+		/// <param name="channelLabels">The labels of the channels in the dataset.</param>
+		/// <param name="supportedTriggers">A list of triggers to be written to the dataset. All other triggers will be discarded.
+		/// Null will cause all triggers to be written.</param>
+		public DataOutputStream(string outputPath, float samplingRate, Vector<string> channelLabels, Vector<int> supportedTriggers = null)
 			: base(false)
 		{
 			if (!outputPath.EndsWith(".epd", StringComparison.InvariantCultureIgnoreCase))
@@ -138,7 +140,7 @@ namespace TINS.Ephys.Data
 		}
 
 		/// <summary>
-		/// 
+		/// Finalize the writing of the dataset, providing the event code/timestamp files and the .epd file itself.
 		/// </summary>
 		protected void FinalizeDatasetWrite()
 		{
@@ -150,6 +152,8 @@ namespace TINS.Ephys.Data
 				_channelStreams.Clear();
 
 				// save the timestamps
+				if (_supportedTriggers is not null)
+					_eventMarkers.Remove(x => !_supportedTriggers.Contains(x.EventCode));
 				_eventMarkers.Sort();
 				_dataset.SaveEvents(_eventMarkers);
 				_eventMarkers.Clear();
@@ -159,10 +163,11 @@ namespace TINS.Ephys.Data
 			}
 		}
 
-		protected Vector<IOStream>		_channelStreams	= new();
-		protected Vector<EventMarker>	_eventMarkers	= new();
-		protected Dataset				_dataset		= null;
-		protected string				_datasetName	= string.Empty;
-		private bool					_disposed		= false;
+		protected Vector<IOStream>		_channelStreams		= new();
+		protected Vector<EventMarker>	_eventMarkers		= new();
+		protected Dataset				_dataset			= null;
+		protected string				_datasetName		= string.Empty;
+		protected Vector<int>			_supportedTriggers	= null;
+		private bool					_disposed			= false;
 	}
 }

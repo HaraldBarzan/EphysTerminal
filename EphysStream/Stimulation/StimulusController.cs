@@ -1,10 +1,30 @@
-﻿namespace TINS.Ephys.Stimulation
+﻿using System;
+
+namespace TINS.Ephys.Stimulation
 {
 	/// <summary>
 	/// Class used to control a stimulation device.
 	/// </summary>
 	public abstract class StimulusController
+		: IDisposable
 	{
+		/// <summary>
+		/// Dispose of this stimulus controller.
+		/// </summary>
+		public void Dispose()
+		{
+			Dispose(true);
+			GC.SuppressFinalize(this);
+		}
+
+		/// <summary>
+		/// Protected dispose method.
+		/// </summary>
+		/// <param name="disposing"></param>
+		protected virtual void Dispose(bool disposing)
+		{
+		}
+
 		/// <summary>
 		/// Connect to a USB stimulation device.
 		/// </summary>

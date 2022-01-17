@@ -15,7 +15,7 @@ namespace TINS.Ephys.Display
 		: ISampleProvider
 		, IDisposable
 	{
-		const float DataScale = 0.1f;
+		const float DataScale = 0.01f;
 
 		/// <summary>
 		/// Create a new audio stream.

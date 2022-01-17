@@ -20,12 +20,27 @@ namespace TINS.Ephys.Stimulation
 		/// <summary>
 		/// The operating frequency range of audio stimulation.
 		/// </summary>
-		public static (float Lower, float Upper) AudioFrequencyRange { get; } = (25, 15000);
+		public static (float Lower, float Upper) AudioToneRange { get; } = (25, 20000);
 
 		/// <summary>
-		/// The clock frequency of the stimulator.
+		/// The default audio tone frequency.
 		/// </summary>
-		public const float StimulatorClockFrequency = 1000;
+		public const float DefaultToneFrequency = 10000;
+
+		/// <summary>
+		/// Signal the receival of a feedback.
+		/// </summary>
+		public event EventHandler<Feedback> FeedbackReceived;
+
+		/// <summary>
+		/// Feedback provided by the device.
+		/// </summary>
+		public enum Feedback : byte
+		{
+			OK,
+			StimulationComplete,
+			Error
+		}
 
 		/// <summary>
 		/// An instruction given to the machine.
@@ -48,7 +63,8 @@ namespace TINS.Ephys.Stimulation
 				ChangeFlickerTriggersL,		// change left LED rise and fall triggers (s1 = rise, s2 = fall)
 				Sleep,						// wait a number of milliseconds (int)
 				SleepMicroseconds,			// wait a number of microseconds (int)
-				Reset						// reset all parameters and stop flickering
+				Reset,						// reset all parameters and stop flickering
+				Feedback					// send feedback to the computer
 			}
 
 			public Commands Command;
@@ -75,7 +91,7 @@ namespace TINS.Ephys.Stimulation
 			/// <summary>
 			/// Get or set the parameter as a tuple of short integers.
 			/// </summary>
-			public (short, short) P2Short
+			public (short S1, short S2) P2Short
 			{
 				get { int p = Parameter; return *(ValueTuple<short, short>*)&p; }
 				set => Parameter = *(int*)&value;
@@ -285,6 +301,51 @@ namespace TINS.Ephys.Stimulation
 			/// </summary>
 			/// <returns>An instruction.</returns>
 			public static Instruction Reset() => new() { Command = Commands.Reset };
+
+			/// <summary>
+			/// Send feedback to the computer.
+			/// </summary>
+			/// <param name="fb">The feedback enum.</param>
+			/// <returns>An instruction.</returns>
+			public static Instruction Feedback(Feedback fb) 
+				=> new() 
+				{ 
+					Command		= Commands.Feedback,
+					Parameter	= (int)fb
+				};
+
+			/// <summary>
+			/// Obtain a string representation of this instruction.
+			/// </summary>
+			/// <returns>A string.</returns>
+			public override string ToString()
+			{
+				switch (Command)
+				{
+					case Commands.FreqFlickerL:
+					case Commands.FreqFlickerR:
+					case Commands.FreqFlickerAudio:
+					case Commands.FreqToneAudio:
+						return $"{Command}: {PFloat} Hz";
+					case Commands.Sleep:
+						return $"{Command}: {Parameter} ms";
+					case Commands.SleepMicroseconds:
+						return $"{Command}: {Parameter} us";
+					case Commands.EmitTrigger:
+					case Commands.Feedback:
+						return $"{Command}: {(byte)Parameter}";
+					case Commands.ChangeFlickerTriggersL:
+						return $"{Command}: {P2Short.S1}(L), {P2Short.S2}(R)";
+					case Commands.ChangeFlickerTriggerStateL:
+						return $"{Command}: {PBool.ToString().ToLower()}";
+					case Commands.AwaitFullInstructionList:
+						return $"{Command}: {Parameter} instructions";
+					default:
+					case Commands.NoOp:
+					case Commands.Reset:
+						return Command.ToString();
+				}
+			}
 		}
 
 		/// <summary>
@@ -302,14 +363,19 @@ namespace TINS.Ephys.Stimulation
 			_port.Write(_portBuffer, 0, _portBuffer.Length);
 		}
 
-
-		
 		/// <summary>
 		/// Send a list of instructions to be executed serially.
 		/// </summary>
 		/// <param name="instructionList">The list of instructions.</param>
 		public virtual void SendInstructionList(Instruction[] instructionList)
 			=> SendInstructionList(instructionList.AsSpan());
+
+		/// <summary>
+		/// Send a list of instructions to be executed serially.
+		/// </summary>
+		/// <param name="instructionList">The list of instructions.</param>
+		public virtual void SendInstructionList(Vector<Instruction> instructionList)
+			=> SendInstructionList(instructionList.GetSpan());
 
 		/// <summary>
 		/// Send a list of instructions to be executed serially.
@@ -349,97 +415,29 @@ namespace TINS.Ephys.Stimulation
 		/// <param name="frequencyL">The flicker frequency for the left panel, in Hz. Zero to shut it down completely or null to leave the current frequency unchanged.</param>
 		/// <param name="frequencyR">The flicker frequency for the right panel, in Hz. Zero to shut it down completely or null to leave the current frequency unchanged.</param>
 		/// <param name="frequencyAudio">The flicker frequency of the audio tone, in Hz. Zero to shut it down completely or null to leave the current frequency unchanged.</param>
+		/// <param name="frequencyTone">The flicker frequency of the audio tone, in Hz. Zero to shut it down completely or null to leave the current frequency unchanged.</param>
 		/// <param name="trigger">A trigger to emit when the stimulation frequency actually changes. If null, the emitted trigger will not change.</param>
-		public virtual void ChangeParameters(float? frequencyL, float? frequencyR, float? frequencyAudio, byte? trigger)
+		public virtual void ChangeParameters(float? frequencyL, float? frequencyR, float? frequencyAudio, float? frequencyTone, byte? trigger)
 		{
 			var instructions = new Vector<Instruction>();
 			if (frequencyL.HasValue)		instructions.PushBack(Instruction.StartLedFlickerLeft(frequencyL.Value));
 			if (frequencyR.HasValue)		instructions.PushBack(Instruction.StartLedFlickerRight(frequencyR.Value));
 			if (frequencyAudio.HasValue)	instructions.PushBack(Instruction.StartAudioFlicker(frequencyAudio.Value));
+			if (frequencyTone.HasValue)		instructions.PushBack(Instruction.ChangeAudioTone(frequencyTone.Value));
 			if (trigger.HasValue)			instructions.PushBack(Instruction.EmitTrigger(trigger.Value));
 
 			if (!instructions.IsEmpty)
 				SendInstructionList(instructions.GetSpan());
 		}
 
-		public struct Message
+		/// <summary>
+		/// Dispose method.
+		/// </summary>
+		/// <param name="disposing"></param>
+		protected override void Dispose(bool disposing)
 		{
-			// stimulation parameters to change
-			public enum Actions : byte
-			{
-				actNone				= 0,
-				actFrequencyL		= 1 << 0,
-				actFrequencyR		= 1 << 1,
-				actTrigger			= 1 << 2,
-				actFrequencyAudio	= 1 << 3,
-				actAll				= actFrequencyL | actFrequencyR | actTrigger | actFrequencyAudio
-			};
-		
-			// stimulation parameters
-			public Actions	Action;
-			public byte		FrequencyL;
-			public byte		FrequencyR;
-			public byte		Trigger;
-			public float	FrequencyAudio;
-		};
-		
-		///// <summary>
-		///// Change the stimulation parameters.
-		///// </summary>
-		///// <param name="frequencyL">The flicker frequency for the left panel, in Hz. Zero to shut it down completely or null to leave the current frequency unchanged.</param>
-		///// <param name="frequencyR">The flicker frequency for the right panel, in Hz. Zero to shut it down completely or null to leave the current frequency unchanged.</param>
-		///// <param name="frequencyAudio">The frequency of the audio tone, in Hz. Zero to shut it down completely or null to leave the current frequency unchanged.</param>
-		///// <param name="trigger">A trigger to emit when the stimulation frequency actually changes. If null, the emitted trigger will not change.</param>
-		//public virtual void ChangeParameters(float? frequencyL, float? frequencyR, float? frequencyAudio, byte? trigger)
-		//{
-		//	if (!IsConnected || _port is null)
-		//		return;
-		//
-		//	Message msg; 					msg.Action = Message.Actions.None;
-		//	if (frequencyL.HasValue)		msg.Action |= Message.Actions.FrequencyL;
-		//	if (frequencyR.HasValue)		msg.Action |= Message.Actions.FrequencyR;
-		//	if (trigger.HasValue)			msg.Action |= Message.Actions.Trigger;
-		//	if (frequencyAudio.HasValue)	msg.Action |= Message.Actions.FrequencyAudio;
-		//
-		//	msg.FrequencyL		= (byte)(frequencyL.HasValue ? Numerics.Round(frequencyL.Value) : 0);
-		//	msg.FrequencyR		= (byte)(frequencyR.HasValue ? Numerics.Round(frequencyR.Value) : 0);
-		//	msg.Trigger			= trigger ?? 0;
-		//	msg.FrequencyAudio	= frequencyAudio ?? 0;
-		//
-		//	unsafe
-		//	{
-		//		new Span<Message>(&msg, 1).CopyTo(MemoryMarshal.Cast<byte, Message>(_portBuffer.AsSpan()));
-		//	}
-		//	_port.Write(_portBuffer, 0, _portBuffer.Length);
-		//}
-		//
-		///// <summary>
-		///// Reset the stimulation parameters to their default values.
-		///// </summary>
-		//public override void Reset() => ChangeParameters(0, 0, 0, 0);
-		//
-		///// <summary>
-		///// Emit a trigger.
-		///// </summary>
-		///// <param name="triggerValue">The trigger value.</param>
-		//public override void EmitTrigger(byte triggerValue) => ChangeParameters(null, null, null, triggerValue);
-
-
-		public void OldDebugSerialTest()
-		{
-			void WriteMessage(Message m)
-			{
-				var data = new byte[sizeof(Message)];
-				var dataSpan = MemoryMarshal.Cast<byte, Message>(data.AsSpan());
-				dataSpan[0] = m;
-				_port.Write(data, 0, data.Length);
-			}
-
-			Message m		= default;
-			m.Action		= Message.Actions.actFrequencyL;
-			m.FrequencyL	= 1;
-
-			WriteMessage(m);
+			ClosePort();
+			base.Dispose(disposing);
 		}
 
 		/// <summary>
@@ -448,7 +446,7 @@ namespace TINS.Ephys.Stimulation
 		/// <param name="portName"></param>
 		public override void Connect(string portName = null)
 		{
-			CloseCurrentPort();
+			ClosePort();
 
 			// get a serial port
 			portName ??= GetFirstSerialPortName();
@@ -458,16 +456,17 @@ namespace TINS.Ephys.Stimulation
 
 			// create and open the port
 			_port = new SerialPort(portName);
-			_port.Open();
-
 			try
 			{
+				_port.DataReceived += OnPortDataReceived;
+				_port.Open();
+
 				Reset();
 				IsConnected = true;
 			}
 			catch
 			{
-				CloseCurrentPort();
+				ClosePort();
 				throw;
 			}
 		}
@@ -475,28 +474,43 @@ namespace TINS.Ephys.Stimulation
 		/// <summary>
 		/// Terminate the connection with the stimulation device.
 		/// </summary>
-		public override void Disconnect() => CloseCurrentPort();
+		public override void Disconnect() => ClosePort();
 
 		/// <summary>
 		/// Close the current port if open.
 		/// </summary>
-		protected void CloseCurrentPort()
+		protected void ClosePort()
 		{
 			if (_port is object)
 			{
+				_port.DataReceived -= OnPortDataReceived;
 				if (_port.IsOpen)
 					_port.Close();
 				_port.Dispose();
 			}
 
-			_port = null;
+			_port		= null;
 			IsConnected = false;
 		}
 
 		/// <summary>
-		/// 
+		/// Raised when data is received by the computer.
 		/// </summary>
-		/// <returns></returns>
+		/// <param name="sender">The port that sent the data.</param>
+		/// <param name="e">The data.</param>
+		protected void OnPortDataReceived(object sender, SerialDataReceivedEventArgs e)
+		{
+			if (e.EventType is SerialData.Chars)
+			{
+				var fb = (Feedback)_port.ReadByte();
+				FeedbackReceived?.Invoke(this, fb);
+			}
+		}
+
+		/// <summary>
+		/// Get the name of the first valid serial port.
+		/// </summary>
+		/// <returns>A serial port name if successful, null otherwise.</returns>
 		protected static string GetFirstSerialPortName()
 		{
 			var ports = SerialPort.GetPortNames();

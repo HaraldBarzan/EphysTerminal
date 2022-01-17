@@ -167,6 +167,13 @@ namespace CircuitGENUS.Windows
 		/// <param name="localDatasetPath">Path to local dataset (if necessary).</param>
 		private void OnLoadSuccessful(EphysSettings settings, string localDatasetPath)
 		{
+			// close the current ephys stream
+			if (EphysStream is object)
+			{
+				EphysStream.Dispose();
+				EphysStream = null;
+			}
+
 			// create the necessary input stream
 			DataInputStream inputStream = null;
 			switch (settings.Input.InputDevice)
