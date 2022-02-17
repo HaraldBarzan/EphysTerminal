@@ -1,5 +1,6 @@
 ﻿using SkiaSharp;
 using System;
+using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -163,6 +164,19 @@ namespace TINS.Ephys.Display
 			if (muaAcc is null || muaAcc.BufferSize < 2)
 				return;
 
+			Monitor.Enter(muaAcc);
+			if (spikeAcc is not null) 
+				Monitor.Enter(spikeAcc);
+
+			// update thresholds if needed
+			if (_thresholdSDAuto.HasValue)
+			{
+				AutoUpdateThresholds(muaAcc, _thresholdSDAuto.Value);
+				_thresholdSDAuto = null;
+				UpdateDisplay();
+			}
+
+
 			for (int iRow = 0; iRow < _multiunits.Rows; ++iRow)
 			{
 				for (int iCol = 0; iCol < _multiunits.Cols; ++iCol)
@@ -172,62 +186,60 @@ namespace TINS.Ephys.Display
 
 					int sourceChIndex = _channelMapping[iRow, iCol].SourceIndex;
 
-					lock (muaAcc)
-					{
-						// MULTIUNIT
-						_multiunits[iRow, iCol] ??= new SKPath();
-						var lineGraph		= _multiunits[iRow, iCol];
-						var lineData		= muaAcc.GetBuffer(_channelMapping[iRow, iCol].SourceIndex);
-						
-						lineGraph.Rewind();
-						lineGraph.MoveTo(0, -lineData[0]);
-						for (int i = 1; i < lineData.Length; ++i)
-							lineGraph.LineTo(i, -lineData[i]);
-					}
+					// MULTIUNIT
+					_multiunits[iRow, iCol] ??= new SKPath();
+					var lineGraph		= _multiunits[iRow, iCol];
+					var lineData		= muaAcc.GetBuffer(_channelMapping[iRow, iCol].SourceIndex);
+					
+					lineGraph.Rewind();
+					lineGraph.MoveTo(0, -lineData[0]);
+					for (int i = 1; i < lineData.Length; ++i)
+						lineGraph.LineTo(i, -lineData[i]);
 
 					// SPIKE TIMES
 					if (spikeAcc is object)
 					{
-						lock (spikeAcc)
+						var srcTimes = spikeAcc.GetTimestamps(sourceChIndex);
+
+						// prepare spike data vector
+						_spikes[iRow, iCol] ??= new();
+						var dst = _spikes[iRow, iCol];
+						dst.Resize(srcTimes.Length);
+
+						// get spikes
+						for (int i = 0; i < srcTimes.Length; ++i)
 						{
-							var srcTimes = spikeAcc.GetTimestamps(sourceChIndex);
+							var waveform = spikeAcc.GetWaveform(sourceChIndex, i);
+							dst[i] = new() 
+							{ 
+								Position	= srcTimes[i], 
+								Min			= -Min(waveform), 
+								Max			= -Max(waveform) 
+							};
+						}
 
-							// prepare spike data vector
-							_spikes[iRow, iCol] ??= new();
-							var dst = _spikes[iRow, iCol];
-							dst.Resize(srcTimes.Length);
+						_waveforms[iRow, iCol] ??= new(MaxWaveforms);
 
-							// get spikes
-							for (int i = 0; i < srcTimes.Length; ++i)
-							{
-								var waveform = spikeAcc.GetWaveform(sourceChIndex, i);
-								dst[i] = new() 
-								{ 
-									Position	= srcTimes[i], 
-									Min			= -Min(waveform), 
-									Max			= -Max(waveform) 
-								};
-							}
+						// get waveforms
+						int nWaveforms = Math.Min(srcTimes.Length, MaxWaveforms);
+						for (int i = 0; i < nWaveforms; ++i)
+						{
+							_waveforms[iRow, iCol][i] ??= new SKPath();
+							var waveGraph	= _waveforms[iRow, iCol][i];
+							var waveform	= spikeAcc.GetWaveform(sourceChIndex, i);
 
-							_waveforms[iRow, iCol] ??= new(MaxWaveforms);
-
-							// get waveforms
-							int nWaveforms = Math.Min(srcTimes.Length, MaxWaveforms);
-							for (int i = 0; i < nWaveforms; ++i)
-							{
-								_waveforms[iRow, iCol][i] ??= new SKPath();
-								var waveGraph	= _waveforms[iRow, iCol][i];
-								var waveform	= spikeAcc.GetWaveform(sourceChIndex, i);
-
-								waveGraph.Rewind();
-								waveGraph.MoveTo(0, -waveform[0]);
-								for (int j = 1; j < waveform.Length; ++j)
-									waveGraph.LineTo(j, -waveform[j]);
-							}
+							waveGraph.Rewind();
+							waveGraph.MoveTo(0, -waveform[0]);
+							for (int j = 1; j < waveform.Length; ++j)
+								waveGraph.LineTo(j, -waveform[j]);
 						}
 					}
 				}
 			}
+
+			Monitor.Exit(muaAcc);
+			if (spikeAcc is not null)
+				Monitor.Exit(spikeAcc);
 
 			data.InvalidateVisual();
 		}
@@ -260,6 +272,13 @@ namespace TINS.Ephys.Display
 			_thresholds[row, column].Value = threshold;
 			UpdateDisplay();
 		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="signalSDs"></param>
+		public virtual void EnqueueAutoThreshold(double signalSDs)
+			=> _thresholdSDAuto = (float)signalSDs;
 
 		/// <summary>
 		/// Maximum number of waveforms to draw.
@@ -366,8 +385,8 @@ namespace TINS.Ephys.Display
 
 			// fonts and paints
 			using var tickFont	= new SKFont()			{ Size = 10, Typeface = SKTypeface.FromFamilyName("Arial") };
-			using var tickPaint = new SKPaint(tickFont) { Color = new(255, 255, 255), Style = SKPaintStyle.Fill };
-			using var linePaint = new SKPaint()			{ Color = new(255, 255, 255), Style = SKPaintStyle.Stroke };
+			using var tickPaint = new SKPaint(tickFont) { Color = new(214, 214, 214), Style = SKPaintStyle.Fill };
+			using var linePaint = new SKPaint()			{ Color = new(214, 214, 214), Style = SKPaintStyle.Stroke };
 			
 			// text and text size
 			var strXRange = _mode switch 
@@ -619,6 +638,40 @@ namespace TINS.Ephys.Display
 		/// <summary>
 		/// 
 		/// </summary>
+		/// <param name="signalSDs"></param>
+		protected void AutoUpdateThresholds(ContinuousDisplayAccumulator channelData, float signalSDs)
+		{
+			for (int iRow = 0; iRow < _thresholds.Rows; ++iRow)
+			{
+				for (int iCol = 0; iCol < _thresholds.Cols; ++iCol)
+				{
+					if (_channelMapping[iRow, iCol].IsInvalid)
+						continue;
+
+					int sourceChIndex	= _channelMapping[iRow, iCol].SourceIndex;
+					var channel			= channelData.GetBuffer(sourceChIndex);
+					RunningMSD msd		= default;
+
+					// compute SD
+					var data = channelData.GetBuffer(sourceChIndex);
+					for (int i = 0; i < data.Length; ++i)
+						msd.Push(data[i]);
+					float mean	= msd.Mean;
+					float sd	= msd.StandardDeviation;
+
+					// set the threshold
+					float threshold = Numerics.Clamp(mean + signalSDs * sd, _yRange);
+					_thresholds[iRow, iCol].Value = threshold;
+				}
+			}
+				
+
+			
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
 		/// <param name="sender"></param>
 		/// <param name="e"></param>
 		protected override void over_MouseDown(object sender, MouseButtonEventArgs e)
@@ -776,6 +829,7 @@ namespace TINS.Ephys.Display
 		protected SKPaint						_waveformPaint			= new();
 		protected Matrix<SKPath>				_multiunits				= new();
 		protected MultiunitDisplayMode			_mode					= new();
+		protected float?						_thresholdSDAuto		= null;
 
 		// thresholds
 		protected Matrix<ThresholdSlider>		_thresholds				= new();

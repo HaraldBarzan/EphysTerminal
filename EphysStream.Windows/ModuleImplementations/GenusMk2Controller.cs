@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Buffers;
-using System.Collections.Generic;
 using System.IO.Ports;
 using System.Runtime.InteropServices;
 
@@ -43,6 +41,17 @@ namespace TINS.Ephys.Stimulation
 		}
 
 		/// <summary>
+		/// Flicker trigger attachment.
+		/// </summary>
+		public enum FlickerTriggerAttach : int
+		{
+			None,
+			LedLeftFlicker,
+			LedRightFlicker,
+			AudioFlicker
+		}
+
+		/// <summary>
 		/// An instruction given to the machine.
 		/// </summary>
 		public struct Instruction
@@ -53,18 +62,20 @@ namespace TINS.Ephys.Stimulation
 			public enum Commands : int
 			{
 				NoOp,
-				FreqFlickerL,				// float left frequency bounded (0, 100), 0 means turn off
-				FreqFlickerR,				// float right frequency bounded (0, 100), 0 means turn off
-				FreqFlickerAudio,			// float audio flicker frequency bounded (0, 100), 0 means turn off
-				FreqToneAudio,				// float audio frequency bounded (0, 20000), 0 means turn off
-				EmitTrigger,				// emit a trigger
-				AwaitFullInstructionList,	// signal the board to wait for a specific number of instructions before execution
-				ChangeFlickerTriggerStateL,	// turn left LED rise and fall triggers on or off
-				ChangeFlickerTriggersL,		// change left LED rise and fall triggers (s1 = rise, s2 = fall)
-				Sleep,						// wait a number of milliseconds (int)
-				SleepMicroseconds,			// wait a number of microseconds (int)
-				Reset,						// reset all parameters and stop flickering
-				Feedback					// send feedback to the computer
+				FreqFlickerL,               // float left frequency bounded (0, 100), 0 means turn off
+				FreqFlickerR,               // float right frequency bounded (0, 100), 0 means turn off
+				FreqFlickerLed,             // float led frequency bounded (0, 100), 0 means turn off
+				FreqFlickerAudio,           // float audio flicker frequency bounded (0, 100), 0 means turn off
+				FreqFlickerAll,             // float all frequency bounded (0, 100), 0 means turn off
+				FreqToneAudio,              // float audio frequency bounded (0, 20000), 0 means turn off
+				EmitTrigger,                // emit a trigger
+				AwaitFullInstructionList,   // signal the board to wait for a specific number of instructions before execution
+				ChangeFlickerTriggerAttach, // turn flicker rise and fall triggers on or off
+				ChangeFlickerTriggers,      // change fllicker rise and fall triggers (s1 = rise, s2 = fall)
+				Sleep,                      // wait a number of milliseconds (int)
+				SleepMicroseconds,          // wait a number of microseconds (int)
+				Reset,                      // reset all parameters and stop flickering
+				Feedback                    // send feedback to the computer
 			}
 
 			public Commands Command;
@@ -95,6 +106,15 @@ namespace TINS.Ephys.Stimulation
 			{
 				get { int p = Parameter; return *(ValueTuple<short, short>*)&p; }
 				set => Parameter = *(int*)&value;
+			}
+
+			/// <summary>
+			/// Get or set the flicker trigger attach.
+			/// </summary>
+			public FlickerTriggerAttach PFTAttach
+			{
+				get => (FlickerTriggerAttach)Parameter;
+				set => Parameter = (int)value;
 			}
 
 			/// <summary>
@@ -132,8 +152,12 @@ namespace TINS.Ephys.Stimulation
 			/// </summary>
 			/// <param name="frequency">The desired flicker frequency (50% duty cycle square wave).</param>
 			/// <returns>An instruction set.</returns>
-			public static Instruction[] StartLedFlicker(float frequency)
-				=> new[] { StartLedFlickerLeft(frequency), StartLedFlickerRight(frequency) };
+			public static Instruction StartLedFlicker(float frequency)
+				=> new()
+				{
+					Command = Commands.FreqFlickerL,
+					PFloat	= frequency
+				};
 
 			/// <summary>
 			/// Start flickering the audio tone.
@@ -152,8 +176,12 @@ namespace TINS.Ephys.Stimulation
 			/// </summary>
 			/// <param name="frequency">The desired flicker frequency (50% duty cycle square wave).</param>
 			/// <returns>An instruction set.</returns>
-			public static Instruction[] StartFlicker(float frequency)
-				=> new[] { StartLedFlickerLeft(frequency), StartLedFlickerRight(frequency), StartAudioFlicker(frequency) };
+			public static Instruction StartFlicker(float frequency)
+				=> new()
+				{
+					Command = Commands.FreqFlickerAll,
+					PFloat	= frequency
+				};
 
 			/// <summary>
 			/// Start flickering both LED panels and the the audio tone and emit a trigger.
@@ -162,7 +190,7 @@ namespace TINS.Ephys.Stimulation
 			/// <param name="trigger">The trigger value.</param>
 			/// <returns>An instruction set.</returns>
 			public static Instruction[] StartFlicker(float frequency, byte trigger)
-				=> new[] { StartLedFlickerLeft(frequency), StartLedFlickerRight(frequency), StartAudioFlicker(frequency), EmitTrigger(trigger) };
+				=> new[] { StartFlicker(frequency), EmitTrigger(trigger) };
 
 			/// <summary>
 			/// Stop flickering the left LED panel.
@@ -201,8 +229,12 @@ namespace TINS.Ephys.Stimulation
 			/// Stop flickering both LED panels and the audio tone.
 			/// </summary>
 			/// <returns>An instruction set.</returns>
-			public static Instruction[] StopFlicker()
-				=> new[] { StopLedFlickerLeft(), StopLedFlickerRight(), StopAudioFlicker() };
+			public static Instruction StopFlicker()
+				=> new()
+				{
+					Command = Commands.FreqFlickerAll,
+					PFloat	= 0
+				};
 
 			/// <summary>
 			/// Stop flickering both LED panels and the audio tone and emit a trigger.
@@ -210,7 +242,7 @@ namespace TINS.Ephys.Stimulation
 			/// <param name="trigger">The trigger value.</param>
 			/// <returns>An instruction set.</returns>
 			public static Instruction[] StopFlicker(byte trigger)
-				=> new[] { StopLedFlickerLeft(), StopLedFlickerRight(), StopAudioFlicker(), EmitTrigger(trigger) };
+				=> new[] { StopFlicker(), EmitTrigger(trigger) };
 
 			/// <summary>
 			/// Change the tone of the audio signal.
@@ -242,11 +274,11 @@ namespace TINS.Ephys.Stimulation
 			/// <param name="riseTrigger">The rise trigger/</param>
 			/// <param name="fallTrigger">The fall trigger.</param>
 			/// <returns>An instruction.</returns>
-			public static Instruction[] EnableFlickerTriggers(byte riseTrigger, byte fallTrigger)
+			public static Instruction[] SetFlickerTriggers(FlickerTriggerAttach attach, byte riseTrigger, byte fallTrigger)
 				=> new[]
 				{
-					new Instruction { Command = Commands.ChangeFlickerTriggerStateL, PBool = true },
-					new Instruction { Command = Commands.ChangeFlickerTriggersL, P2Short = (riseTrigger, fallTrigger) }
+					new Instruction { Command = Commands.ChangeFlickerTriggerAttach,	PFTAttach	= attach },
+					new Instruction { Command = Commands.ChangeFlickerTriggers,			P2Short		= (riseTrigger, fallTrigger) }
 				};
 
 			/// <summary>
@@ -256,8 +288,8 @@ namespace TINS.Ephys.Stimulation
 			public static Instruction DisableFlickerTriggers()
 				=> new()
 				{
-					Command = Commands.ChangeFlickerTriggerStateL,
-					PBool	= false
+					Command		= Commands.ChangeFlickerTriggerAttach,
+					PFTAttach	= FlickerTriggerAttach.None
 				};
 
 			/// <summary>
@@ -326,6 +358,8 @@ namespace TINS.Ephys.Stimulation
 					case Commands.FreqFlickerR:
 					case Commands.FreqFlickerAudio:
 					case Commands.FreqToneAudio:
+					case Commands.FreqFlickerLed:
+					case Commands.FreqFlickerAll:
 						return $"{Command}: {PFloat} Hz";
 					case Commands.Sleep:
 						return $"{Command}: {Parameter} ms";
@@ -334,9 +368,9 @@ namespace TINS.Ephys.Stimulation
 					case Commands.EmitTrigger:
 					case Commands.Feedback:
 						return $"{Command}: {(byte)Parameter}";
-					case Commands.ChangeFlickerTriggersL:
+					case Commands.ChangeFlickerTriggers:
 						return $"{Command}: {P2Short.S1}(L), {P2Short.S2}(R)";
-					case Commands.ChangeFlickerTriggerStateL:
+					case Commands.ChangeFlickerTriggerAttach:
 						return $"{Command}: {PBool.ToString().ToLower()}";
 					case Commands.AwaitFullInstructionList:
 						return $"{Command}: {Parameter} instructions";
@@ -395,13 +429,25 @@ namespace TINS.Ephys.Stimulation
 				dataSpan[i + 1] = instructionList[i];
 			}
 
+			//int blockSize	= 256;
+			//int	blockStart	= 0;
+			//for (int i = 0; i < data.Length / blockSize; ++i)
+			//{
+			//	_port.Write(data, blockStart, blockSize);
+			//	blockStart += blockSize;
+			//}
+			//_port.Write(data, blockStart, data.Length - blockStart);
 			_port.Write(data, 0, data.Length);
 		}
 
 		/// <summary>
 		/// Reset the stimulation parameters to their default values.
 		/// </summary>
-		public override void Reset() => SendInstruction(Instruction.Reset());
+		public override void Reset()
+		{
+			_port.ReadExisting();
+			SendInstruction(Instruction.Reset());
+		}
 		
 		/// <summary>
 		/// Emit a trigger.

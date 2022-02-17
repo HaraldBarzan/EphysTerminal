@@ -4,24 +4,24 @@
   "trialStartTrigger": 128,
   "trialEndTrigger": 192,
   "supportedTriggers": [ 128, 129, 150, 192, 11, 12, 144 ],
-  "randomize": true,
+  "randomize": false,
   "intertrialTimeout": 2,
   "trials": [
     {
-      "count": 20,
-      "instructionList": "ramp-v-6000ms-10:10:60Hz",
+      "count": 1,
+      "instructionList": "ramp-v-6000ms-10:2:60Hz",
       "preTimeout": 4,
       "postTimeout": 4
     },
     {
-      "count": 20,
-      "instructionList": "ramp-a-6000ms-10:10:60Hz",
+      "count": 1,
+      "instructionList": "ramp-a-6000ms-10:2:60Hz",
       "preTimeout": 4,
       "postTimeout": 4
     },
     {
-      "count": 20,
-      "instructionList": "ramp-av-6000ms-10:10:60Hz",
+      "count": 1,
+      "instructionList": "ramp-av-6000ms-10:2:60Hz",
       "preTimeout": 4,
       "postTimeout": 4
     }

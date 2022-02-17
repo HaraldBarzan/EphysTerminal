@@ -1,7 +1,8 @@
-﻿using CircuitGENUS.Windows;
+﻿using EphysStream.Windows;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 
 namespace TINS.Ephys.Display
 {
@@ -10,20 +11,50 @@ namespace TINS.Ephys.Display
 	/// </summary>
 	public partial class TitleBar : UserControl
     {
+		public static readonly DependencyProperty TitleProperty =
+			DependencyProperty.Register(nameof(Title), typeof(string), typeof(TitleBar), new PropertyMetadata(null));
+
+		public static readonly DependencyProperty SourceProperty =
+			DependencyProperty.Register(nameof(Source), typeof(ImageSource), typeof(TitleBar), new PropertyMetadata(null));
+
+		public static readonly DependencyProperty WindowProperty =
+			DependencyProperty.Register(nameof(Window), typeof(Window), typeof(TitleBar), new PropertyMetadata(null));
+
 		/// <summary>
-		/// 
+		/// Default constructor.
 		/// </summary>
-        public TitleBar()
+		public TitleBar()
         {
             InitializeComponent();
         }
 
 		/// <summary>
+		/// Get or set the title.
+		/// </summary>
+		public string Title
+		{
+			get => (string)GetValue(TitleProperty);
+			set => SetValue(TitleProperty, value);
+		}
+
+		/// <summary>
+		/// Get or set the image source.
+		/// </summary>
+		public ImageSource Source
+		{
+			get => (ImageSource)GetValue(SourceProperty);
+			set => SetValue(SourceProperty, value);
+		}
+
+		/// <summary>
 		/// 
 		/// </summary>
-		/// <param name="window"></param>
-		public void HookWindow(Window window) 
-			=> _parentWindow = window;
+		public Window Window
+		{
+			get => (Window)GetValue(WindowProperty);
+			set => SetValue(WindowProperty, value);
+		}
+
 
 		/// <summary>
 		/// 
@@ -31,7 +62,7 @@ namespace TINS.Ephys.Display
 		/// <param name="sender"></param>
 		/// <param name="e"></param>
 		private void btnExit_Click(object sender, RoutedEventArgs e) 
-			=> _parentWindow?.Close();
+			=> Window?.Close();
 
 		/// <summary>
 		/// 
@@ -40,16 +71,20 @@ namespace TINS.Ephys.Display
 		/// <param name="e"></param>
 		private void btnMaximize_Click(object sender, RoutedEventArgs e)
 		{
-			if (_parentWindow is null) return;
+			var window = Window;
 
-			if (_parentWindow.WindowState is WindowState.Maximized)
+			if (window is null) return;
+
+			if (window.WindowState is WindowState.Maximized)
 			{
-				_parentWindow.WindowState = WindowState.Normal;
-				btnMaximize.Content = App.GetResource<Image>("MaximizeIcon");
+				window.WindowState = WindowState.Normal;
+				imgMaximize.Source = App.GetResource<ImageSource>("MaximizeIcon");
 			}
 			else
-				_parentWindow.WindowState = WindowState.Maximized;
-				btnMaximize.Content = App.GetResource<Image>("RestoreIcon");
+			{
+				window.WindowState = WindowState.Maximized;
+				imgMaximize.Source = App.GetResource<ImageSource>("RestoreIcon");
+			}
 		}
 
 		/// <summary>
@@ -59,9 +94,9 @@ namespace TINS.Ephys.Display
 		/// <param name="e"></param>
 		private void btnMinimize_Click(object sender, RoutedEventArgs e)
 		{
-			if (_parentWindow is null) return;
+			if (Window is null) return;
 
-			_parentWindow.WindowState = WindowState.Minimized;
+			Window.WindowState = WindowState.Minimized;
 		}
 
 		/// <summary>
@@ -71,7 +106,7 @@ namespace TINS.Ephys.Display
 		/// <param name="e"></param>
 		private void ccDragBar_MouseDown(object sender, MouseButtonEventArgs e)
 		{
-			if (_parentWindow is null) return;
+			if (Window is null) return;
 
 			if (e.ChangedButton is MouseButton.Left)
 				_windowDragStartPos = e.GetPosition(this);
@@ -84,14 +119,14 @@ namespace TINS.Ephys.Display
 		/// <param name="e"></param>
 		private void ccDragBar_MouseMove(object sender, MouseEventArgs e)
 		{
-			if (_parentWindow is null) return;
+			if (Window is null) return;
 
 			if (e.LeftButton is MouseButtonState.Pressed && _windowDragStartPos.HasValue)
 			{
 				var currentPos		= e.GetPosition(this);
 				var offset			= currentPos - _windowDragStartPos.Value;
-				_parentWindow.Left	+= offset.X;
-				_parentWindow.Top	+= offset.Y;
+				Window.Left	+= offset.X;
+				Window.Top	+= offset.Y;
 			}
 		}
 
@@ -102,7 +137,7 @@ namespace TINS.Ephys.Display
 		/// <param name="e"></param>
 		private void ccDragBar_MouseUp(object sender, MouseButtonEventArgs e)
 		{
-			if (_parentWindow is null) return;
+			if (Window is null) return;
 
 			if (e.ChangedButton is MouseButton.Left)
 				_windowDragStartPos = null;
@@ -116,7 +151,6 @@ namespace TINS.Ephys.Display
 		private void ccDragBar_MouseDoubleClick(object sender, MouseButtonEventArgs e) 
 			=> btnMaximize_Click(sender, null);
 
-		private Point?		_windowDragStartPos = null;
-		protected Window	_parentWindow		= null;
+		private Point? _windowDragStartPos = null;
     }
 }

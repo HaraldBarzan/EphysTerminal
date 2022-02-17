@@ -1,21 +1,21 @@
 ﻿using Microsoft.Win32;
 using System;
 using System.IO;
-using System.Text.Json;
 using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
 using TINS;
 using TINS.Ephys;
 using TINS.Ephys.Data;
 using TINS.Ephys.Display;
 using TINS.Ephys.Settings;
 using TINS.Ephys.Stimulation;
-using TINS.Ephys.Stimulation.Genus;
 using TINS.Ephys.UI;
 using TINS.IO;
 
-namespace CircuitGENUS.Windows
+namespace EphysStream.Windows
 {
 	/// <summary>
 	/// Interaction logic for MainWindow.xaml
@@ -29,32 +29,19 @@ namespace CircuitGENUS.Windows
 		public MainWindow()
 		{
 			InitializeComponent();
-			titleBar.HookWindow(this);
 			drawMua.ThresholdChanged	+= OnMUAThresholdChange;
 			drawMua.LiveChannelChanged	+= OnMUALiveChannelChange; 
 
 			// set up the protocol wizard
 			ProtocolWizard = new ProtocolWizard(this);
-			ProtocolWizard.SetActions(
-				startRecording: (path) =>
-				{
-					if (IsRecording)
-						EphysStream.StopRecording();
-					EphysStream.StartStream();
-					EphysStream.StartRecording(path);
-				},
-				startProtocol: (path) =>
-				{
-					if (EphysStream is not null && TryLoadProtocol(path, out var protocol, out _))
-					{
-						EphysStream.SetStimulationProtocolAsync(protocol);
-						EphysStream.StartProtocol();
-					}
-				},
-				stopProtocol:	() => EphysStream?.StopProtocol(),
-				stopRecording:	() => EphysStream?.StopStream());
-		}
 
+			// Y range combo boxes
+			foreach (var range in SupportedYRanges)
+			{
+				cmbMuaYRange.Items.Add(range);
+				cmbLfpYRange.Items.Add(range);
+			}
+		}
 
 		#region IUserInterface
 		/// <summary>
@@ -125,7 +112,7 @@ namespace CircuitGENUS.Windows
 		/// <summary>
 		/// The ephys stream.
 		/// </summary>
-		public EphysStream EphysStream { get; protected set; }
+		public TINS.Ephys.EphysStream EphysStream { get; protected set; }
 
 		/// <summary>
 		/// Protocol wizard.
@@ -140,21 +127,21 @@ namespace CircuitGENUS.Windows
 		/// <summary>
 		/// Check whether the input stream is on.
 		/// </summary>
-		protected bool IsStreaming 
+		public bool IsStreaming 
 			=> EphysStream is object
 			&& EphysStream.IsStreaming;
 
 		/// <summary>
 		/// Check whether the recording stream is on.
 		/// </summary>
-		protected bool IsRecording 
+		public bool IsRecording 
 			=> EphysStream is object
 			&& EphysStream.IsRecording;
 
 		/// <summary>
 		/// Check whether a protocol is running.
 		/// </summary>
-		protected bool IsProtocolRunning 
+		public bool IsProtocolRunning 
 			=>EphysStream is object
 			&& EphysStream.IsRunningProtocol;
 
@@ -178,17 +165,17 @@ namespace CircuitGENUS.Windows
 			DataInputStream inputStream = null;
 			switch (settings.Input.InputDevice)
 			{
-				case InputDevice.Dummy:
+				case DataInputDevice.Dummy:
 					inputStream = new DummyDataStream(settings);
 					break;
 
-				case InputDevice.Local:
+				case DataInputDevice.Local:
 					if (string.IsNullOrEmpty(localDatasetPath))
 						throw new Exception("The parameter \'localDatasetPath\' must be provided when the input device is set to \'Local\'.");
 					inputStream = new LocalDataStream(settings, localDatasetPath);
 					break;
 
-				case InputDevice.MEA64USB:
+				case DataInputDevice.MEA64USB:
 					inputStream = new MCSDataStream(settings);
 					break;
 
@@ -197,7 +184,7 @@ namespace CircuitGENUS.Windows
 			}
 
 			// create stream and start it on a new thread
-			EphysStream = new EphysStream(
+			EphysStream = new TINS.Ephys.EphysStream(
 				settings:			settings,		// the settings item
 				ui:					this,			// the UI for the streamer
 				dataInputStream:	inputStream);   // the input stream (platform specific));
@@ -205,7 +192,7 @@ namespace CircuitGENUS.Windows
 			EphysStream.InputReceived	+= (_, _) => ProtocolWizard.NotifyNewBlock();
 			new Thread(() => EphysStream.Start()).Start();
 
-			UpdateChannelDisplay();
+			InitializeChannelDisplay();
 			UpdateInterfaceControls();
 
 			// create an audio channel
@@ -347,7 +334,11 @@ namespace CircuitGENUS.Windows
 						}
 
 						var newPath = Path.Combine(dir.FullName, name + ".epd");
-						EphysStream.StartRecording(newPath);
+						EphysStream.StartRecording(this, new()
+						{
+							DatasetDirectory	= dir.ToString(),
+							DatasetName			= name
+						});
 					}
 				});
 				t.SetApartmentState(ApartmentState.STA);
@@ -400,7 +391,7 @@ namespace CircuitGENUS.Windows
 
 						// get local dataset path
 						string localDatasetPath = null;
-						if (settings.Input.InputDevice is InputDevice.Local)
+						if (settings.Input.InputDevice is DataInputDevice.Local)
 						{
 							ofd = new OpenFileDialog()
 							{
@@ -539,8 +530,49 @@ namespace CircuitGENUS.Windows
 		/// <param name="sender"></param>
 		/// <param name="e"></param>
 		private void btnProtoWizard_Click(object sender, RoutedEventArgs e)
+			=> ProtocolWizard.Show();
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="sender"></param>
+		/// <param name="e"></param>
+		private void btnAutoThreshold_Click(object sender, RoutedEventArgs e)
 		{
-			ProtocolWizard.Show();
+			if (double.TryParse(txbThreshold.Text, out var thSDs))
+				drawMua.EnqueueAutoThreshold(-Math.Abs(thSDs));
+
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="sender"></param>
+		/// <param name="e"></param>
+		private void cmbYRange_SelectionChanged(object sender, SelectionChangedEventArgs e)
+		{
+			if (ReferenceEquals(sender, cmbMuaYRange))
+			{
+				var range = (float)cmbMuaYRange.SelectedItem;
+				drawMua.SetYAxisRange((-range, range));
+				drawMua.UpdateDisplay();
+			}
+			
+			if (ReferenceEquals(sender, cmbLfpYRange))
+			{
+				var range = (float)cmbLfpYRange.SelectedItem;
+				drawLfp.SetYAxisRange((-range, range));
+				drawLfp.UpdateDisplay();
+			}
+		}
+
+		
+
+		private void btnFieldAnalyzer_Click(object sender, RoutedEventArgs e)
+		{
+			var t = new Thread(() => new FieldAnalyzer().ShowDialog());
+			t.SetApartmentState(ApartmentState.STA);
+			t.Start();
 		}
 		#endregion
 
@@ -551,7 +583,7 @@ namespace CircuitGENUS.Windows
 		/// 
 		/// </summary>
 		/// <param name="path"></param>
-		private bool TryLoadProtocol(string path, out IStimulationProtocol protocol, out Exception loadException)
+		public bool TryLoadProtocol(string path, out IStimulationProtocol protocol, out Exception loadException)
 		{
 			protocol		= null;
 			loadException	= null;
@@ -568,56 +600,6 @@ namespace CircuitGENUS.Windows
 				loadException = e;
 				return false;
 			}
-
-			//try
-			//{
-			//	var fileData = File.ReadAllText(path);
-			//
-			//	// preload config
-			//	var config = JsonSerializer.Deserialize<ProtocolConfig>(fileData);
-			//
-			//	// check protocol name
-			//	switch (config.ProtocolType)
-			//	{
-			//		case "genus":
-			//			// start protocol stream
-			//			var genusProtocol = new Genus1Protocol(
-			//				parent: EphysStream,
-			//				config: JsonSerializer.Deserialize<Genus1Config>(fileData),
-			//				stimulusController: new ArduinoStimulusController());
-			//			genusProtocol.UpdateProgress	+= UpdateTrialIndicator;
-			//			genusProtocol.ProtocolEnded		+= () => 
-			//			{
-			//				UpdateTrialIndicator(genusProtocol.TrialCount, genusProtocol.TrialCount);
-			//				ProtocolWizard.NotifyProtocolEnded();
-			//			};
-			//			protocol = genusProtocol;
-			//			break;
-			//
-			//		case "dummy":
-			//			var dummyProtocol = new DummyProtocol(
-			//				parent: EphysStream,
-			//				config: JsonSerializer.Deserialize<DummyProtocolConfig>(fileData));
-			//			dummyProtocol.UpdateProgress += UpdateTrialIndicator;
-			//			dummyProtocol.ProtocolEnded += () =>
-			//			{
-			//				UpdateTrialIndicator(1, 1);
-			//				ProtocolWizard.NotifyProtocolEnded();
-			//			};
-			//			protocol = dummyProtocol;
-			//			break;
-			//
-			//		default:
-			//			throw new Exception($"Protocol name \'{config.ProtocolType}\' not recognized.");
-			//	}
-			//
-			//	return true;
-			//}
-			//catch (Exception e)
-			//{
-			//	excMessage = e.Message;
-			//	return false;
-			//}
 		}
 
 		/// <summary>
@@ -634,7 +616,7 @@ namespace CircuitGENUS.Windows
 		/// <summary>
 		/// Update the MUA and LFP channel display matrices.
 		/// </summary>
-		private void UpdateChannelDisplay()
+		private void InitializeChannelDisplay()
 		{
 			var settings = EphysStream.Settings;
 
@@ -652,10 +634,11 @@ namespace CircuitGENUS.Windows
 			}
 
 			// setup MUA axes
+			cmbMuaYRange.Text = settings.UI.MUAYRange.ToString();
 			drawMua.Setup(
 				channelMapping: mapping,
 				xRange: (0, settings.Input.PollingPeriod * settings.UI.MUARefreshRate * 1000 /*conv to ms*/),
-				yRange: (settings.UI.MUAYRangeMin, settings.UI.MUAYRangeMax));
+				yRange: (-settings.UI.MUAYRange, settings.UI.MUAYRange));
 
 			// set thresholds and waveform size
 			foreach (var set in settings.Analysis.Pipes)
@@ -671,10 +654,11 @@ namespace CircuitGENUS.Windows
 			}
 
 			// setup LFP axes
+			cmbLfpYRange.Text = settings.UI.LFPYRange.ToString();
 			drawLfp.Setup(
 				channelMapping: mapping,
 				xRange: (0, settings.Input.PollingPeriod * settings.UI.LFPRefreshRate * 1000 /*conv to ms*/),
-				yRange: (settings.UI.LFPYRangeMin, settings.UI.LFPYRangeMax));
+				yRange: (-settings.UI.LFPYRange, settings.UI.LFPYRange));
 		}
 
 		/// <summary>
@@ -691,9 +675,9 @@ namespace CircuitGENUS.Windows
 				bool proto	= IsProtocolRunning;
 
 				// update buttons
-				btnStreamToggle.Content		= App.GetResource<Image>(stream		? "StopIcon" : "PlayIcon");
-				btnRecordToggle.Content		= App.GetResource<Image>(record		? "RecordOnIcon" : "RecordOffIcon");
-				btnToggleProtocol.Content	= App.GetResource<Image>(proto		? "ProtStopIcon" : "ProtStartIcon"); 
+				btnStreamToggle.Source		= App.GetResource<ImageSource>(stream		? "StopIcon" : "PlayIcon");
+				btnRecordToggle.Source		= App.GetResource<ImageSource>(record		? "RecordOnIcon" : "RecordOffIcon");
+				btnToggleProtocol.Source	= App.GetResource<ImageSource>(proto		? "ProtStopIcon" : "ProtStartIcon"); 
 
 				// update status label
 				if (EphysStream is null)
@@ -712,5 +696,24 @@ namespace CircuitGENUS.Windows
 		}
 
 		#endregion
+
+		/// <summary>
+		/// A list of supported y ranges.
+		/// </summary>
+		static Vector<float> SupportedYRanges = new()
+		{
+			10,
+			20,
+			50,
+			100,
+			200,
+			500,
+			1000,
+			1500,
+			2000,
+			5000
+		};
+
+
 	}
 }

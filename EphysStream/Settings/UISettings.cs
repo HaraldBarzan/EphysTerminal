@@ -35,26 +35,14 @@ namespace TINS.Ephys.Settings
 		/// <summary>
 		/// The minimum y-range value for the MUA display.
 		/// </summary>
-		[INILine(Key = "MUA_YRANGE_MIN", Default = -50f)]
-		public float MUAYRangeMin { get; set; }
-
-		/// <summary>
-		/// The maximum y-range value for the MUA display.
-		/// </summary>
-		[INILine(Key = "MUA_YRANGE_MAX", Default = 50f)]
-		public float MUAYRangeMax { get; set; }
+		[INILine(Key = "MUA_YRANGE", Default = 50f)]
+		public float MUAYRange { get; set; }
 
 		/// <summary>
 		/// The minimum y-range value for the LFP display.
 		/// </summary>
-		[INILine(Key = "LFP_YRANGE_MIN", Default = -50f)]
-		public float LFPYRangeMin { get; set; }
-
-		/// <summary>
-		/// The maximum y-range value for the LFP display.
-		/// </summary>
-		[INILine(Key = "LFP_YRANGE_MAX", Default = 50f)]
-		public float LFPYRangeMax { get; set; }
+		[INILine(Key = "LFP_YRANGE", Default = 50f)]
+		public float LFPYRange { get; set; }
 
 		/// <summary>
 		/// The refresh rate of MUA.

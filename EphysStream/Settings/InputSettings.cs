@@ -5,7 +5,7 @@ namespace TINS.Ephys.Settings
 	/// <summary>
 	/// 
 	/// </summary>
-	public enum InputDevice
+	public enum DataInputDevice
 	{
 		Dummy,
 		Local,
@@ -21,9 +21,9 @@ namespace TINS.Ephys.Settings
 		/// <summary>
 		/// The input device.
 		/// </summary>
-		public InputDevice InputDevice 
+		public DataInputDevice InputDevice 
 		{
-			get => (InputDevice)InputDeviceInt;
+			get => (DataInputDevice)InputDeviceInt;
 			set => InputDeviceInt = (int)value;
 		}
 
@@ -56,5 +56,11 @@ namespace TINS.Ephys.Settings
 		/// </summary>
 		[INIVector(Key = "CHANNEL_COUNT", ValueMask = "CHANNEL_*_NAME")]
 		public Vector<string> ChannelLabels { get; set; } = new();
+
+		/// <summary>
+		/// Artefact triggers will be omitted.
+		/// </summary>
+		[INILine(Key = "CORRECT_ARTEFACT_EVENTS", Default = true)]
+		public bool CorrectArtefactEvents { get; set; }
 	}
 }

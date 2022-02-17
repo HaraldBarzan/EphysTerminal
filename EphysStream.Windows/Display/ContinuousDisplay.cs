@@ -1,4 +1,8 @@
 ﻿using SkiaSharp;
+using System.Threading;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
 using TINS.Ephys.UI;
 
 namespace TINS.Ephys.Display
@@ -9,6 +13,7 @@ namespace TINS.Ephys.Display
 	public class ContinuousDisplay 
 		: DataDisplay
 	{
+
 		/// <summary>
 		/// Default constructor.
 		/// </summary>
@@ -16,7 +21,9 @@ namespace TINS.Ephys.Display
 		{
 			_graphPaint.Color = new(200, 0, 255);
 			_graphPaint.Style = SKPaintStyle.Stroke;
-			over.Visibility = System.Windows.Visibility.Hidden;
+			over.Visibility = Visibility.Hidden;
+
+			CreateContextMenu();
 		}
 
 		/// <summary>
@@ -67,6 +74,9 @@ namespace TINS.Ephys.Display
 							lineGraph.LineTo(i, -lineData[i]);
 					}
 				}
+
+				foreach (var rts in _rtSpecDisplays)
+					rts.Update(lfpAcc);
 			}
 
 			data.InvalidateVisual();
@@ -118,10 +128,60 @@ namespace TINS.Ephys.Display
 				}
 			}
 		}
+
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="sender"></param>
+		/// <param name="e"></param>
+		protected void MitRTSpectrum_Click(object sender, RoutedEventArgs e)
+		{
+			if (ReferenceEquals(mitRTSpectrum, sender)	&&
+				_contextMenuLocation.HasValue			&&
+				TryGetChannelAt(_contextMenuLocation.Value, out var mapping, out _, out _))
+			{
+				new Thread(() =>
+				{
+					var rts = new RealTimeSpectrumDisplay();
+					rts.Text = $"{mapping.Label} - Fourier spectrum";
+					rts.TopMost = true;
+					rts.Initialize(mapping.SourceIndex, 2048, 1000); // TODO remove hardcoding
+					rts.FormClosing += (o, _) =>
+					{
+						if (o is RealTimeSpectrumDisplay d)
+						_rtSpecDisplays.Remove(d);
+					};
+					_rtSpecDisplays.PushBack(rts);
+					rts.ShowDialog();
+				}).Start();
+			}
+		}
+
+
+		/// <summary>
+		/// 
+		/// </summary>
+		protected void CreateContextMenu()
+		{
+			mitRTSpectrum = new MenuItem() { Header = "Real-time Fourier spectrum" };
+			mitRTSpectrum.Click += MitRTSpectrum_Click;
+
+			ContextMenu.Items.Insert(0, mitRTSpectrum);
+
+			ContextMenu.Opened += (_, _) => _contextMenuLocation = Mouse.GetPosition(this);
+			ContextMenu.Closed += (_, _) => _contextMenuLocation = null;
+		}
+
+
+		// context menus
+		protected System.Windows.Point?	_contextMenuLocation;
+		protected MenuItem				mitRTSpectrum;
 		
 		// data
-		protected SKPaint		 _graphPaint = new();
-		protected Matrix<SKPath> _graphs	 = new();
+		protected SKPaint							_graphPaint		= new();
+		protected Matrix<SKPath>					_graphs			= new();
+		protected Vector<RealTimeSpectrumDisplay>	_rtSpecDisplays = new();
 
 	}
 }

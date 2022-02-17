@@ -13,6 +13,11 @@ namespace TINS.Ephys.Display
 		: UserControl
 	{
 		/// <summary>
+		/// Offset of tick labels from their respective axes.
+		/// </summary>
+		public static float TickLabelOffset { get; set; } = 2;
+
+		/// <summary>
 		/// Describes a mapping of channels to a source buffer.
 		/// </summary>
 		public struct Mapping
@@ -104,6 +109,15 @@ namespace TINS.Ephys.Display
 		}
 
 		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="xRange"></param>
+		/// <param name="yRange"></param>
+		/// <param name="margin"></param>
+		public virtual void SetYAxisRange((float Lower, float Upper) yRange)
+			=> _yRange = yRange;
+
+		/// <summary>
 		/// Forcibly redraw the visuals.
 		/// </summary>
 		public virtual void UpdateDisplay()
@@ -169,8 +183,8 @@ namespace TINS.Ephys.Display
 
 			// fonts and paints
 			using var tickFont	= new SKFont()			{ Size = 10, Typeface = SKTypeface.FromFamilyName("Arial") };
-			using var tickPaint = new SKPaint(tickFont) { Color = new(255, 255, 255), Style = SKPaintStyle.Fill };
-			using var linePaint = new SKPaint()			{ Color = new(255, 255, 255), Style = SKPaintStyle.Stroke };
+			using var tickPaint = new SKPaint(tickFont) { Color = new(214, 214, 214), Style = SKPaintStyle.Fill };
+			using var linePaint = new SKPaint()			{ Color = new(214, 214, 214), Style = SKPaintStyle.Stroke };
 			
 			// text and text size
 			var strXRange		= (Lower: _xRange.Lower.ToString(), Upper: _xRange.Upper.ToString());
@@ -181,7 +195,7 @@ namespace TINS.Ephys.Display
 
 			// precompute sizes
 			var availableArea	= c.DeviceClipBounds;
-			float tickOffset	= 5;
+			float tickOffset	= TickLabelOffset;
 			_panelRect			= SKRect.Create(0, 0, availableArea.Width / _channelMapping.Cols, availableArea.Height / _channelMapping.Rows);
 			_axisRect			= SKRect.Create(tickOffset + maxYTickWidth + _margin, _margin, 
 												_panelRect.Width - tickOffset - 2 * _margin - maxYTickWidth,

@@ -4,6 +4,7 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net5.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
     <RootNamespace>TINS.Ephys</RootNamespace>
   </PropertyGroup>
 
@@ -51,6 +52,9 @@
     </Reference>
     <Reference Include="TINS.Core">
       <HintPath>..\..\TINS\bin\Release\TINS.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="TINS.Visualization">
+      <HintPath>..\..\TINS\bin\Release\TINS.Visualization.dll</HintPath>
     </Reference>
   </ItemGroup>
 

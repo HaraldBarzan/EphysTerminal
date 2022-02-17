@@ -8,19 +8,7 @@
   "intertrialTimeout": 2,
   "trials": [
     {
-      "count": 5,
-      "instructionList": "ramp-v-6000ms-10:10:60Hz",
-      "preTimeout": 4,
-      "postTimeout": 4
-    },
-    {
-      "count": 5,
-      "instructionList": "ramp-a-6000ms-10:10:60Hz",
-      "preTimeout": 4,
-      "postTimeout": 4
-    },
-    {
-      "count": 5,
+      "count": 10,
       "instructionList": "ramp-av-6000ms-10:10:60Hz",
       "preTimeout": 4,
       "postTimeout": 4

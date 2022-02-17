@@ -8,6 +8,22 @@ using TINS.Utilities;
 namespace TINS.Ephys.Data
 {
 	/// <summary>
+	/// Event args for data output.
+	/// </summary>
+	public class DataOutputEventArgs : EventArgs
+	{
+		/// <summary>
+		/// The directory the dataset should be saved in. 
+		/// </summary>
+		public string DatasetDirectory { get; init; }
+
+		/// <summary>
+		/// The name of the dataset.
+		/// </summary>
+		public string DatasetName { get; init; }
+	}
+
+	/// <summary>
 	/// A continuous data output stream that saves to EPD format.
 	/// </summary>
 	public class DataOutputStream
@@ -28,22 +44,18 @@ namespace TINS.Ephys.Data
 		/// <summary>
 		/// Create a data output stream (to EPD format).
 		/// </summary>
-		/// <param name="outputPath">The path to the output dataset. Will overwrite an existing one.</param>
+		/// <param name="outputFolder">The path to the output dataset. Will overwrite an existing one.</param>
+		/// <param name="datasetName">The path to the output dataset. Will overwrite an existing one.</param>
 		/// <param name="samplingRate">The sampling rate for the new dataset.</param>
 		/// <param name="channelLabels">The labels of the channels in the dataset.</param>
-		/// <param name="supportedTriggers">A list of triggers to be written to the dataset. All other triggers will be discarded.
-		/// Null will cause all triggers to be written.</param>
-		public DataOutputStream(string outputPath, float samplingRate, Vector<string> channelLabels, Vector<int> supportedTriggers = null)
+		public DataOutputStream(string outputFolder, string datasetName, float samplingRate, Vector<string> channelLabels)
 			: base(false)
 		{
-			if (!outputPath.EndsWith(".epd", StringComparison.InvariantCultureIgnoreCase))
-				outputPath += ".epd";
-
 			// create the dataset
-			_datasetName	= Path.GetFileNameWithoutExtension(outputPath);
+			_datasetName	= datasetName;
 			_dataset		= new Dataset()
 			{
-				Directory			= Directory.GetParent(outputPath).ToString(),
+				Directory			= outputFolder,
 				EventCodesFile		= $"{_datasetName}-EventCodes.bin",
 				EventTimestampsFile = $"{_datasetName}-EventTimestamps.bin",
 				SamplingRate		= samplingRate
@@ -150,11 +162,9 @@ namespace TINS.Ephys.Data
 				foreach (var stream in _channelStreams)
 					stream?.Dispose();
 				_channelStreams.Clear();
+				_eventMarkers.Sort();
 
 				// save the timestamps
-				if (_supportedTriggers is not null)
-					_eventMarkers.Remove(x => !_supportedTriggers.Contains(x.EventCode));
-				_eventMarkers.Sort();
 				_dataset.SaveEvents(_eventMarkers);
 				_eventMarkers.Clear();
 

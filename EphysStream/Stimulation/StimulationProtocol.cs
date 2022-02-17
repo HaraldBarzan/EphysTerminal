@@ -46,9 +46,21 @@ namespace TINS.Ephys.Stimulation
 		public void SetStimulusController(StimulusController stimulusController);
 
 		/// <summary>
+		/// The event filter function.
+		/// </summary>
+		/// <param name="eventCode">Event code.</param>
+		/// <returns>True if the event code must be kept.</returns>
+		public bool EventFilter(int eventCode);
+
+		/// <summary>
 		/// Assert whether the protocol is running.
 		/// </summary>
 		public bool IsRunning { get; }
+
+		/// <summary>
+		/// True if an event filter must be used.
+		/// </summary>
+		public bool UseEventFilters { get; }
 	}
 
 
@@ -167,6 +179,23 @@ namespace TINS.Ephys.Stimulation
 		{
 			StimulusController = controller;
 		}
+
+		/// <summary>
+		/// The event filter to be applied to the stream.
+		/// </summary>
+		/// <param name="eventCode">A putative event code.</param>
+		/// <returns>True if the event code should be kept.</returns>
+		public virtual bool EventFilter(int eventCode)
+		{
+			if (Config.SupportedTriggers is not null && !Config.SupportedTriggers.IsEmpty)
+				return Config.SupportedTriggers.Contains(eventCode);
+			return true;
+		}
+
+		/// <summary>
+		/// True if an event filter needs to be applied to the stream.
+		/// </summary>
+		public bool UseEventFilters => Config.SupportedTriggers is not null;
 
 		/// <summary>
 		/// Assert whether the protocol is running.

@@ -140,7 +140,7 @@ namespace TINS.Ephys.Stimulation.Genus
 		/// <summary>
 		/// Configure the state machine.
 		/// </summary>
-		protected override void ConfigureStateMachine()
+		protected override void ConfigureStates()
 		{
 			// IDLE
 			AddState(GenusState.Idle,

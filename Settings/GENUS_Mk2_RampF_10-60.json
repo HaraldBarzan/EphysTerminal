@@ -9,19 +9,19 @@
   "trials": [
     {
       "count": 20,
-      "instructionList": "ramp-v-6000ms-10:10:60Hz",
+      "instructionList": "ramp-v-6000ms-10:2:60Hz",
       "preTimeout": 4,
       "postTimeout": 4
     },
     {
       "count": 20,
-      "instructionList": "ramp-a-6000ms-10:10:60Hz",
+      "instructionList": "ramp-a-6000ms-10:2:60Hz",
       "preTimeout": 4,
       "postTimeout": 4
     },
     {
       "count": 20,
-      "instructionList": "ramp-av-6000ms-10:10:60Hz",
+      "instructionList": "ramp-av-6000ms-10:2:60Hz",
       "preTimeout": 4,
       "postTimeout": 4
     }

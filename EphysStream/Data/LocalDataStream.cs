@@ -77,8 +77,10 @@ namespace TINS.Ephys.Data
 		/// </summary>
 		protected void ReadLoop()
 		{
-			Status	= DataStreamStatus.Running;
-			var t	= new Stopwatch();
+			Status			= DataStreamStatus.Running;
+			var t			= new Stopwatch();
+			var frameEvents = new Vector<EventMarker>();
+			frameEvents.Reserve(_events.Size);
 
 			// raise start event
 			RaiseAcqusitionStarted();
@@ -111,18 +113,32 @@ namespace TINS.Ephys.Data
 				lock (dataInput)
 				{
 					// reset the streams if needed
-					for (int i = 0; i < _streams.Size; ++i)
+					for (int iCh = 0; iCh < _streams.Size; ++iCh)
 					{
-						if (_streams[i].Position + analogData.Cols > _streams[i].Length)
+						if (_streams[iCh].Position + analogData.Cols > _streams[iCh].Length)
 							ResetStreamPosition();
 					}
 
 					// lock matrix and write stream data
 					for (int iCh = 0; iCh < _streams.Size; ++iCh)
 						_streams[iCh].Read(analogData.GetBuffer(iCh));
-					
+
+					// go through the event list and find events within the required time frame
+					frameEvents.Clear();
+					for (; _currentEventPos < _events.Size; ++_currentEventPos)
+					{
+						if (_events[_currentEventPos].Timestamp > _currentStreamPos + digitalData.Cols)
+							break;
+						frameEvents.PushBack(new EventMarker(
+							code:		_events[_currentEventPos].EventCode, 
+							timestamp:	_events[_currentEventPos].Timestamp - _currentStreamPos));
+					}
+
+					// fill digital input
+					FillDigitalInput(digitalData.GetSpan(), frameEvents, ref _lastEvent);
+
 					// advance the current position
-					_currentPos += analogData.Cols;
+					_currentStreamPos += analogData.Cols;
 				}
 
 				// signal data availability
@@ -146,12 +162,38 @@ namespace TINS.Ephys.Data
 		{
 			for (int i = 0; i < _streams.Size; ++i)
 				_streams[i].Seek(0);
+
+			_currentEventPos	= 0;
+			_currentStreamPos	= 0;
+		}
+
+		/// <summary>
+		/// Fill the digital input buffer.
+		/// </summary>
+		/// <param name="buffer"></param>
+		/// <param name="frameEvents"></param>
+		/// <param name="lastEvent"></param>
+		static void FillDigitalInput(Span<int> buffer, Vector<EventMarker> frameEvents, ref int lastEvent)
+		{
+			int startFillPos = 0;
+			for (int i = 0; i < frameEvents.Size; ++i)
+			{
+				// fill with previous event
+				int fillCount	= frameEvents[i].Timestamp - startFillPos;
+				buffer			.Slice(startFillPos, fillCount).Fill(lastEvent);
+				startFillPos	+= fillCount;
+				lastEvent		= frameEvents[i].EventCode;
+			}
+			// finalize filling
+			buffer.Slice(startFillPos, buffer.Length - startFillPos).Fill(lastEvent);
 		}
 
 
-		protected Vector<IOStream>		_streams	= new();
-		protected Vector<EventMarker>	_events		= new();
-		protected int					_currentPos = 0;
-		private bool					_disposed	= false;
+		protected Vector<IOStream>		_streams			= new();
+		protected Vector<EventMarker>	_events				= new();
+		protected int					_currentStreamPos	= 0;
+		protected int					_currentEventPos	= 0;
+		protected int					_lastEvent			= 0;
+		private bool					_disposed			= false;
 	}
 }

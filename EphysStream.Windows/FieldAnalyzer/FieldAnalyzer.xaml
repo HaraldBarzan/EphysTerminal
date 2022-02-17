@@ -1,0 +1,295 @@
+﻿<Window x:Class="TINS.Ephys.FieldAnalyzer"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:TINS.Ephys"
+		xmlns:dr="clr-namespace:TINS.Ephys.Display"
+        mc:Ignorable="d"
+        Title="FieldAnalyzer" 
+		Height="400" Width="450" MinHeight="400" MinWidth="450"
+		Background="#2d2d30" BorderBrush="Gray" BorderThickness="1" 
+		WindowStyle="None" WindowStartupLocation="CenterScreen" ResizeMode="CanResizeWithGrip" AllowsTransparency="True"
+		Name="_this">
+	<Window.Resources>
+		<Style x:Key="ThemeTabItem" TargetType="TabItem">
+			<Setter Property="Background" Value="#2d2d30"/>
+			<Setter Property="Foreground" Value="White"/>
+		</Style>
+	</Window.Resources>
+    <Grid>
+		<Grid.RowDefinitions>
+			<RowDefinition Height="40"/>
+			<RowDefinition Height="50"/>
+			<RowDefinition Height="25"/>
+			<RowDefinition Height="*"/>
+			<RowDefinition Height="40"/>
+		</Grid.RowDefinitions>
+
+		<!-- title bar -->
+		<dr:TitleBar Grid.Row="0" Window="{Binding ElementName=_this}" Title="Field Analyzer" Source="{StaticResource TinsIcon}"/>
+
+		<!-- main bar -->
+		<Grid Grid.Row="1" Margin="10,0">
+			<Grid.ColumnDefinitions>
+				<ColumnDefinition Width="70"/>
+				<ColumnDefinition Width="100"/>
+				<ColumnDefinition Width="70"/>
+			</Grid.ColumnDefinitions>
+
+			<dr:BigButton Grid.Column="0" x:Name="btnLoad" Click="btnLoad_Click"
+						  Source="{StaticResource OpenIcon}" Text="Open dataset" FontSize="10" Height="50"/>
+		</Grid>
+
+		<!-- dataset path -->
+		<Label Grid.Row="2" Content="&lt;no-dataset-loaded&gt;" Name="lblDatasetPath"/>
+
+		<!-- tab control -->
+		<TabControl Grid.Row="3" Margin="10" Background="#2d2d30" Name="tabControl">
+			<TabItem Header="Trial" Name="tabTrials">
+				<Grid>
+					<Grid.RowDefinitions>
+						<RowDefinition Height="26"/>
+						<RowDefinition Height="26"/>
+						<RowDefinition Height="26"/>
+						<RowDefinition Height="26"/>
+						<RowDefinition Height="26"/>
+						<RowDefinition Height="26"/>
+						<RowDefinition Height="*"/>
+					</Grid.RowDefinitions>
+					<Grid.ColumnDefinitions>
+						<ColumnDefinition Width="150"/>
+						<ColumnDefinition Width="*"/>
+					</Grid.ColumnDefinitions>
+
+					<Label Grid.Row="0" Grid.Column="0" HorizontalAlignment="Right" Content="Trial parse string:"/>
+					<Label Grid.Row="1" Grid.Column="0" HorizontalAlignment="Right" Content="Reference event string:"/>
+					<Label Grid.Row="2" Grid.Column="0" HorizontalAlignment="Right" Content="Window before:"/>
+					<Label Grid.Row="3" Grid.Column="0" HorizontalAlignment="Right" Content="Window after:"/>
+					<Label Grid.Row="4" Grid.Column="0" HorizontalAlignment="Right" Content="Trial information file:"/>
+					<Label Grid.Row="5" Grid.Column="0" HorizontalAlignment="Right" VerticalAlignment="Top"  Content="Conditions:"/>
+
+
+					<dr:TextBoxValidation Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Left" Width="150" Height="20" 
+										  x:Name="txbvTrialString" Text="1,2,4,8" />
+					<dr:TextBoxValidation Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Left" Width="100" Height="20"
+										  x:Name="txbvRefEventString" Text="2"/>
+					<StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal">
+						<dr:NumericTextBox VerticalAlignment="Center" HorizontalAlignment="Left" Width="80" Height="20"
+										   x:Name="txbWindowBefore" Text="500"/>
+						<Label Content="ms"/>
+					</StackPanel>
+					<StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal">
+						<dr:NumericTextBox VerticalAlignment="Center" HorizontalAlignment="Left" Width="80" Height="20"
+										   x:Name="txbWindowAfter" Text="6000"/>
+						<Label Content="ms"/>
+					</StackPanel>
+					
+					<!-- trial info file selector -->
+					<Grid Grid.Row="4" Grid.Column="1">
+						<Grid.ColumnDefinitions>
+							<ColumnDefinition Width="*"/>
+							<ColumnDefinition Width="80"/>
+						</Grid.ColumnDefinitions>
+						<TextBox Grid.Column="0" x:Name="txbEtiPath" Height="20" IsEnabled="false"/>
+						<Button Grid.Column="1" x:Name="btnEtiBrowse" Height="20" Content="Browse..." Click="btnEtiBrowse_Click"/>
+					</Grid>
+					
+					<!-- trial filter -->
+					<Grid Grid.Row="5" Grid.Column="1">
+						<Grid.ColumnDefinitions>
+							<ColumnDefinition Width="*"/>
+							<ColumnDefinition Width="40"/>
+							<ColumnDefinition Width="40"/>
+						</Grid.ColumnDefinitions>
+
+						<ComboBox Grid.Column="0" Name="cmbConditions" Margin="2"/>
+						<Button Grid.Column="1" x:Name="btnGotoConditionCreator" Content="+" Click="btnGotoConditionCreator_Click"
+								ToolTip="Add a trial filter to the list."/>
+						<Button Grid.Column="2" x:Name="btnRemoveConditions" Content="-" Click="btnRemoveConditions_Click"
+								ToolTip="Remove the currently focused trial filter." HorizontalAlignment="Left" Margin="2,0,0,0" Width="36"/>
+
+					</Grid>
+				</Grid>
+			</TabItem>
+
+			<TabItem Header="Processing" Name="tabProcess">
+				<Grid>
+					<Grid.RowDefinitions>
+						<RowDefinition Height="*"/>
+						<RowDefinition Height="30"/>
+					</Grid.RowDefinitions>
+					<Grid.ColumnDefinitions>
+						<ColumnDefinition Width="*"/>
+						<ColumnDefinition Width="100"/>
+						<ColumnDefinition Width="100"/>
+					</Grid.ColumnDefinitions>
+
+					<ListBox Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3" x:Name="lsbPreproc" Margin="5"/>
+					<Button Grid.Row="1" Grid.Column="1" Content="Remove" Name="btnRemoveProc" Click="btnRemoveProc_Click"/>
+					<Button Grid.Row="1" Grid.Column="2" Content="Add" Name="btnAddProc" Click="btnAddProc_Click"/>
+				</Grid>
+			</TabItem>
+
+			<TabItem Header="Analysis" Name="tabAnalysis">
+				<Grid>
+					<Grid.RowDefinitions>
+						<RowDefinition Height="26"/>
+						<RowDefinition Height="26"/>
+						<RowDefinition Height="26"/>
+						<RowDefinition Height="26"/>
+						<RowDefinition Height="26"/>
+						<RowDefinition Height="26"/>
+						<RowDefinition Height="*"/>
+					</Grid.RowDefinitions>
+					<Grid.ColumnDefinitions>
+						<ColumnDefinition Width="150"/>
+						<ColumnDefinition Width="100"/>
+						<ColumnDefinition Width="*"/>
+					</Grid.ColumnDefinitions>
+
+					<Label Grid.Row="0" Grid.Column="0" HorizontalAlignment="Right" Content="Base cycles:"/>
+					<Label Grid.Row="1" Grid.Column="0" HorizontalAlignment="Right" Content="Superresolution order:"/>
+					<Label Grid.Row="2" Grid.Column="0" HorizontalAlignment="Right" Content="Frequency bins:"/>
+					<Label Grid.Row="3" Grid.Column="0" HorizontalAlignment="Right" Content="Lower frequency:"/>
+					<Label Grid.Row="4" Grid.Column="0" HorizontalAlignment="Right" Content="Upper frequency:"/>
+					<Label Grid.Row="5" Grid.Column="0" HorizontalAlignment="Right" Content="Fisher Z:"/>
+
+					<TextBox Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Left" Width="50" Height="20"
+							 Name="txbLowerFreq" Text="20"/>
+					<TextBox Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Left" Width="50" Height="20"
+							 Name="txbUpperFreq" Text="100"/>
+					<TextBox Grid.Row="2" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Left" Width="50" Height="20"
+							 Name="txbBaseCycles" Text="3"/>
+					<TextBox Grid.Row="3" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Left" Width="50" Height="20"
+							 Name="txbOrder" Text="10"/>
+					<TextBox Grid.Row="4" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Left" Width="50" Height="20" 
+							 Name="txbFreqBins" Text="81"/>
+					<CheckBox Grid.Row="5" Grid.Column="1" Foreground="White" VerticalAlignment="Center" Content="Use"
+							  Name="ckbUseLog" Margin="3,0,0,0"/>
+
+					<Label Grid.Row="0" Grid.Column="2" HorizontalAlignment="Left" Content="Channels:"/>
+					<ListBox Grid.Row="1" Grid.Column="2" Grid.RowSpan="4" Background="Gray" Foreground="White" Width="150" HorizontalAlignment="Left"/>
+				</Grid>
+			</TabItem>
+
+			<!-- add condition tab -->
+			<TabItem Header="Add condition" Name="tabAddCondition" Visibility="Hidden">
+				<Grid>
+					<Grid.RowDefinitions>
+						<RowDefinition Height="*"/>
+						<RowDefinition Height="30"/>
+						<RowDefinition Height="26"/>
+					</Grid.RowDefinitions>
+					<Grid.ColumnDefinitions>
+						<ColumnDefinition Width="*"/>
+						<ColumnDefinition Width="100"/>
+					</Grid.ColumnDefinitions>
+
+					<DataGrid Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" x:Name="tableAllTrials" Margin="5,2,5,0" ItemsSource="{Binding}" 
+							  CanUserDeleteRows="false" CanUserAddRows="false" CanUserReorderColumns="false" CanUserResizeColumns="false"/>
+					<DataGrid Grid.Row="1" Grid.Column="0" Grid.RowSpan="2" x:Name="tableCondition" Margin="5,2,2,0" ItemsSource="{Binding}"
+							  CanUserDeleteRows="false" CanUserAddRows="false" CanUserReorderColumns="false" CanUserResizeColumns="false"/>
+					<Button Grid.Row="1" Grid.Column="2" Height="26" Margin="3,0,5,0" Content="Confirm" Name="btnConfirmCondition" Click="btnConfirmCondition_Click"/>
+					<Button Grid.Row="2" Grid.Column="2" Height="26" Margin="3,0,5,0" Content="Cancel" Name="btnCancelCondition" Click="btnCancelCondition_Click"/>
+				</Grid>
+			</TabItem>
+			
+			<!-- add preproc tab -->
+			<TabItem Name="tabAddProcessing" Header="Add processing step" Visibility="Hidden" >
+				<Grid>
+					<Grid.RowDefinitions>
+						<RowDefinition Height="*"/>
+						<RowDefinition Height="30"/>
+					</Grid.RowDefinitions>
+					<Grid.ColumnDefinitions>
+						<ColumnDefinition Width="*"/>
+						<ColumnDefinition Width="100"/>
+						<ColumnDefinition Width="100"/>
+					</Grid.ColumnDefinitions>
+					
+					<TabControl Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3" Background="#2d2d30" Name="tabControlProc">
+						<!-- iir filter -->
+						<TabItem Header="IIR filtering">
+							<Grid Margin="5">
+								<Grid.RowDefinitions>
+									<RowDefinition Height="30"/>
+									<RowDefinition Height="30"/>
+									<RowDefinition Height="30"/>
+									<RowDefinition Height="30"/>
+									<RowDefinition Height="*"/>
+								</Grid.RowDefinitions>
+								<Grid.ColumnDefinitions>
+									<ColumnDefinition Width="150"/>
+									<ColumnDefinition Width="*"/>
+								</Grid.ColumnDefinitions>
+
+								<Label Grid.Row="0" Grid.Column="0" HorizontalAlignment="Right" Content="Filter pass type:"/>
+								<Label Grid.Row="1" Grid.Column="0" HorizontalAlignment="Right" Content="Filter order:"/>
+								<Label Grid.Row="2" Grid.Column="0" HorizontalAlignment="Right" Content="Cutoff frequency (low):"/>
+								<Label Grid.Row="3" Grid.Column="0" HorizontalAlignment="Right" Content="Cutoff frequency (high):"/>
+
+								<ComboBox Grid.Row="0" Grid.Column="1" HorizontalAlignment="Left" Name="cmbFilterPass" Width="150" Margin="2,0,0,0" Height="26" SelectedIndex="0">
+									<ComboBoxItem>Lowpass</ComboBoxItem>
+									<ComboBoxItem>Highpass</ComboBoxItem>
+									<ComboBoxItem>Bandpass</ComboBoxItem>
+									<ComboBoxItem>Bandstop</ComboBoxItem>
+								</ComboBox>
+								<dr:NumericTextBox NumericType="Integer" Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" x:Name="txbFilterOrder" Width="60" Text="3"/>
+								<StackPanel Orientation="Horizontal" Grid.Row="2" Grid.Column="1" >
+									<dr:NumericTextBox NumericType="Real" HorizontalAlignment="Left" x:Name="txbCutoffLow" Width="60"/>
+									<Label Content="Hz"/>
+								</StackPanel>
+								<StackPanel Orientation="Horizontal" Grid.Row="3" Grid.Column="1" >
+									<dr:NumericTextBox NumericType="Real" HorizontalAlignment="Left" x:Name="txbCutoffHigh" Width="60"/>
+									<Label Content="Hz"/>
+								</StackPanel>
+							</Grid>
+						</TabItem>
+
+						<!-- decimator -->
+						<TabItem Header="Decimation">
+							<Grid Margin="5">
+								<Grid.RowDefinitions>
+									<RowDefinition Height="30"/>
+									<RowDefinition Height="30"/>
+									<RowDefinition Height="30"/>
+									<RowDefinition Height="*"/>
+								</Grid.RowDefinitions>
+								<Grid.ColumnDefinitions>
+									<ColumnDefinition Width="150"/>
+									<ColumnDefinition Width="*"/>
+								</Grid.ColumnDefinitions>
+
+								<Label Grid.Row="0" Grid.Column="0" HorizontalAlignment="Right" Name="lblDsFSample" Content="Dataset sampling rate:"/>
+								<Label Grid.Row="1" Grid.Column="0" HorizontalAlignment="Right" Content="Decimation order:"/>
+								<Label Grid.Row="2" Grid.Column="0" HorizontalAlignment="Right" Name="lblFinalFSample"  Content="Final sampling rate:"/>
+								
+								<Label Grid.Row="0" Grid.Column="1" HorizontalAlignment="Left" Content="&lt;sampling-rate&gt;"/>
+								<dr:NumericTextBox Grid.Row="1" Grid.Column="1" NumericType="Integer" HorizontalAlignment="Left" x:Name="txbDecimation" Text="32" Width="60"/>
+								<Label Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Content="&lt;final-sampling-rate&gt;"/>
+							</Grid>
+						</TabItem>
+					</TabControl>
+					<Button Grid.Row="1" Grid.Column="1" Name="btnCancelProcess" Content="Cancel" Click="btnCancelProcess_Click"/>
+					<Button Grid.Row="1" Grid.Column="2" Name="btnConfirmProcess" Content="Add" Click="btnConfirmProcess_Click"/>
+				</Grid>
+			</TabItem>
+			
+
+		</TabControl>
+
+		<Grid Grid.Row="4">
+			<Grid.ColumnDefinitions>
+				<ColumnDefinition Width="*"/>
+				<ColumnDefinition Width="110"/>
+			</Grid.ColumnDefinitions>
+
+			<ProgressBar Grid.Column="0" x:Name="progress" Background="#383838" Margin="8" Foreground="White"/>
+
+			<Button Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right" Width="100"
+					Content="Run" Name="btnRun" Click="btnRun_Click"/>
+		</Grid>
+		
+	</Grid>
+</Window>

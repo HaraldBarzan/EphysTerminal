@@ -1,7 +1,6 @@
 ﻿using System;
 using System.IO;
 using System.Text.Json.Serialization;
-using TINS.Ephys.ModuleImplementations;
 using TINS.Ephys.UI;
 using TINS.Utilities;
 
@@ -172,7 +171,7 @@ namespace TINS.Ephys.Stimulation.Genus
 			/// <summary>
 			/// Configure the state machine.
 			/// </summary>
-			protected override void ConfigureStateMachine()
+			protected override void ConfigureStates()
 			{
 				// IDLE
 				AddState(GenusState.Idle,

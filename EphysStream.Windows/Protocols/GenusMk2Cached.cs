@@ -47,7 +47,7 @@ namespace TINS.Ephys.Stimulation.Genus
 		{
 			// load the configuration
 			Config		= config;
-			TextOutput	= null;
+			TrialLogger	= null;
 
 			// check compatibility
 			if (Config.SupportedSamplingPeriod != ParentStream.Settings.Input.PollingPeriod)
@@ -66,6 +66,10 @@ namespace TINS.Ephys.Stimulation.Genus
 			};
 		}
 
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="disposing"></param>
 		protected override void Dispose(bool disposing)
 		{
 			if (StimulusController is not null)
@@ -93,9 +97,21 @@ namespace TINS.Ephys.Stimulation.Genus
 				var outputPath = Path.Combine(dir, dsName + ".eti");
 				
 				// create the text writer
-				TextOutput = new StreamWriter(outputPath);
-				TextOutput.WriteLine(	"Trials,TrialName,TrialType,Audio,Visual,StimulationRuntime," +
-										"StepCount,AudioToneFrequency,UseFlickerTriggers,UseTransitionTriggers");
+				TrialLogger = new TrialInfoLogger(outputPath, 
+					header: new() 
+					{
+						"Trial",
+						"TrialName",
+						"TrialType",
+						"Audio",
+						"Visual",
+						"StimulationRuntime",
+						"StepCount",
+						"FlickerFrequency",
+						"AudioToneFrequency",
+						"UseFlickerTriggers",
+						"UseTransitionTriggers",
+					});
 			}
 
 			RaiseProtocolStarted();
@@ -110,8 +126,8 @@ namespace TINS.Ephys.Stimulation.Genus
 			{
 				_stateMachine.ProcessEvent(GenusEvent.Stop);
 
-				TextOutput?.Dispose();
-				TextOutput = null;
+				TrialLogger?.Dispose();
+				TrialLogger = null;
 
 				StimulusController?.Disconnect();
 
@@ -146,7 +162,7 @@ namespace TINS.Ephys.Stimulation.Genus
 		/// <summary>
 		/// Text output for this protocol. Is active only when recording.
 		/// </summary>
-		public StreamWriter TextOutput { get; protected set; }
+		public TrialInfoLogger TrialLogger { get; protected set; }
 
 		/// <summary>
 		/// Number of trials.
@@ -208,7 +224,7 @@ namespace TINS.Ephys.Stimulation.Genus
 			/// <summary>
 			/// Configure the state machine.
 			/// </summary>
-			protected override void ConfigureStateMachine()
+			protected override void ConfigureStates()
 			{
 				// IDLE
 				AddState(GenusState.Idle,
@@ -341,17 +357,28 @@ namespace TINS.Ephys.Stimulation.Genus
 			}
 
 			/// <summary>
-			/// 
+			/// Emit a trial line in the eti.
 			/// </summary>
 			protected void EmitEtiLine()
 			{
-				if (Numerics.IsClamped(CurrentTrialIndex, (0, TrialCount - 1)) && _p.TextOutput is not null)
+				if (Numerics.IsClamped(CurrentTrialIndex, (0, TrialCount - 1)) && _p.TrialLogger is not null)
 				{
 					var il = CurrentTrial.Instructions;
 					string Binarize(bool p) => p ? "1" : "0";
+					string Frequency((float, float) f) => f.Size() > 0 ? $"{f.Item1}:{f.Item2}" : f.Item1.ToString();
 
-					_p.TextOutput.WriteLine($"{CurrentTrialIndex + 1},{il.Name},{il.Type},{Binarize(il.Audio)},{Binarize(il.Visual)}," +
-						$"{il.StimulationRuntime},{il.StepCount},{il.ToneFrequency},{Binarize(il.UseFlickerTriggers)},{Binarize(il.UseTransitionTriggers)}");
+					_p.TrialLogger.LogTrial(
+						CurrentTrialIndex + 1, 
+						il.Name, 
+						il.Type,
+						Binarize(il.Audio), 
+						Binarize(il.Visual),
+						il.StimulationRuntime, 
+						il.StepCount,
+						Frequency(il.FlickerFrequency),
+						il.ToneFrequency,
+						Binarize(il.UseFlickerTriggers),
+						Binarize(il.UseTransitionTriggers));
 				}
 			}
 

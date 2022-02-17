@@ -1,19 +1,16 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Configuration;
-using System.Data;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using TINS;
 using TINS.Ephys.ModuleImplementations;
 using TINS.Ephys.Stimulation;
 using TINS.Ephys.Stimulation.Genus;
+using TINS.Native;
+using TINS.Utilities;
 
-namespace CircuitGENUS.Windows
+namespace EphysStream.Windows
 {
-	using Instruction = TINS.Ephys.Stimulation.GenusMk2Controller.Instruction;
-
 	/// <summary>
 	/// Interaction logic for App.xaml
 	/// </summary>
@@ -29,11 +26,39 @@ namespace CircuitGENUS.Windows
 			=> Current.TryFindResource(resourceName) as T;
 
 		/// <summary>
+		/// Startup routine.
+		/// </summary>
+		/// <param name="e"></param>
+		protected override void OnStartup(StartupEventArgs e)
+		{
+			// check if system is 64 bit
+			if (!Environment.Is64BitOperatingSystem)
+				throw new PlatformNotSupportedException("Only 64bit OS-es can run this app.");
+
+			// load native libraries
+			switch (Environment.OSVersion.Platform)
+			{
+				case PlatformID.Win32NT:
+					NativeWrapper.Provide<FFTWSingle>(@"C:\_code\_binaries\x64\libfftw3f-3.dll");
+					break;
+
+				default:
+					throw new PlatformNotSupportedException($"Platform {Environment.OSVersion.Platform} is not supported.");
+			}
+			
+			// register the available protocols
+			ProtocolFactory.RegisterProtocol(typeof(GenusMk1),			"genus1");
+			ProtocolFactory.RegisterProtocol(typeof(GenusMk2Static),	"genus2static");
+			ProtocolFactory.RegisterProtocol(typeof(GenusMk2Cached),	"genus2cached");
+		}
+
+
+
+		/// <summary>
 		/// Show a non-blocking message box.
 		/// </summary>
 		/// <param name="text"></param>
 		/// <param name="title"></param>
-		/// <param name="owner"></param>
 		/// <param name="buttons"></param>
 		/// <param name="image"></param>
 		public static Task<MessageBoxResult> MessageBoxAsync(
@@ -54,28 +79,83 @@ namespace CircuitGENUS.Windows
 			return result;
 		}
 
+
+		
+
+
+
 		/// <summary>
-		/// Startup routine.
+		/// 
 		/// </summary>
-		/// <param name="e"></param>
-		protected override void OnStartup(StartupEventArgs e)
+		static void ConnectionlessProtocol()
 		{
-			ProtocolFactory.RegisterProtocol(typeof(GenusMk1),			"genus1");
-			ProtocolFactory.RegisterProtocol(typeof(GenusMk2Static),	"genus2static");
-			ProtocolFactory.RegisterProtocol(typeof(GenusMk2Cached),	"genus2cached");
+			var trials = new Vector<GenusMk2CachedTrial>();
+			trials.PushBack(new Vector<GenusMk2CachedTrial>(10, fill: GenusMk2CachedTrial.Get("static-v-6000ms-07Hz")));
+			trials.PushBack(new Vector<GenusMk2CachedTrial>(10, fill: GenusMk2CachedTrial.Get("static-v-6000ms-10Hz")));
+			trials.PushBack(new Vector<GenusMk2CachedTrial>(10, fill: GenusMk2CachedTrial.Get("static-v-6000ms-20Hz")));
+			trials.PushBack(new Vector<GenusMk2CachedTrial>(10, fill: GenusMk2CachedTrial.Get("static-v-6000ms-30Hz")));
+			trials.PushBack(new Vector<GenusMk2CachedTrial>(10, fill: GenusMk2CachedTrial.Get("static-v-6000ms-40Hz")));
+			trials.PushBack(new Vector<GenusMk2CachedTrial>(10, fill: GenusMk2CachedTrial.Get("static-v-6000ms-50Hz")));
+			trials.PushBack(new Vector<GenusMk2CachedTrial>(10, fill: GenusMk2CachedTrial.Get("static-v-6000ms-60Hz")));
+			new RNG().Shuffle(trials);
 
-			//var stc = new GenusMk2Controller();
-			//stc.Connect();
-			//stc.FeedbackReceived += (_, _) => Environment.Exit(0);
-			//stc.SendInstructionList(GenusMk2CachedInstructions.Get("ramp-v-6000ms-10:10:60Hz-notriggers").Instructions);
-			//
-			//Thread.Sleep(20000);
+			// create the text writer
+			var logger = new TrialInfoLogger(@"C:\_data\ephys\mouse\genus\raw\m079\m079_static_av_0016.eti", 
+				header: new() 
+				{
+					"Trial",
+					"TrialName",
+					"TrialType",
+					"Audio",
+					"Visual",
+					"StimulationRuntime",
+					"StepCount",
+					"FlickerFrequency",
+					"AudioToneFrequency",
+					"UseFlickerTriggers",
+					"UseTransitionTriggers",
+				});
 
+			string Binarize(bool p) => p ? "1" : "0";
+			string Frequency((float, float) f) => f.Size() > 0 ? $"{f.Item1}:{f.Item2}" : f.Item1.ToString();
+			
+			// controller
+			var stc = new GenusMk2Controller();
+			stc.Connect();
+			var evt = new AutoResetEvent(false);
+			stc.FeedbackReceived += (_, _) => evt.Set();
 
-			// DEBUG
-			//ProtocolFactory.LoadProtocol(null, @"C:\_code\EphysStream\Settings\GENUS_StFl_30_80.json");
-			//ProtocolFactory.LoadProtocol(null, @"C:\_code\EphysStream\Settings\GENUS_Mk2_Ramp_10-60-Minified.json");
-			//Environment.Exit(0);
+			// loop through trials
+			for (int i = 0; i < trials.Size; ++i)
+			{
+				stc.EmitTrigger(128);
+				Thread.Sleep(1000);
+				stc.SendInstructionList(trials[i].Instructions);
+				evt.WaitOne();
+				Thread.Sleep(1000);
+				stc.EmitTrigger(192);
+
+				var il = trials[i];
+
+				logger.LogTrial(
+					i + 1, 
+					il.Name, 
+					il.Type,
+					Binarize(il.Audio), 
+					Binarize(il.Visual),
+					il.StimulationRuntime, 
+					il.StepCount,
+					Frequency(il.FlickerFrequency),
+					il.ToneFrequency,
+					Binarize(il.UseFlickerTriggers),
+					Binarize(il.UseTransitionTriggers));
+
+				Thread.Sleep(new RNG().NextInt(1000, 3000));
+			}
+
+			logger.Close();
+			Environment.Exit(0);
 		}
+
 	}
 }

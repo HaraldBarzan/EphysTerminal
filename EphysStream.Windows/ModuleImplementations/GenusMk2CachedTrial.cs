@@ -2,6 +2,7 @@
 
 namespace TINS.Ephys.ModuleImplementations
 {
+	using FlickerTriggerAttach = GenusMk2Controller.FlickerTriggerAttach;
 	using Instruction = GenusMk2Controller.Instruction;
 
 	/// <summary>
@@ -35,15 +36,43 @@ namespace TINS.Ephys.ModuleImplementations
 			return null;
 		}
 
-
 		/// <summary>
 		/// The list of cached instructions.
 		/// </summary>
 		static Vector<GenusMk2CachedTrial> _instructions = new()
 		{
-			AVRamp("ramp-v-6000ms-10:10:60Hz",	(10, 60), 6, 6000, audio: false,	transitionTrigger: 144, flickerTriggers: (11, 12)),
-			AVRamp("ramp-a-6000ms-10:10:60Hz",	(10, 60), 6, 6000, visual: false,	transitionTrigger: 144, flickerTriggers: (11, 12)),
-			AVRamp("ramp-av-6000ms-10:10:60Hz", (10, 60), 6, 6000,					transitionTrigger: 144, flickerTriggers: (11, 12)),
+			// static
+			AVStatic("static-v-6000ms-07Hz",	07, 6000, audio: false,		flickerTriggers: (FlickerTriggerAttach.LedLeftFlicker, 11, 12)),
+			AVStatic("static-v-6000ms-10Hz",	10, 6000, audio: false,		flickerTriggers: (FlickerTriggerAttach.LedLeftFlicker, 11, 12)),
+			AVStatic("static-v-6000ms-20Hz",	20, 6000, audio: false,		flickerTriggers: (FlickerTriggerAttach.LedLeftFlicker, 11, 12)),
+			AVStatic("static-v-6000ms-30Hz",	30, 6000, audio: false,		flickerTriggers: (FlickerTriggerAttach.LedLeftFlicker, 11, 12)),
+			AVStatic("static-v-6000ms-40Hz",	40, 6000, audio: false,		flickerTriggers: (FlickerTriggerAttach.LedLeftFlicker, 11, 12)),
+			AVStatic("static-v-6000ms-50Hz",	50, 6000, audio: false,		flickerTriggers: (FlickerTriggerAttach.LedLeftFlicker, 11, 12)),
+			AVStatic("static-v-6000ms-60Hz",	60, 6000, audio: false,		flickerTriggers: (FlickerTriggerAttach.LedLeftFlicker, 11, 12)),
+
+			AVStatic("static-a-6000ms-10Hz",	10, 6000, visual: false,	flickerTriggers: (FlickerTriggerAttach.AudioFlicker, 11, 12)),
+			AVStatic("static-a-6000ms-20Hz",	20, 6000, visual: false,	flickerTriggers: (FlickerTriggerAttach.AudioFlicker, 11, 12)),
+			AVStatic("static-a-6000ms-30Hz",	30, 6000, visual: false,	flickerTriggers: (FlickerTriggerAttach.AudioFlicker, 11, 12)),
+			AVStatic("static-a-6000ms-40Hz",	40, 6000, visual: false,	flickerTriggers: (FlickerTriggerAttach.AudioFlicker, 11, 12)),
+			AVStatic("static-a-6000ms-50Hz",	50, 6000, visual: false,	flickerTriggers: (FlickerTriggerAttach.AudioFlicker, 11, 12)),
+			AVStatic("static-a-6000ms-60Hz",	60, 6000, visual: false,	flickerTriggers: (FlickerTriggerAttach.AudioFlicker, 11, 12)),
+
+			AVStatic("static-av-6000ms-10Hz",	10, 6000,					flickerTriggers: (FlickerTriggerAttach.AudioFlicker, 11, 12)),
+			AVStatic("static-av-6000ms-20Hz",	20, 6000,					flickerTriggers: (FlickerTriggerAttach.AudioFlicker, 11, 12)),
+			AVStatic("static-av-6000ms-30Hz",	30, 6000,					flickerTriggers: (FlickerTriggerAttach.AudioFlicker, 11, 12)),
+			AVStatic("static-av-6000ms-40Hz",	40, 6000,					flickerTriggers: (FlickerTriggerAttach.AudioFlicker, 11, 12)),
+			AVStatic("static-av-6000ms-50Hz",	50, 6000,					flickerTriggers: (FlickerTriggerAttach.AudioFlicker, 11, 12)),
+			AVStatic("static-av-6000ms-60Hz",	60, 6000,					flickerTriggers: (FlickerTriggerAttach.AudioFlicker, 11, 12)),
+
+			// ramp slow
+			AVRamp("ramp-v-6000ms-10:10:60Hz",	(10, 60), 6, 6000, audio: false,	transitionTrigger: 144, flickerTriggers: (FlickerTriggerAttach.LedLeftFlicker,	11, 12)),
+			AVRamp("ramp-a-6000ms-10:10:60Hz",	(10, 60), 6, 6000, visual: false,	transitionTrigger: 144, flickerTriggers: (FlickerTriggerAttach.AudioFlicker,	11, 12)),
+			AVRamp("ramp-av-6000ms-10:10:60Hz", (10, 60), 6, 6000,					transitionTrigger: 144, flickerTriggers: (FlickerTriggerAttach.AudioFlicker,	11, 12)),
+
+			// ramp fast
+			AVRamp("ramp-v-6000ms-10:2:60Hz",	(10, 60), 26, 6000, audio: false,	transitionTrigger: 144, flickerTriggers: (FlickerTriggerAttach.LedLeftFlicker,	11, 12)),
+			AVRamp("ramp-a-6000ms-10:2:60Hz",	(10, 60), 26, 6000, visual: false,	transitionTrigger: 144, flickerTriggers: (FlickerTriggerAttach.AudioFlicker,	11, 12)),
+			AVRamp("ramp-av-6000ms-10:2:60Hz",	(10, 60), 26, 6000,					transitionTrigger: 144, flickerTriggers: (FlickerTriggerAttach.AudioFlicker,	11, 12)),
 		};
 
 		/// <summary>
@@ -62,18 +91,18 @@ namespace TINS.Ephys.ModuleImplementations
 		/// <param name="flickerTriggers"></param>
 		/// <returns>A list of instructions to perform the ramp.</returns>
 		public static GenusMk2CachedTrial AVRamp(
-			string							name,
-			(float Lower, float Upper)		frequencyRange,
-			int								stepCount,
-			int								totalTime,
-			bool							audio					= true,
-			bool							visual					= true,
-			float?							audioFrequency			= GenusMk2Controller.DefaultToneFrequency,
-			byte?							startTrigger			= 129,
-			byte?							endTrigger				= 150,
-			byte?							transitionTrigger		= null,
-			(byte Rise, byte Fall)?			flickerTriggers			= null,
-			GenusMk2Controller.Feedback?	feedbackOnCompletion	= GenusMk2Controller.Feedback.StimulationComplete)
+			string													name,
+			(float Lower, float Upper)								frequencyRange,
+			int														stepCount,
+			int														totalTime,
+			bool													audio					= true,
+			bool													visual					= true,
+			float?													audioFrequency			= GenusMk2Controller.DefaultToneFrequency,
+			byte?													startTrigger			= 129,
+			byte?													endTrigger				= 150,
+			byte?													transitionTrigger		= null,
+			(FlickerTriggerAttach Attach, byte Rise, byte Fall)?	flickerTriggers			= null,
+			GenusMk2Controller.Feedback?							feedbackOnCompletion	= GenusMk2Controller.Feedback.StimulationComplete)
 		{
 			// init
 			var result				= new Vector<Instruction>();
@@ -83,15 +112,20 @@ namespace TINS.Ephys.ModuleImplementations
 			// preparation
 			if (audioFrequency.HasValue)	result.PushBack(Instruction.ChangeAudioTone(audioFrequency.Value));
 			if (startTrigger.HasValue)		result.PushBack(Instruction.EmitTrigger(startTrigger.Value));
-			if (flickerTriggers.HasValue)	result.PushBack(Instruction.EnableFlickerTriggers(flickerTriggers.Value.Rise, flickerTriggers.Value.Fall));
+			if (flickerTriggers.HasValue)	result.PushBack(Instruction.SetFlickerTriggers(flickerTriggers.Value.Attach, flickerTriggers.Value.Rise, flickerTriggers.Value.Fall));
 
 			// loop through the list
 			for (int iFreq = 0; iFreq < frequencies.Size; ++iFreq)
 			{
 				// enable flickering
-				if (audio)	result.PushBack(Instruction.StartAudioFlicker(frequencies[iFreq]));
-				if (visual)	result.PushBack(Instruction.StartLedFlicker(frequencies[iFreq]));
-
+				if (audio && visual)
+								result.PushBack(Instruction.StartFlicker(frequencies[iFreq]));
+				else
+				{
+					if (audio)	result.PushBack(Instruction.StartAudioFlicker(frequencies[iFreq]));
+					if (visual)	result.PushBack(Instruction.StartLedFlicker(frequencies[iFreq]));
+				}
+				
 				if (iFreq > 0 || !startTrigger.HasValue)
 				{
 					// do not emit on first trigger
@@ -124,7 +158,66 @@ namespace TINS.Ephys.ModuleImplementations
 			};
 		}
 
+		/// <summary>
+		/// Create static flickering stimulation.
+		/// </summary>
+		/// <param name="name"></param>
+		/// <param name="frequency"></param>
+		/// <param name="totalTime"></param>
+		/// <param name="audio"></param>
+		/// <param name="visual"></param>
+		/// <param name="audioFrequency"></param>
+		/// <param name="startTrigger"></param>
+		/// <param name="endTrigger"></param>
+		/// <param name="flickerTriggers"></param>
+		/// <param name="feedbackOnCompletion"></param>
+		/// <returns></returns>
+		public static GenusMk2CachedTrial AVStatic(
+			string													name,
+			float													frequency,
+			int														totalTime,
+			bool													audio					= true,
+			bool													visual					= true,
+			float?													audioFrequency			= GenusMk2Controller.DefaultToneFrequency,
+			byte?													startTrigger			= 129,
+			byte?													endTrigger				= 150,
+			(FlickerTriggerAttach Attach, byte Rise, byte Fall)?	flickerTriggers			= null,
+			GenusMk2Controller.Feedback?							feedbackOnCompletion	= GenusMk2Controller.Feedback.StimulationComplete)
+		{
+			var result = new Vector<Instruction>();
 
+			// preparation
+			if (audioFrequency.HasValue)	result.PushBack(Instruction.ChangeAudioTone(audioFrequency.Value));
+			if (startTrigger.HasValue)		result.PushBack(Instruction.EmitTrigger(startTrigger.Value));
+			if (flickerTriggers.HasValue)	result.PushBack(Instruction.SetFlickerTriggers(flickerTriggers.Value.Attach, flickerTriggers.Value.Rise, flickerTriggers.Value.Fall));
+
+			// start flickering
+			if (audio)	result.PushBack(Instruction.StartAudioFlicker(frequency));
+			if (visual)	result.PushBack(Instruction.StartLedFlicker(frequency));
+
+			// sleep until trial end
+			result.PushBack(Instruction.Sleep(totalTime));
+
+			// finalize
+			result.PushBack(Instruction.StopFlicker());
+			if (endTrigger.HasValue)			result.PushBack(Instruction.EmitTrigger(endTrigger.Value));
+			if (feedbackOnCompletion.HasValue)	result.PushBack(Instruction.Feedback(feedbackOnCompletion.Value));
+
+			return new GenusMk2CachedTrial()
+			{
+				Name					= name,
+				Type					= "static",
+				Instructions			= result,
+				Audio					= audio,
+				Visual					= visual,	
+				StimulationRuntime		= totalTime,
+				StepCount				= 1,
+				FlickerFrequency		= (frequency, frequency),
+				ToneFrequency			= audioFrequency.HasValue ? audioFrequency.Value : GenusMk2Controller.DefaultToneFrequency,
+				UseFlickerTriggers		= flickerTriggers.HasValue,
+				UseTransitionTriggers	= false
+			};
+		}
 
 
 	}

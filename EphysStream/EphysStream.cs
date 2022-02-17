@@ -1,13 +1,13 @@
 ﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
+using TINS.Data;
 using TINS.Ephys.Analysis;
 using TINS.Ephys.Data;
 using TINS.Ephys.Processing;
 using TINS.Ephys.Settings;
 using TINS.Ephys.Stimulation;
 using TINS.Ephys.UI;
-using TINS.Data;
 using TINS.Utilities;
 
 namespace TINS.Ephys
@@ -40,7 +40,7 @@ namespace TINS.Ephys
 		/// Asynchronously start the recording procedure.
 		/// </summary>
 		[AsyncInvoke(nameof(OnStartRecording))]
-		public readonly Action<string> StartRecording = default;
+		public readonly EventHandler<DataOutputEventArgs> StartRecording = default;
 
 		/// <summary>
 		/// Asynchronously stop the recording procedure.
@@ -113,6 +113,12 @@ namespace TINS.Ephys
 
 			// initialize the analysis pipeline
 			AnalysisPipeline = new AnalysisPipeline(settings, ProcessingPipeline);
+
+			// initialize the event finder
+			EventFinder = new LineEventFinder(
+				startEvent:				0, 
+				correctArtefactEvents:	settings.Input.CorrectArtefactEvents, 
+				eventFilter:			null);
 
 			// initialize UI
 			if (ui is object)
@@ -239,6 +245,22 @@ namespace TINS.Ephys
 		}
 
 		/// <summary>
+		/// Set the event filter. Providing null will clear the event filter.
+		/// </summary>
+		/// <param name="eventFilter">List of event filters</param>
+		/// <returns></returns>
+		public IAsyncResult SetEventFiltersAsync(Predicate<int> eventFilter = null)
+		{
+			if (InvokeRequired)
+				return BeginInvoke(new Func<Predicate<int>, IAsyncResult>(SetEventFiltersAsync), eventFilter);
+			else
+			{
+				EventFinder?.SetFilter(eventFilter);
+				return Task.CompletedTask;
+			}
+		}
+
+		/// <summary>
 		/// The data input stream for the streamer.
 		/// </summary>
 		public DataInputStream InputStream { get; protected set; }
@@ -283,7 +305,15 @@ namespace TINS.Ephys
 		/// </summary>
 		public bool IsRecording => OutputStream is object;
 
+		/// <summary>
+		/// Check whether the stream is currently running a protocol.
+		/// </summary>
 		public bool IsRunningProtocol => StimulationProtocol is object && StimulationProtocol.IsRunning;
+
+		/// <summary>
+		/// The line event finder.
+		/// </summary>
+		public LineEventFinder EventFinder { get; protected set; }
 
 		/// <summary>
 		/// Process an input data block.
@@ -302,11 +332,11 @@ namespace TINS.Ephys
 			InputReceived?.Invoke(this, e);
 
 			// detect new events
-			_eventFinder.FindEvents(e.DigitalInput);
-			if (_eventFinder.FoundEventCount > 0)
+			EventFinder.FindEvents(e.DigitalInput);
+			if (EventFinder.FoundEventCount > 0)
 			{
-				EventsFound?.Invoke(this,		_eventFinder.FoundEvents);
-				OutputStream?.WriteEvents(this, _eventFinder.FoundEvents);
+				EventsFound?.Invoke(this,		EventFinder.FoundEvents);
+				OutputStream?.WriteEvents(this, EventFinder.FoundEvents);
 			}
 
 			// run processing step
@@ -367,13 +397,18 @@ namespace TINS.Ephys
 		/// </summary>
 		/// <param name="sender"></param>
 		/// <param name="e"></param>
-		protected void OnStartRecording(string path)
+		protected void OnStartRecording(object sender, DataOutputEventArgs e)
 		{
-			if (string.IsNullOrEmpty(path)) return;
 			OnStopRecording();
+			if (e is null) 
+				return;
 
 			// get the raw buffer and start the output stream
-			OutputStream = new DataOutputStream(path, Settings.Input.SamplingRate, Settings.Input.ChannelLabels);
+			OutputStream = new DataOutputStream(
+				e.DatasetDirectory, 
+				e.DatasetName, 
+				Settings.Input.SamplingRate, 
+				Settings.Input.ChannelLabels);
 			new Thread(() => OutputStream.Start()).Start();
 			RaiseStateChanged();
 		}
@@ -432,10 +467,10 @@ namespace TINS.Ephys
 			if (_muaAcc.IsFull)		UI.UpdateMUA(_muaAcc, _spikeAcc);
 
 			// update event display
-			if (_eventFinder.FoundEventCount > 0)
+			if (EventFinder.FoundEventCount > 0)
 			{
 				var events = new Vector<int>();
-				foreach (var e in _eventFinder.FoundEvents)
+				foreach (var e in EventFinder.FoundEvents)
 					events.PushBack(e.EventCode);
 				UI.UpdateEvents(events);
 			}
@@ -446,52 +481,12 @@ namespace TINS.Ephys
 		/// </summary>
 		protected void RaiseStateChanged() => StateChanged?.Invoke();
 
-		///// <summary>
-		///// Raise StateChanged event.
-		///// </summary>
-		//protected void RaiseStateChanged() => StateChanged?.Invoke(this, new() 
-		//{ 
-		//	IsStreaming = this.IsStreaming,
-		//	IsRecording = this.IsRecording,
-		//	IsRunningProtocol = this.Is
-		//});
-
-		/// <summary>
-		/// Debug function for the assembly.
-		/// </summary>
-		/// <param name="_">Usually no arguments are passed.</param>
-		static void Main(string[] _)
-		{
-		}
-
-
-
 
 
 		protected ContinuousDisplayAccumulator	_lfpAcc			= null;
 		protected ContinuousDisplayAccumulator	_muaAcc			= null;
 		protected SpikeDisplayAccumulator		_spikeAcc		= null;
-		protected EventFinder					_eventFinder	= new();
 	}
 
-	///// <summary>
-	///// EphysStream StateChanged event args.
-	///// </summary>
-	//public struct EphysStreamState
-	//{
-	//	/// <summary>
-	//	/// The stream is streaming data.
-	//	/// </summary>
-	//	public bool IsStreaming { get; set; }
-	//	
-	//	/// <summary>
-	//	/// The stream is recording data.
-	//	/// </summary>
-	//	public bool IsRecording { get; set; }
-	//	
-	//	/// <summary>
-	//	/// The stream is running a protocol.
-	//	/// </summary>
-	//	public bool IsRunningProtocol { get; set; }
-	//}
+
 }

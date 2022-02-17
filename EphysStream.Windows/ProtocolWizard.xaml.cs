@@ -1,10 +1,12 @@
-﻿using CircuitGENUS.Windows;
+﻿using EphysStream.Windows;
 using Microsoft.Win32;
 using System;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using TINS.Ephys.Data;
+using TINS.Utilities;
 
 namespace TINS.Ephys
 {
@@ -21,9 +23,34 @@ namespace TINS.Ephys
         public ProtocolWizard(MainWindow mainWindow)
         {
             InitializeComponent();
-			MainWindow = mainWindow;
-			_stateMachine = new ProtocolWizardStateMachine(this);
-        }
+			MainWindow		= mainWindow;
+			_stateMachine	= new ProtocolWizardStateMachine(this);
+
+			_stateMachine.SetActions(
+				startRecording: (e) =>
+				{
+					Directory.CreateDirectory(e.DatasetDirectory);
+					MainWindow?.EphysStream?.StartRecording(this, e);
+					MainWindow?.EphysStream?.StartStream();
+					MainWindow?.AudioStream?.Start();
+				},
+				startProtocol: (path) =>
+				{
+					if (MainWindow is object && MainWindow.EphysStream is object && 
+						MainWindow.TryLoadProtocol(path, out var protocol, out _))
+					{
+						MainWindow?.EphysStream?.SetStimulationProtocolAsync(protocol);
+						MainWindow?.EphysStream?.StartProtocol();
+					}
+				},
+				stopProtocol:	() => MainWindow?.EphysStream?.StopProtocol(),
+				stopRecording:	() => 
+				{
+					MainWindow?.AudioStream?.Stop();
+					MainWindow?.EphysStream?.StopStream();
+					MainWindow?.EphysStream?.StopRecording();
+				}); 
+		}
 
 		/// <summary>
 		/// Dispose method.
@@ -41,45 +68,37 @@ namespace TINS.Ephys
 		/// <param name="protocolPath"></param>
 		/// <param name="outputPath"></param>
 		/// <param name="durations"></param>
-		public void GetParameters(out string protocolPath, out string outputPath, out (int Pre, int Post) durations)
+		public void GetParameters(out string protocolPath, out string outputPath, out string datasetName, out (int Pre, int Post) durations)
 		{
 			if (!Dispatcher.CheckAccess())
 			{
 				string pp		= null;
 				string op		= null;
+				string dn		= null;
 				(int, int) dur	= default;
+
 				Dispatcher.BeginInvoke(new Action(() => 
 				{
 					pp	= txbProtoPath.Text;
-					op	= Path.Combine(txbOutputPath.Text, GetDatasetName() + ".epd");
-					dur = (GetInt(txbPrerunDuration), GetInt(txbPostrunDuration));
+					op	= txbOutputPath.Text;
+					dn	= GetDatasetName();
+					dur = (ntxbPrerunDuration.IntegerValue, ntxbPostrunDuration.IntegerValue);
 				})).Wait();
+
 				protocolPath	= pp;
 				outputPath		= op;
+				datasetName		= dn;
 				durations		= dur;
 			}
 			else
 			{
 				protocolPath	= txbProtoPath.Text;
-				outputPath		= Path.Combine(txbOutputPath.Text, GetDatasetName() + ".epd");
-				durations		= (GetInt(txbPrerunDuration), GetInt(txbPostrunDuration));
+				outputPath		= txbOutputPath.Text;
+				datasetName		= GetDatasetName();
+				durations		= (ntxbPrerunDuration.IntegerValue, ntxbPostrunDuration.IntegerValue);
 			}
-		}
 
-		/// <summary>
-		/// 
-		/// </summary>
-		/// <param name="startRecording"></param>
-		/// <param name="startProtocol"></param>
-		/// <param name="stopProtocol"></param>
-		/// <param name="stopRecording"></param>
-		public void SetActions(
-			Action<string>  startRecording   = null,
-			Action<string>	startProtocol    = null,
-			Action          stopProtocol     = null,
-			Action          stopRecording    = null)
-		{
-			_stateMachine.SetActions(startRecording, startProtocol, stopProtocol, stopRecording);
+			outputPath = Path.Combine(outputPath, datasetName);
 		}
 
 		/// <summary>
@@ -130,6 +149,161 @@ namespace TINS.Ephys
 		public bool IsExecuting => _stateMachine.CurrentState != WizardState.Idle;
 
 		/// <summary>
+		/// Protocol wizard state.
+		/// </summary>
+		public enum WizardState
+		{
+			Idle,
+			Prerun,
+			Running,
+			Postrun
+		}
+
+		/// <summary>
+		/// Protocol wizard events.
+		/// </summary>
+		public enum WizardEvent
+		{
+			Start,
+			NewBlock,
+			ProtocolEnded,
+			Cancel
+		}
+
+		/// <summary>
+		/// State machine for the protocol wizard.
+		/// </summary>
+		public class ProtocolWizardStateMachine
+			: StateMachine<WizardState, WizardEvent>
+		{
+			/// <summary>
+			/// Create a protocol wizard state machine.
+			/// </summary>
+			/// <param name="parent">The parent wizard.</param>
+			public ProtocolWizardStateMachine(ProtocolWizard parent)
+			{
+				_p = parent;
+				_s = parent?.MainWindow?.EphysStream;
+			}
+
+			/// <summary>
+			/// Set the actions of the state machine.
+			/// </summary>
+			/// <param name="startRecording"></param>
+			/// <param name="startProtocol"></param>
+			/// <param name="stopProtocol"></param>
+			/// <param name="stopRecording"></param>
+			public void SetActions(
+				Action<DataOutputEventArgs> startRecording  = null,
+				Action<string>				startProtocol   = null,
+				Action						stopProtocol    = null,
+				Action						stopRecording   = null)
+			{
+				_startRecording = startRecording;
+				_startProtocol  = startProtocol;
+				_stopProtocol   = stopProtocol;
+				_stopRecording  = stopRecording;
+			}
+
+			/// <summary>
+			/// Configure the state machine.
+			/// </summary>
+			protected override void ConfigureStates()
+			{
+				// IDLE
+				AddState(WizardState.Idle,
+					eventAction: (e) =>
+					{
+						if (e is WizardEvent.Start)
+							return WizardState.Prerun;
+						return CurrentState;
+					});
+
+				// PRERUN
+				AddState(WizardState.Prerun,
+					eventAction: (e) => e switch
+					{
+						WizardEvent.NewBlock    => Elapse(WizardState.Running),
+						WizardEvent.Cancel      => Stop(),
+						_                       => CurrentState
+					},
+					enterStateAction: () =>
+					{
+						// load parameters and start recording
+						_p.GetParameters(out _protocolPath, out var datasetDirectory, out var datasetName, out _timeouts);
+						_currentStateTimeout = _timeouts.Pre;
+
+						_startRecording?.Invoke(new() 
+						{
+							DatasetDirectory	= datasetDirectory,
+							DatasetName			= datasetName
+						});
+					});
+
+				// RUNNING
+				AddState(WizardState.Running,
+					eventAction: (e) => e switch
+					{
+						WizardEvent.ProtocolEnded	=> WizardState.Postrun,
+						WizardEvent.Cancel			=> Stop(),
+						_							=> CurrentState
+					},
+					enterStateAction:	() => _startProtocol?.Invoke(_protocolPath),
+					exitStateAction:	() => _stopProtocol?.Invoke());
+
+				// POSTRUN
+				AddState(WizardState.Postrun,
+					eventAction: (e) => e switch
+					{
+						WizardEvent.NewBlock    => Elapse(WizardState.Idle),
+						WizardEvent.Cancel      => WizardState.Idle,
+						_						=> CurrentState
+					},
+					enterStateAction:	() => _currentStateTimeout = _timeouts.Post,
+					exitStateAction:	() => Stop());
+			}
+
+			/// <summary>
+			/// 
+			/// </summary>
+			/// <param name="onTimeoutElapsed"></param>
+			/// <returns></returns>
+			protected WizardState Elapse(WizardState onTimeoutElapsed)
+			{
+				if (_currentStateTimeout == 0)
+					return onTimeoutElapsed;
+				--_currentStateTimeout;
+				return CurrentState;
+			}
+
+			/// <summary>
+			/// 
+			/// </summary>
+			protected WizardState Stop()
+			{
+				_stopRecording?.Invoke();
+				if (_p.ShowOnProtocolFinish)
+					_p.Visibility = Visibility.Visible;
+				App.MessageBoxAsync("Protocol run complete!", "Complete!");
+				return WizardState.Idle;
+			}
+
+			protected ProtocolWizard				_p;
+			protected EphysStream					_s;
+			protected int							_currentStateTimeout;
+
+			protected (int Pre, int Post)			_timeouts;
+			protected string						_protocolPath;
+
+			protected Action<DataOutputEventArgs>	_startRecording;
+			protected Action<string>				_startProtocol;
+			protected Action						_stopProtocol;
+			protected Action						_stopRecording;
+		}
+
+
+
+		/// <summary>
 		/// 
 		/// </summary>
 		/// <param name="sender"></param>
@@ -150,8 +324,10 @@ namespace TINS.Ephys
 			// validate input path
 			if (ofd.ShowDialog() == true && File.Exists(ofd.FileName))
 			{
-				txbProtoPath.Text = ofd.FileName;
-				txbProtoName.Text = Path.GetFileNameWithoutExtension(ofd.FileName);
+				txbProtoPath.Text		= ofd.FileName;
+				txbProtoName.Text		= Path.GetFileNameWithoutExtension(ofd.FileName);
+				lblPrerunSec.Content	= $"x {MainWindow?.EphysStream?.Settings.Input.PollingPeriod} seconds";
+				lblPostrunSec.Content	= $"x {MainWindow?.EphysStream?.Settings.Input.PollingPeriod} seconds";
 			}
 		}
 
@@ -193,21 +369,6 @@ namespace TINS.Ephys
 
 			_stateMachine.ProcessEvent(WizardEvent.Start);
 		}
-
-		/// <summary>
-		/// Use to filter for numerical values.
-		/// </summary>
-		/// <param name="sender"></param>
-		/// <param name="e"></param>
-		private void FilterNumeric(object sender, KeyEventArgs e)
-		{
-			_ = sender;
-
-			int key = (int)e.Key;
-			e.Handled = !(	Numerics.IsClamped(key, ((int)Key.D0,		(int)Key.D9))		||	// key is on alphanumeric keyboard
-							Numerics.IsClamped(key, ((int)Key.NumPad9,	(int)Key.NumPad9))	||	// key is on num pad
-							key == (int)Key.Back);												// key is backspace
-		}
 		
 		/// <summary>
 		/// 
@@ -225,14 +386,7 @@ namespace TINS.Ephys
 		/// </summary>
 		/// <returns>The name of a dataset.</returns>
 		protected string GetDatasetName()
-			=> $"{txbAnimalName.Text}_{txbProtoName.Text}_{txbDatasetID.Text}";
-
-		/// <summary>
-		/// Get an integer from a textbox.
-		/// </summary>
-		/// <param name="txb">The textbox.</param>
-		/// <returns>An integer.</returns>
-		protected static int GetInt(TextBox txb) => int.TryParse(txb.Text, out int i) ? i : default; 
+			=> $"{txbAnimalName.Text}_{txbProtoName.Text}_{ntxbDatasetID.IntegerValue}";
 
 		/// <summary>
 		/// 
@@ -252,10 +406,10 @@ namespace TINS.Ephys
 		protected bool DatasetNameSet 
 			=> !(	string.IsNullOrWhiteSpace(txbAnimalName.Text)	|| 
 					string.IsNullOrWhiteSpace(txbProtoName.Text)	|| 
-					string.IsNullOrWhiteSpace(txbDatasetID.Text));
+					string.IsNullOrWhiteSpace(ntxbDatasetID.Text));
 
 
-		protected ProtocolWizardStateMachine _stateMachine;
-		private bool _disposed = false;
+		protected ProtocolWizardStateMachine	_stateMachine;
+		private bool							_disposed		= false;
 	}
 }
