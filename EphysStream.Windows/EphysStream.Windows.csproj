@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net5.0-windows</TargetFramework>
+    <TargetFramework>net6.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <RootNamespace>TINS.Ephys</RootNamespace>
@@ -100,6 +100,10 @@
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </Resource>
     <Resource Include="Resources\tins.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Protocols\Gamma\" />
   </ItemGroup>
 
 </Project>

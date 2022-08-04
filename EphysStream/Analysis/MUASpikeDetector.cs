@@ -46,11 +46,24 @@ namespace TINS.Ephys.Analysis
 		/// <summary>
 		/// Change the threshold of all channel spike detectors.
 		/// </summary>
-		/// <param name="newThreshold"></param>
+		/// <param name="newThreshold">A new threshold for all channels.</param>
 		public void ChangeThresholds(float newThreshold)
 		{
 			foreach (var detector in _detectors)
 				detector?.ChangeThreshold((newThreshold, newThreshold));
+		}
+
+		/// <summary>
+		/// Change the threshold of all channel spike detectors.
+		/// </summary>
+		/// <param name="thresholds">A list of individual channel thresholds.</param>
+		public void ChangeThresholds(Vector<(int SourceIndex, float Threshold)> thresholds)
+		{
+			foreach (var thr in thresholds)
+			{
+				if (Numerics.IndexInRange(thr.SourceIndex, _detectors))
+					_detectors[thr.SourceIndex].ChangeThreshold((thr.Threshold, thr.Threshold));
+			}
 		}
 
 		/// <summary>
@@ -65,17 +78,44 @@ namespace TINS.Ephys.Analysis
 		}
 
 		/// <summary>
-		/// 
+		/// Run the spike detector.
 		/// </summary>
 		public override void Run()
 		{
 			if (Input.Rows != _detectors.Size)
 				throw new Exception("Buffer count mismatch.");
 
-			Parallel.For(0, _detectors.Size, _parallelOpts, i =>
+			lock (Input)
 			{
-				_detectors[i].Parse(Input.GetBuffer(i));
-			});
+				Parallel.For(0, _detectors.Size, _parallelOpts, 
+					i => _detectors[i].Parse(Input.GetBuffer(i)));
+			}
+		}
+
+		/// <summary>
+		/// Compute the threshold for each channel.
+		/// </summary>
+		/// <param name="thresholds">The list of thresholds.</param>
+		/// <param name="sdFactor">Multiple of the standard deviation.</param>
+		/// <param name="apply">Auto-apply the resulting thresholds to the detectors.</param>
+		public virtual void ComputeAutoThresholdSD(out Vector<(int SourceIndex, float Threshold)> thresholds, float sdFactor, bool apply = false)
+		{
+			thresholds = new Vector<(int SourceIndex, float Threshold)>(_detectors.Size);
+
+			lock (Input)
+			{
+				for (int iCh = 0; iCh < _detectors.Size; iCh++)
+				{
+					var sd			= Statistics.StandardDeviation(Input.GetBuffer(iCh), out var mean);
+					float threshold = mean - sd * sdFactor;
+					thresholds[iCh] = (iCh, threshold);
+
+					if (apply)
+					{
+						_detectors[iCh].ChangeThreshold((threshold, threshold));
+					}
+				}
+			}
 		}
 
 		/// <summary>

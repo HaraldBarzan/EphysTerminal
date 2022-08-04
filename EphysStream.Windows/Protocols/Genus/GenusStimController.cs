@@ -1,13 +1,14 @@
 ﻿using System;
 using System.IO.Ports;
 using System.Runtime.InteropServices;
+using TINS.Ephys.Stimulation;
 
-namespace TINS.Ephys.Stimulation
+namespace TINS.Ephys.Protocols.Genus
 {
 	/// <summary>
 	/// Class used to control a Teensy microcontroller as a stimulation device.
 	/// </summary>
-	public unsafe class GenusMk2Controller 
+	public unsafe class GenusController
 		: StimulusController
 	{
 		/// <summary>
@@ -79,15 +80,15 @@ namespace TINS.Ephys.Stimulation
 			}
 
 			public Commands Command;
-			public int		Parameter;
-			
+			public int Parameter;
+
 			/// <summary>
 			/// Get or set the parameter as a 32-bit float.
 			/// </summary>
 			public float PFloat
 			{
 				get { int p = Parameter; return *(float*)&p; }
-				set => Parameter = *(int*)&value; 
+				set => Parameter = *(int*)&value;
 			}
 
 			/// <summary>
@@ -132,7 +133,7 @@ namespace TINS.Ephys.Stimulation
 				=> new()
 				{
 					Command = Commands.FreqFlickerL,
-					PFloat	= frequency
+					PFloat = frequency
 				};
 
 			/// <summary>
@@ -144,7 +145,7 @@ namespace TINS.Ephys.Stimulation
 				=> new()
 				{
 					Command = Commands.FreqFlickerR,
-					PFloat	= frequency
+					PFloat = frequency
 				};
 
 			/// <summary>
@@ -156,7 +157,7 @@ namespace TINS.Ephys.Stimulation
 				=> new()
 				{
 					Command = Commands.FreqFlickerL,
-					PFloat	= frequency
+					PFloat = frequency
 				};
 
 			/// <summary>
@@ -168,7 +169,7 @@ namespace TINS.Ephys.Stimulation
 				=> new()
 				{
 					Command = Commands.FreqFlickerAudio,
-					PFloat	= frequency
+					PFloat = frequency
 				};
 
 			/// <summary>
@@ -180,7 +181,7 @@ namespace TINS.Ephys.Stimulation
 				=> new()
 				{
 					Command = Commands.FreqFlickerAll,
-					PFloat	= frequency
+					PFloat = frequency
 				};
 
 			/// <summary>
@@ -200,7 +201,7 @@ namespace TINS.Ephys.Stimulation
 				=> new()
 				{
 					Command = Commands.FreqFlickerL,
-					PFloat	= 0
+					PFloat = 0
 				};
 
 			/// <summary> 
@@ -211,7 +212,7 @@ namespace TINS.Ephys.Stimulation
 				=> new()
 				{
 					Command = Commands.FreqFlickerR,
-					PFloat	= 0
+					PFloat = 0
 				};
 
 			/// <summary>
@@ -222,7 +223,7 @@ namespace TINS.Ephys.Stimulation
 				=> new()
 				{
 					Command = Commands.FreqFlickerAudio,
-					PFloat	= 0
+					PFloat = 0
 				};
 
 			/// <summary>
@@ -233,7 +234,7 @@ namespace TINS.Ephys.Stimulation
 				=> new()
 				{
 					Command = Commands.FreqFlickerAll,
-					PFloat	= 0
+					PFloat = 0
 				};
 
 			/// <summary>
@@ -253,7 +254,7 @@ namespace TINS.Ephys.Stimulation
 				=> new()
 				{
 					Command = Commands.FreqToneAudio,
-					PFloat	= frequency
+					PFloat = frequency
 				};
 
 			/// <summary>
@@ -264,8 +265,8 @@ namespace TINS.Ephys.Stimulation
 			public static Instruction EmitTrigger(byte trigger)
 				=> new()
 				{
-					Command		= Commands.EmitTrigger,
-					Parameter	= trigger
+					Command = Commands.EmitTrigger,
+					Parameter = trigger
 				};
 
 			/// <summary>
@@ -277,8 +278,8 @@ namespace TINS.Ephys.Stimulation
 			public static Instruction[] SetFlickerTriggers(FlickerTriggerAttach attach, byte riseTrigger, byte fallTrigger)
 				=> new[]
 				{
-					new Instruction { Command = Commands.ChangeFlickerTriggerAttach,	PFTAttach	= attach },
-					new Instruction { Command = Commands.ChangeFlickerTriggers,			P2Short		= (riseTrigger, fallTrigger) }
+					new Instruction { Command = Commands.ChangeFlickerTriggerAttach,    PFTAttach   = attach },
+					new Instruction { Command = Commands.ChangeFlickerTriggers,         P2Short     = (riseTrigger, fallTrigger) }
 				};
 
 			/// <summary>
@@ -288,8 +289,8 @@ namespace TINS.Ephys.Stimulation
 			public static Instruction DisableFlickerTriggers()
 				=> new()
 				{
-					Command		= Commands.ChangeFlickerTriggerAttach,
-					PFTAttach	= FlickerTriggerAttach.None
+					Command = Commands.ChangeFlickerTriggerAttach,
+					PFTAttach = FlickerTriggerAttach.None
 				};
 
 			/// <summary>
@@ -300,8 +301,8 @@ namespace TINS.Ephys.Stimulation
 			public static Instruction AwaitFullInstructionList(int count)
 				=> new()
 				{
-					Command		= Commands.AwaitFullInstructionList,
-					Parameter	= count
+					Command = Commands.AwaitFullInstructionList,
+					Parameter = count
 				};
 
 			/// <summary>
@@ -312,8 +313,8 @@ namespace TINS.Ephys.Stimulation
 			public static Instruction Sleep(int milliseconds)
 				=> new()
 				{
-					Command		= Commands.Sleep,
-					Parameter	= milliseconds
+					Command = Commands.Sleep,
+					Parameter = milliseconds
 				};
 
 			/// <summary>
@@ -324,8 +325,8 @@ namespace TINS.Ephys.Stimulation
 			public static Instruction SleepMicroseconds(int microseconds)
 				=> new()
 				{
-					Command		= Commands.SleepMicroseconds,
-					Parameter	= microseconds
+					Command = Commands.SleepMicroseconds,
+					Parameter = microseconds
 				};
 
 			/// <summary>
@@ -339,11 +340,11 @@ namespace TINS.Ephys.Stimulation
 			/// </summary>
 			/// <param name="fb">The feedback enum.</param>
 			/// <returns>An instruction.</returns>
-			public static Instruction Feedback(Feedback fb) 
-				=> new() 
-				{ 
-					Command		= Commands.Feedback,
-					Parameter	= (int)fb
+			public static Instruction Feedback(Feedback fb)
+				=> new()
+				{
+					Command = Commands.Feedback,
+					Parameter = (int)fb
 				};
 
 			/// <summary>
@@ -391,8 +392,8 @@ namespace TINS.Ephys.Stimulation
 			if (instruction.Command == Instruction.Commands.AwaitFullInstructionList)
 				throw new Exception("Cannot use AwaitFullInstructionList explicitly. It is used automatically by the SendInstructionList function.");
 
-			var dataSpan	= MemoryMarshal.Cast<byte, Instruction>(_portBuffer.AsSpan());
-			dataSpan[0]		= instruction;
+			var dataSpan = MemoryMarshal.Cast<byte, Instruction>(_portBuffer.AsSpan());
+			dataSpan[0] = instruction;
 
 			_port.Write(_portBuffer, 0, _portBuffer.Length);
 		}
@@ -417,8 +418,8 @@ namespace TINS.Ephys.Stimulation
 		/// <param name="instructionList">The list of instructions.</param>
 		public virtual void SendInstructionList(Span<Instruction> instructionList)
 		{
-			byte[] data		= new byte[(1 + instructionList.Length) * sizeof(Instruction)];
-			var dataSpan	= MemoryMarshal.Cast<byte, Instruction>(data.AsSpan());
+			byte[] data = new byte[(1 + instructionList.Length) * sizeof(Instruction)];
+			var dataSpan = MemoryMarshal.Cast<byte, Instruction>(data.AsSpan());
 
 			dataSpan[0] = Instruction.AwaitFullInstructionList(instructionList.Length);
 			for (int i = 0; i < instructionList.Length; ++i)
@@ -448,7 +449,7 @@ namespace TINS.Ephys.Stimulation
 			_port.ReadExisting();
 			SendInstruction(Instruction.Reset());
 		}
-		
+
 		/// <summary>
 		/// Emit a trigger.
 		/// </summary>
@@ -466,11 +467,11 @@ namespace TINS.Ephys.Stimulation
 		public virtual void ChangeParameters(float? frequencyL, float? frequencyR, float? frequencyAudio, float? frequencyTone, byte? trigger)
 		{
 			var instructions = new Vector<Instruction>();
-			if (frequencyL.HasValue)		instructions.PushBack(Instruction.StartLedFlickerLeft(frequencyL.Value));
-			if (frequencyR.HasValue)		instructions.PushBack(Instruction.StartLedFlickerRight(frequencyR.Value));
-			if (frequencyAudio.HasValue)	instructions.PushBack(Instruction.StartAudioFlicker(frequencyAudio.Value));
-			if (frequencyTone.HasValue)		instructions.PushBack(Instruction.ChangeAudioTone(frequencyTone.Value));
-			if (trigger.HasValue)			instructions.PushBack(Instruction.EmitTrigger(trigger.Value));
+			if (frequencyL.HasValue) instructions.PushBack(Instruction.StartLedFlickerLeft(frequencyL.Value));
+			if (frequencyR.HasValue) instructions.PushBack(Instruction.StartLedFlickerRight(frequencyR.Value));
+			if (frequencyAudio.HasValue) instructions.PushBack(Instruction.StartAudioFlicker(frequencyAudio.Value));
+			if (frequencyTone.HasValue) instructions.PushBack(Instruction.ChangeAudioTone(frequencyTone.Value));
+			if (trigger.HasValue) instructions.PushBack(Instruction.EmitTrigger(trigger.Value));
 
 			if (!instructions.IsEmpty)
 				SendInstructionList(instructions.GetSpan());
@@ -535,7 +536,7 @@ namespace TINS.Ephys.Stimulation
 				_port.Dispose();
 			}
 
-			_port		= null;
+			_port = null;
 			IsConnected = false;
 		}
 
@@ -566,7 +567,7 @@ namespace TINS.Ephys.Stimulation
 			return null;
 		}
 
-		protected SerialPort	_port		= null;
-		protected byte[]		_portBuffer = new byte[sizeof(Instruction)];
+		protected SerialPort _port = null;
+		protected byte[] _portBuffer = new byte[sizeof(Instruction)];
 	}
 }

@@ -87,7 +87,7 @@ namespace TINS.Ephys.Stimulation
 		/// </summary>
 		/// <param name="protocolFile"></param>
 		/// <returns></returns>
-		public static IStimulationProtocol LoadProtocol(EphysStream stream, string protocolFile)
+		public static IStimulationProtocol LoadProtocol(EphysTerminal stream, string protocolFile)
 		{
 			if (!File.Exists(protocolFile))
 				throw new FileNotFoundException($"Protocol file \'{protocolFile}\' does not exist.");

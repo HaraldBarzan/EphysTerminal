@@ -1,5 +1,5 @@
 {
-  "protocolType": "genus2cached",
+  "protocolType": "genus",
   "supportedSamplingPeriod": 0.25,
   "trialStartTrigger": 128,
   "trialEndTrigger": 192,
@@ -9,43 +9,37 @@
   "trials": [
     {
       "count": 10,
-      "instructionList": "static-v-6000ms-07Hz",
+      "instructionList": "static-a-6000ms-10Hz",
       "preTimeout": 4,
       "postTimeout": 4
     },
     {
       "count": 10,
-      "instructionList": "static-v-6000ms-10Hz",
+      "instructionList": "static-a-6000ms-20Hz",
       "preTimeout": 4,
       "postTimeout": 4
     },
     {
       "count": 10,
-      "instructionList": "static-v-6000ms-20Hz",
+      "instructionList": "static-a-6000ms-30Hz",
       "preTimeout": 4,
       "postTimeout": 4
     },
     {
       "count": 10,
-      "instructionList": "static-v-6000ms-30Hz",
+      "instructionList": "static-a-6000ms-40Hz",
       "preTimeout": 4,
       "postTimeout": 4
     },
     {
       "count": 10,
-      "instructionList": "static-v-6000ms-40Hz",
+      "instructionList": "static-a-6000ms-50Hz",
       "preTimeout": 4,
       "postTimeout": 4
     },
     {
       "count": 10,
-      "instructionList": "static-v-6000ms-50Hz",
-      "preTimeout": 4,
-      "postTimeout": 4
-    },
-    {
-      "count": 10,
-      "instructionList": "static-v-6000ms-60Hz",
+      "instructionList": "static-a-6000ms-60Hz",
       "preTimeout": 4,
       "postTimeout": 4
     }

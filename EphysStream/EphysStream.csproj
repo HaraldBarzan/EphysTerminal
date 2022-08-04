@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Library</OutputType>
-    <TargetFramework>net5.0</TargetFramework>
+    <TargetFramework>net6.0</TargetFramework>
 	  <RootNamespace>TINS.Ephys</RootNamespace>
     <DisableWinExeOutputInference>true</DisableWinExeOutputInference>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>

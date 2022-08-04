@@ -168,15 +168,6 @@ namespace TINS.Ephys.Display
 			if (spikeAcc is not null) 
 				Monitor.Enter(spikeAcc);
 
-			// update thresholds if needed
-			if (_thresholdSDAuto.HasValue)
-			{
-				AutoUpdateThresholds(muaAcc, _thresholdSDAuto.Value);
-				_thresholdSDAuto = null;
-				UpdateDisplay();
-			}
-
-
 			for (int iRow = 0; iRow < _multiunits.Rows; ++iRow)
 			{
 				for (int iCol = 0; iCol < _multiunits.Cols; ++iCol)
@@ -245,6 +236,31 @@ namespace TINS.Ephys.Display
 		}
 
 		/// <summary>
+		/// Set a list of thresholds.
+		/// </summary>
+		/// <param name="thresholds"></param>
+		public void SetThresholds(Vector<(int SourceIndex, float Threshold)> thresholds)
+		{
+			if (thresholds is object)
+			{
+				for (int iThr = 0; iThr < thresholds.Size; ++iThr)
+				{
+					// find the mapping with the same source index
+					for (int j = 0; j < _channelMapping.Size; ++j)
+					{
+						if (thresholds[iThr].SourceIndex == _channelMapping[j].SourceIndex)
+						{
+							_thresholds[j] ??= new();
+							_thresholds[j].Value = thresholds[iThr].Threshold;
+						}
+					}
+				}
+
+				UpdateDisplay();
+			}
+		}
+
+		/// <summary>
 		/// 
 		/// </summary>
 		/// <param name="thresholds"></param>
@@ -272,13 +288,6 @@ namespace TINS.Ephys.Display
 			_thresholds[row, column].Value = threshold;
 			UpdateDisplay();
 		}
-
-		/// <summary>
-		/// 
-		/// </summary>
-		/// <param name="signalSDs"></param>
-		public virtual void EnqueueAutoThreshold(double signalSDs)
-			=> _thresholdSDAuto = (float)signalSDs;
 
 		/// <summary>
 		/// Maximum number of waveforms to draw.
@@ -638,40 +647,6 @@ namespace TINS.Ephys.Display
 		/// <summary>
 		/// 
 		/// </summary>
-		/// <param name="signalSDs"></param>
-		protected void AutoUpdateThresholds(ContinuousDisplayAccumulator channelData, float signalSDs)
-		{
-			for (int iRow = 0; iRow < _thresholds.Rows; ++iRow)
-			{
-				for (int iCol = 0; iCol < _thresholds.Cols; ++iCol)
-				{
-					if (_channelMapping[iRow, iCol].IsInvalid)
-						continue;
-
-					int sourceChIndex	= _channelMapping[iRow, iCol].SourceIndex;
-					var channel			= channelData.GetBuffer(sourceChIndex);
-					RunningMSD msd		= default;
-
-					// compute SD
-					var data = channelData.GetBuffer(sourceChIndex);
-					for (int i = 0; i < data.Length; ++i)
-						msd.Push(data[i]);
-					float mean	= msd.Mean;
-					float sd	= msd.StandardDeviation;
-
-					// set the threshold
-					float threshold = Numerics.Clamp(mean + signalSDs * sd, _yRange);
-					_thresholds[iRow, iCol].Value = threshold;
-				}
-			}
-				
-
-			
-		}
-
-		/// <summary>
-		/// 
-		/// </summary>
 		/// <param name="sender"></param>
 		/// <param name="e"></param>
 		protected override void over_MouseDown(object sender, MouseButtonEventArgs e)
@@ -767,7 +742,6 @@ namespace TINS.Ephys.Display
 			ContextMenu.Items.Insert(2, new Separator());
 			ContextMenu.Items.Insert(3, mitSetLiveChannel);
 			ContextMenu.Items.Insert(4, mitDisableLiveChannel);
-			ContextMenu.Items.Insert(5, new Separator());
 
 			ContextMenu.Opened += (_, _) => _contextMenuLocation = Mouse.GetPosition(this);
 			ContextMenu.Closed += (_, _) => _contextMenuLocation = null;
@@ -829,7 +803,6 @@ namespace TINS.Ephys.Display
 		protected SKPaint						_waveformPaint			= new();
 		protected Matrix<SKPath>				_multiunits				= new();
 		protected MultiunitDisplayMode			_mode					= new();
-		protected float?						_thresholdSDAuto		= null;
 
 		// thresholds
 		protected Matrix<ThresholdSlider>		_thresholds				= new();

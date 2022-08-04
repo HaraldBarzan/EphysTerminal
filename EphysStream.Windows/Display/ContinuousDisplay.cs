@@ -82,6 +82,9 @@ namespace TINS.Ephys.Display
 			data.InvalidateVisual();
 		}
 
+		/// <summary>
+		/// 
+		/// </summary>
 		protected override void ResetData()
 		{
 			foreach (var g in _graphs)
@@ -175,8 +178,8 @@ namespace TINS.Ephys.Display
 
 
 		// context menus
-		protected System.Windows.Point?	_contextMenuLocation;
-		protected MenuItem				mitRTSpectrum;
+		protected Point?							_contextMenuLocation;
+		protected MenuItem							mitRTSpectrum;
 		
 		// data
 		protected SKPaint							_graphPaint		= new();

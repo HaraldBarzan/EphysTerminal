@@ -37,7 +37,7 @@ namespace TINS.Ephys.Stimulation
 		/// <param name="parent">Parent ephys stream.</param>
 		/// <param name="config">Configuration.</param>
 		/// <param name="stim">Stimulus controller (unused).</param>
-		public DummyProtocol(EphysStream parent, DummyProtocolConfig config, StimulusController stim = null)
+		public DummyProtocol(EphysTerminal parent, DummyProtocolConfig config, StimulusController stim = null)
 			: base(parent, config)
 		{
 		}

@@ -13,11 +13,6 @@ namespace TINS.Ephys.Data
 		: DataInputStream
 	{
 		/// <summary>
-		/// Signifies the operation has completed without errors.
-		/// </summary>
-		public const string OK = "OK";
-
-		/// <summary>
 		/// Default constructor.
 		/// </summary>
 		public MCSDataStream(EphysSettings settings, int ringBufferSize = 3)
@@ -297,18 +292,18 @@ namespace TINS.Ephys.Data
 		/// <summary>
 		/// The connected MCS-MEA device list.
 		/// </summary>
-		public static CMcsUsbListNet MCSMEADeviceList { get; protected set; } = null;
+		public static CMcsUsbListNet	 MCSMEADeviceList { get; protected set; } = null;
 
-		protected CMeaDeviceNet		_device					= null;
-		protected int				_channelBlockSize		= 0;
-		protected int				_selectedChannels		= 0;
-		protected bool				_useDigitalInput		= false;
-		protected bool				_useChecksumChannels	= false;
-		protected Vector<ushort>	_channelReadBuffer		= new();
+		protected CMeaDeviceNet			_device					= null;
+		protected int					_channelBlockSize		= 0;
+		protected int					_selectedChannels		= 0;
+		protected bool					_useDigitalInput		= false;
+		protected bool					_useChecksumChannels	= false;
+		protected Vector<ushort>		_channelReadBuffer		= new();
 
-		protected int				_samplingRate			= 0;
-		protected int				_voltageRange			= 0;
+		protected int					_samplingRate			= 0;
+		protected int					_voltageRange			= 0;
 
-		private bool				_disposed				= false;
+		private bool					_disposed				= false;
 	}
 }

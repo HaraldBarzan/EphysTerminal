@@ -15,7 +15,7 @@ namespace TINS.Ephys.Analysis
 		/// 
 		/// </summary>
 		/// <param name="streamer"></param>
-		public ActiveChannelTracker(EphysStream streamer)
+		public ActiveChannelTracker(EphysTerminal streamer)
 		{
 		}
 

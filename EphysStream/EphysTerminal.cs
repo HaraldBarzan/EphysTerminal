@@ -15,7 +15,7 @@ namespace TINS.Ephys
 	/// <summary>
 	/// Main class.
 	/// </summary>
-	public class EphysStream 
+	public class EphysTerminal 
 		: AsynchronousObject
 	{
 		/// <summary>
@@ -93,7 +93,7 @@ namespace TINS.Ephys
 		/// <param name="dataInputStream">The input stream for the streamer. A <c>DummyDataStream</c> will be created if null.</param>
 		/// <remarks>The <paramref name="dataInputStream"/> is typically connected to external devices and is thus platform specific. 
 		/// It may well not be found in this library, instead being implemented in another platform specific library or executable.</remarks>
-		public EphysStream(
+		public EphysTerminal(
 			EphysSettings			settings, 
 			DataInputStream			dataInputStream, 
 			IUserInterface			ui = null)
@@ -203,6 +203,31 @@ namespace TINS.Ephys
 				return Task.CompletedTask;
 			}
 		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="thresholdSD"></param>
+		/// <param name="callback"></param>
+		/// <param name="autoApply"></param>
+		/// <returns></returns>
+		public IAsyncResult AutoDetectSpikeThreshold(float thresholdSD, Action<Vector<(int SourceIndex, float Threshold)>> callback = null, bool autoApply = true)
+		{
+			if (InvokeRequired)
+				return BeginInvoke(new Func<float, Action<Vector<(int SourceIndex, float Threshold)>>, bool, IAsyncResult>(AutoDetectSpikeThreshold), callback);
+			else
+			{
+				if (_spikeAcc is not null && _spikeAcc.Source is not null)
+				{
+					_spikeAcc.Source.ComputeAutoThresholdSD(out var thresholds, thresholdSD, autoApply);
+					if (callback is not null)
+						callback(thresholds);
+				}
+
+				return Task.CompletedTask;
+			}
+		}
+
 
 		/// <summary>
 		/// Change the list of active channels.
@@ -362,9 +387,9 @@ namespace TINS.Ephys
 		/// </summary>
 		protected void OnStartStream()
 		{
-			if (InputStream is object && InputStream.Status == DataStreamStatus.Idle)
+			if (InputStream is not null && InputStream.Status == DataStreamStatus.Idle)
 			{
-				if (UI is object)
+				if (UI is not null)
 				{
 					_spikeAcc	?.Reset();
 					_muaAcc		?.Reset();
@@ -420,7 +445,7 @@ namespace TINS.Ephys
 		/// <param name="e"></param>
 		protected void OnStopRecording()
 		{
-			if (OutputStream is object)
+			if (OutputStream is not null)
 			{
 				OutputStream?.Dispose();
 				OutputStream = null;

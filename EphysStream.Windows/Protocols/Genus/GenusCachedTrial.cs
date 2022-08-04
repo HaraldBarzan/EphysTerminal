@@ -1,14 +1,12 @@
-﻿using TINS.Ephys.Stimulation;
-
-namespace TINS.Ephys.ModuleImplementations
+﻿namespace TINS.Ephys.Protocols.Genus
 {
-	using FlickerTriggerAttach = GenusMk2Controller.FlickerTriggerAttach;
-	using Instruction = GenusMk2Controller.Instruction;
+	using FlickerTriggerAttach = GenusController.FlickerTriggerAttach;
+	using Instruction = GenusController.Instruction;
 
 	/// <summary>
 	/// Contains cached instruction lists which can be requested by name.
 	/// </summary>
-	public class GenusMk2CachedTrial
+	public class GenusCachedTrial
 	{
 		// data
 		public string Name { get; init; }
@@ -28,7 +26,7 @@ namespace TINS.Ephys.ModuleImplementations
 		/// </summary>
 		/// <param name="name">The name.</param>
 		/// <returns>An instruction list if successful, null otherwise.</returns>
-		public static GenusMk2CachedTrial Get(string name)
+		public static GenusCachedTrial Get(string name)
 		{
 			int i = _instructions.IndexOf(x => x.Name == name);
 			if (i >= 0)
@@ -39,7 +37,7 @@ namespace TINS.Ephys.ModuleImplementations
 		/// <summary>
 		/// The list of cached instructions.
 		/// </summary>
-		static Vector<GenusMk2CachedTrial> _instructions = new()
+		static Vector<GenusCachedTrial> _instructions = new()
 		{
 			// static
 			AVStatic("static-v-6000ms-07Hz",	07, 6000, audio: false,		flickerTriggers: (FlickerTriggerAttach.LedLeftFlicker, 11, 12)),
@@ -90,19 +88,19 @@ namespace TINS.Ephys.ModuleImplementations
 		/// <param name="transitionTrigger"></param>
 		/// <param name="flickerTriggers"></param>
 		/// <returns>A list of instructions to perform the ramp.</returns>
-		public static GenusMk2CachedTrial AVRamp(
+		public static GenusCachedTrial AVRamp(
 			string													name,
 			(float Lower, float Upper)								frequencyRange,
 			int														stepCount,
 			int														totalTime,
 			bool													audio					= true,
 			bool													visual					= true,
-			float?													audioFrequency			= GenusMk2Controller.DefaultToneFrequency,
+			float?													audioFrequency			= GenusController.DefaultToneFrequency,
 			byte?													startTrigger			= 129,
 			byte?													endTrigger				= 150,
 			byte?													transitionTrigger		= null,
 			(FlickerTriggerAttach Attach, byte Rise, byte Fall)?	flickerTriggers			= null,
-			GenusMk2Controller.Feedback?							feedbackOnCompletion	= GenusMk2Controller.Feedback.StimulationComplete)
+			GenusController.Feedback?							feedbackOnCompletion	= GenusController.Feedback.StimulationComplete)
 		{
 			// init
 			var result				= new Vector<Instruction>();
@@ -142,7 +140,7 @@ namespace TINS.Ephys.ModuleImplementations
 			if (endTrigger.HasValue)			result.PushBack(Instruction.EmitTrigger(endTrigger.Value));
 			if (feedbackOnCompletion.HasValue)	result.PushBack(Instruction.Feedback(feedbackOnCompletion.Value));
 
-			return new GenusMk2CachedTrial()
+			return new GenusCachedTrial()
 			{
 				Name					= name,
 				Type					= "ramp",
@@ -152,7 +150,7 @@ namespace TINS.Ephys.ModuleImplementations
 				StimulationRuntime		= totalTime,
 				StepCount				= stepCount,
 				FlickerFrequency		= frequencyRange,
-				ToneFrequency			= audioFrequency.HasValue ? audioFrequency.Value : GenusMk2Controller.DefaultToneFrequency,
+				ToneFrequency			= audioFrequency.HasValue ? audioFrequency.Value : GenusController.DefaultToneFrequency,
 				UseFlickerTriggers		= flickerTriggers.HasValue,
 				UseTransitionTriggers	= transitionTrigger.HasValue
 			};
@@ -172,17 +170,17 @@ namespace TINS.Ephys.ModuleImplementations
 		/// <param name="flickerTriggers"></param>
 		/// <param name="feedbackOnCompletion"></param>
 		/// <returns></returns>
-		public static GenusMk2CachedTrial AVStatic(
+		public static GenusCachedTrial AVStatic(
 			string													name,
 			float													frequency,
 			int														totalTime,
 			bool													audio					= true,
 			bool													visual					= true,
-			float?													audioFrequency			= GenusMk2Controller.DefaultToneFrequency,
+			float?													audioFrequency			= GenusController.DefaultToneFrequency,
 			byte?													startTrigger			= 129,
 			byte?													endTrigger				= 150,
 			(FlickerTriggerAttach Attach, byte Rise, byte Fall)?	flickerTriggers			= null,
-			GenusMk2Controller.Feedback?							feedbackOnCompletion	= GenusMk2Controller.Feedback.StimulationComplete)
+			GenusController.Feedback?							feedbackOnCompletion	= GenusController.Feedback.StimulationComplete)
 		{
 			var result = new Vector<Instruction>();
 
@@ -203,7 +201,7 @@ namespace TINS.Ephys.ModuleImplementations
 			if (endTrigger.HasValue)			result.PushBack(Instruction.EmitTrigger(endTrigger.Value));
 			if (feedbackOnCompletion.HasValue)	result.PushBack(Instruction.Feedback(feedbackOnCompletion.Value));
 
-			return new GenusMk2CachedTrial()
+			return new GenusCachedTrial()
 			{
 				Name					= name,
 				Type					= "static",
@@ -213,7 +211,7 @@ namespace TINS.Ephys.ModuleImplementations
 				StimulationRuntime		= totalTime,
 				StepCount				= 1,
 				FlickerFrequency		= (frequency, frequency),
-				ToneFrequency			= audioFrequency.HasValue ? audioFrequency.Value : GenusMk2Controller.DefaultToneFrequency,
+				ToneFrequency			= audioFrequency.HasValue ? audioFrequency.Value : GenusController.DefaultToneFrequency,
 				UseFlickerTriggers		= flickerTriggers.HasValue,
 				UseTransitionTriggers	= false
 			};

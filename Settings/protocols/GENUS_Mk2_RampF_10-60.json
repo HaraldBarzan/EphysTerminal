@@ -1,5 +1,5 @@
 {
-  "protocolType": "genus2cached",
+  "protocolType": "genus",
   "supportedSamplingPeriod": 0.25,
   "trialStartTrigger": 128,
   "trialEndTrigger": 192,

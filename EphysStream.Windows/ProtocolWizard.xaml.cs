@@ -289,7 +289,7 @@ namespace TINS.Ephys
 			}
 
 			protected ProtocolWizard				_p;
-			protected EphysStream					_s;
+			protected EphysTerminal					_s;
 			protected int							_currentStateTimeout;
 
 			protected (int Pre, int Post)			_timeouts;
@@ -316,7 +316,7 @@ namespace TINS.Ephys
 			// open a file dialog
 			var ofd = new OpenFileDialog()
 			{
-				InitialDirectory	= @"C:\_code\ephysstream\settings",
+				InitialDirectory	= @"C:\_code\ephysstream\settings\protocols",
 				Filter				= "Protocol files (*.json) | *.json",
 				Multiselect			= false
 			};

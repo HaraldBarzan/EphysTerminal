@@ -4,7 +4,6 @@ using System.IO;
 using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Input;
 using System.Windows.Media;
 using TINS;
 using TINS.Ephys;
@@ -112,7 +111,7 @@ namespace EphysStream.Windows
 		/// <summary>
 		/// The ephys stream.
 		/// </summary>
-		public TINS.Ephys.EphysStream EphysStream { get; protected set; }
+		public TINS.Ephys.EphysTerminal EphysStream { get; protected set; }
 
 		/// <summary>
 		/// Protocol wizard.
@@ -184,7 +183,7 @@ namespace EphysStream.Windows
 			}
 
 			// create stream and start it on a new thread
-			EphysStream = new TINS.Ephys.EphysStream(
+			EphysStream = new TINS.Ephys.EphysTerminal(
 				settings:			settings,		// the settings item
 				ui:					this,			// the UI for the streamer
 				dataInputStream:	inputStream);   // the input stream (platform specific));
@@ -378,7 +377,7 @@ namespace EphysStream.Windows
 				var ofd = new OpenFileDialog()
 				{
 					Title				= "Open configuration file",
-					InitialDirectory	= @"C:\_code\ephysstream\settings",
+					InitialDirectory	= @"C:\_code\ephysstream\settings\configurations",
 					Filter				= "Settings files (*.ini) | *.ini",
 					Multiselect			= false
 				};
@@ -471,7 +470,7 @@ namespace EphysStream.Windows
 				var ofd = new OpenFileDialog()
 				{
 					Title				= "Open protocol configuration file",
-					InitialDirectory	= @"C:\_code\ephysstream\settings",
+					InitialDirectory	= @"C:\_code\ephysstream\settings\protocols",
 					Filter				= "Configuration files (*.json) | *.json",
 					Multiselect			= false
 				};
@@ -540,8 +539,12 @@ namespace EphysStream.Windows
 		private void btnAutoThreshold_Click(object sender, RoutedEventArgs e)
 		{
 			if (double.TryParse(txbThreshold.Text, out var thSDs))
-				drawMua.EnqueueAutoThreshold(-Math.Abs(thSDs));
-
+			{
+				EphysStream?.AutoDetectSpikeThreshold(
+					thresholdSD:	(float)thSDs,
+					autoApply:		true,
+					callback:		(thresholds) => Dispatcher.BeginInvoke(() => drawMua?.SetThresholds(thresholds)));
+			}
 		}
 
 		/// <summary>
@@ -648,7 +651,7 @@ namespace EphysStream.Windows
 				{
 					drawMua.WaveformXRange = (-spikeSet.PeakOffset, MathF.Round(spikeSet.SpikeCutWidth - spikeSet.PeakOffset, 2));
 					using var thr = new Matrix<float>(mapping.Dimensions);
-						thr.Fill(spikeSet.Threshold);
+					thr.Fill(spikeSet.Threshold);
 					drawMua.SetThresholds(thr);
 				}
 			}

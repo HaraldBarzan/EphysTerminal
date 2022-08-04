@@ -3,9 +3,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using TINS;
-using TINS.Ephys.ModuleImplementations;
+using TINS.Ephys.Protocols.Genus;
 using TINS.Ephys.Stimulation;
-using TINS.Ephys.Stimulation.Genus;
 using TINS.Native;
 using TINS.Utilities;
 
@@ -47,9 +46,7 @@ namespace EphysStream.Windows
 			}
 			
 			// register the available protocols
-			ProtocolFactory.RegisterProtocol(typeof(GenusMk1),			"genus1");
-			ProtocolFactory.RegisterProtocol(typeof(GenusMk2Static),	"genus2static");
-			ProtocolFactory.RegisterProtocol(typeof(GenusMk2Cached),	"genus2cached");
+			ProtocolFactory.RegisterProtocol(typeof(GenusProtocol),	"genus");
 		}
 
 
@@ -89,14 +86,14 @@ namespace EphysStream.Windows
 		/// </summary>
 		static void ConnectionlessProtocol()
 		{
-			var trials = new Vector<GenusMk2CachedTrial>();
-			trials.PushBack(new Vector<GenusMk2CachedTrial>(10, fill: GenusMk2CachedTrial.Get("static-v-6000ms-07Hz")));
-			trials.PushBack(new Vector<GenusMk2CachedTrial>(10, fill: GenusMk2CachedTrial.Get("static-v-6000ms-10Hz")));
-			trials.PushBack(new Vector<GenusMk2CachedTrial>(10, fill: GenusMk2CachedTrial.Get("static-v-6000ms-20Hz")));
-			trials.PushBack(new Vector<GenusMk2CachedTrial>(10, fill: GenusMk2CachedTrial.Get("static-v-6000ms-30Hz")));
-			trials.PushBack(new Vector<GenusMk2CachedTrial>(10, fill: GenusMk2CachedTrial.Get("static-v-6000ms-40Hz")));
-			trials.PushBack(new Vector<GenusMk2CachedTrial>(10, fill: GenusMk2CachedTrial.Get("static-v-6000ms-50Hz")));
-			trials.PushBack(new Vector<GenusMk2CachedTrial>(10, fill: GenusMk2CachedTrial.Get("static-v-6000ms-60Hz")));
+			var trials = new Vector<GenusCachedTrial>();
+			trials.PushBack(new Vector<GenusCachedTrial>(10, fill: GenusCachedTrial.Get("static-v-6000ms-07Hz")));
+			trials.PushBack(new Vector<GenusCachedTrial>(10, fill: GenusCachedTrial.Get("static-v-6000ms-10Hz")));
+			trials.PushBack(new Vector<GenusCachedTrial>(10, fill: GenusCachedTrial.Get("static-v-6000ms-20Hz")));
+			trials.PushBack(new Vector<GenusCachedTrial>(10, fill: GenusCachedTrial.Get("static-v-6000ms-30Hz")));
+			trials.PushBack(new Vector<GenusCachedTrial>(10, fill: GenusCachedTrial.Get("static-v-6000ms-40Hz")));
+			trials.PushBack(new Vector<GenusCachedTrial>(10, fill: GenusCachedTrial.Get("static-v-6000ms-50Hz")));
+			trials.PushBack(new Vector<GenusCachedTrial>(10, fill: GenusCachedTrial.Get("static-v-6000ms-60Hz")));
 			new RNG().Shuffle(trials);
 
 			// create the text writer
@@ -120,7 +117,7 @@ namespace EphysStream.Windows
 			string Frequency((float, float) f) => f.Size() > 0 ? $"{f.Item1}:{f.Item2}" : f.Item1.ToString();
 			
 			// controller
-			var stc = new GenusMk2Controller();
+			var stc = new GenusController();
 			stc.Connect();
 			var evt = new AutoResetEvent(false);
 			stc.FeedbackReceived += (_, _) => evt.Set();

@@ -21,7 +21,7 @@ namespace TINS.Ephys.Display
 		/// Create a new audio stream.
 		/// </summary>
 		/// <param name="stream">The parent ephys stream.</param>
-		public MultiunitAudioStream(EphysStream stream)
+		public MultiunitAudioStream(EphysTerminal stream)
 		{
 			EphysStream	= stream;
 
@@ -33,7 +33,7 @@ namespace TINS.Ephys.Display
 			
 			// initialize the audio stream
 			WaveFormat		= WaveFormat.CreateIeeeFloatWaveFormat(Numerics.Floor(_targetBuffer.SamplingRate), 1);
-			_audioOutput	= new WasapiOut(AudioClientShareMode.Shared, true, Numerics.Round(1000 * stream.Settings.Input.PollingPeriod));
+			_audioOutput	= new WasapiOut(AudioClientShareMode.Shared, true, Numerics.Round(stream.Settings.Input.PollingPeriod * 1000));
 			_audioOutput	.Init(this);
 			_streamBuffer	.Resize(Numerics.Floor(_targetBuffer.SamplingRate * 2));
 			_targetChannel	= stream.Settings.UI.DefaultAudioChannel;
@@ -155,9 +155,6 @@ namespace TINS.Ephys.Display
 		/// <param name="count">Number of samples to write.</param>
 		public int WriteFromSourceBuffer(int count)
 		{
-			if (count != 8000)
-				Debugger.Break();
-
 			if (_disposed || _targetBuffer is null)
 				return 0;
 
@@ -177,7 +174,7 @@ namespace TINS.Ephys.Display
 		/// <summary>
 		/// The parent ephys stream.
 		/// </summary>
-		public EphysStream EphysStream { get; init; }
+		public EphysTerminal EphysStream { get; init; }
 
 
 
