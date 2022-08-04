@@ -7,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using TINS;
 using TINS.Ephys;
+using TINS.Ephys.Analysis.Events;
 using TINS.Ephys.Data;
 using TINS.Ephys.Display;
 using TINS.Ephys.Settings;
@@ -705,22 +706,11 @@ namespace EphysStream.Windows
 		/// </summary>
 		static Vector<float> SupportedYRanges = new()
 		{ 
-			0.1f,
-			0.2f,
-			0.5f,
-			1,
-			2,
-			5,
-			10,
-			20,
-			50,
-			100,
-			200,
-			500,
-			1000,
-			1500,
-			2000,
-			5000
+			0.1f,	0.2f,	0.5f,
+			1,		2,		5,
+			10,		20,		50,
+			100,	200,	500,
+			1000,	2000,	5000
 		};
 
 

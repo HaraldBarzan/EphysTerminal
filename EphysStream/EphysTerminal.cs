@@ -232,10 +232,6 @@ namespace TINS.Ephys
 				return;
 
 			base.OnProcessInput(sender, e);
-			var x = new Vector<float>();
-			x.PushBack(e.AnalogInput.Sum());
-			foreach (var b in ProcessingPipeline.Buffers)
-				x.PushBack(b.Sum());
 
 			// notify stimulation protocol
 			StimulationProtocol?.ProcessBlock();
