@@ -5,6 +5,7 @@ using TINS.Ephys.Settings;
 using TINS.Data;
 using TINS.Data.EPD;
 using TINS.IO;
+using System.Linq;
 
 namespace TINS.Ephys.Data
 {
@@ -19,7 +20,7 @@ namespace TINS.Ephys.Data
 		/// </summary>
 		/// <param name="settings"></param>
 		/// <param name="ringBufferSize"></param>
-		public LocalDataStream(EphysSettings settings, string epdPath, int ringBufferSize = 3)
+		public LocalDataStream(EphysTerminalSettings settings, string epdPath, int ringBufferSize = 3)
 			: base(settings, ringBufferSize)
 		{
 			var ds = new Dataset(epdPath);
@@ -27,20 +28,25 @@ namespace TINS.Ephys.Data
 			// check dataset sampling rate
 			if (ds.SamplingRate != settings.SamplingRate)
 				throw new Exception("Provided dataset does not the input sampling rate.");
+			if (ds.ChannelCount < settings.ReadChannelCount)
+				throw new Exception("Provided dataset does not have enough data channels.");
 
 			// set polling period (in milliseconds)
-			PollingPeriod = Numerics.RoundL(settings.Input.PollingPeriod * 1000);
+			PollingPeriodMillis = Numerics.RoundL(settings.Input.PollingPeriod * 1000);
+			for (int iCh = 0; iCh < settings.Input.ChannelLabels.Size; ++iCh)
+			{
+				if (settings.Input.ExcludedChannels.Contains(settings.Input.ChannelLabels[iCh]))
+					continue;
+				_streams.PushBack(new IOStream(ds.GetChannelPath(ds.Channels[iCh])));
+			}
 
-			// open channel streams
-			foreach (var ch in ds.Channels)
-				_streams.PushBack(new IOStream(ds.GetChannelPath(ch)));
 			_events = ds.GetEvents();
 		}
 
 		/// <summary>
-		/// The polling period.
+		/// The polling period in milliseconds.
 		/// </summary>
-		public long PollingPeriod { get; init; }
+		public long PollingPeriodMillis { get; init; }
 
 		/// <summary>
 		/// 
@@ -145,7 +151,7 @@ namespace TINS.Ephys.Data
 				RaiseDataAvailable(dataInput);
 
 				// put the thread to sleep for the remainder of the tick
-				Thread.Sleep((int)Math.Max(0, PollingPeriod - t.ElapsedMilliseconds));
+				Thread.Sleep((int)Math.Max(0, PollingPeriodMillis - t.ElapsedMilliseconds));
 			}
 			while (Status != DataStreamStatus.Idle && !_disposed);
 

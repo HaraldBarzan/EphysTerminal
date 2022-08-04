@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Threading;
 using TINS.Containers;
 using TINS.Ephys.Processing;
+using TINS.Ephys.Settings;
 
 namespace TINS.Ephys.Display
 {
@@ -24,9 +25,10 @@ namespace TINS.Ephys.Display
 		public MultiunitAudioStream(EphysTerminal stream)
 		{
 			EphysStream	= stream;
+			var settings = stream.Settings as EphysTerminalSettings;
 
-			if (!EphysStream.ProcessingPipeline.TryGetBuffer(stream.Settings.UI.AudioSourceBuffer, out _targetBuffer) ||
-				!_targetBuffer.Labels.Contains(stream.Settings.UI.DefaultAudioChannel))
+			if (!EphysStream.ProcessingPipeline.TryGetBuffer(settings.UI.AudioSourceBuffer, out _targetBuffer) ||
+				!_targetBuffer.ChannelLabels.Contains(settings.UI.DefaultAudioChannel))
 			{
 				throw new Exception("Invalid buffer or channel specified!");
 			}
@@ -36,7 +38,7 @@ namespace TINS.Ephys.Display
 			_audioOutput	= new WasapiOut(AudioClientShareMode.Shared, true, Numerics.Round(stream.Settings.Input.PollingPeriod * 1000));
 			_audioOutput	.Init(this);
 			_streamBuffer	.Resize(Numerics.Floor(_targetBuffer.SamplingRate * 2));
-			_targetChannel	= stream.Settings.UI.DefaultAudioChannel;
+			_targetChannel	= settings.UI.DefaultAudioChannel;
 		}
 
 		/// <summary>
@@ -96,7 +98,7 @@ namespace TINS.Ephys.Display
 			}
 
 			_audioOutput.Play();
-			_writePos = EphysStream.Settings.SamplesPerBlock * 4;
+			_writePos = EphysStream.Settings.SamplesPerFrame * 4;
 		}
 
 		/// <summary>
@@ -115,7 +117,7 @@ namespace TINS.Ephys.Display
 		/// <param name="newChannelLabel">The label of the source channel.</param>
 		public void ChangeSourceChannel(string newChannelLabel)
 		{
-			if (_targetBuffer.Labels.Contains(newChannelLabel))
+			if (_targetBuffer.ChannelLabels.Contains(newChannelLabel))
 				_targetChannel = newChannelLabel;
 		}
 
@@ -158,7 +160,7 @@ namespace TINS.Ephys.Display
 			if (_disposed || _targetBuffer is null)
 				return 0;
 
-			var buffer	= _targetBuffer.GetBuffer(_targetChannel);
+			var buffer	= _targetBuffer.GetChannelBuffer(_targetChannel);
 			count		= Math.Min(count, buffer.Length);
 			buffer		= buffer.Slice(buffer.Length - count, count);
 

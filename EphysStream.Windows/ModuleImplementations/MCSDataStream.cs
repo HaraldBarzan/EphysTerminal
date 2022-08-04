@@ -13,58 +13,24 @@ namespace TINS.Ephys.Data
 		: DataInputStream
 	{
 		/// <summary>
-		/// Default constructor.
+		/// 
 		/// </summary>
-		public MCSDataStream(EphysSettings settings, int ringBufferSize = 3)
+		/// <param name="settings"></param>
+		/// <param name="ringBufferSize"></param>
+		/// <param name="useDigitalChannel"></param>
+		/// <param name="useChecksumChannels"></param>
+		/// <exception cref="Exception"></exception>
+		public MCSDataStream(
+			EphysTerminalSettings settings, 
+			int ringBufferSize			= 3,
+			int usbDeviceIndex			= 0,
+			bool useDigitalChannel		= true, 
+			bool useChecksumChannels	= false)
 			: base(settings, ringBufferSize)
 		{
 			// number of polls per second
 			int pollingRate = Numerics.Round(1 / settings.Input.PollingPeriod);
 
-			// attempt to connect to the device
-			Connect(settings.ChannelCount, Numerics.Round(settings.SamplingRate), pollingRate, useDigitalChannel: true);
-		}
-
-		/// <summary>
-		/// 
-		/// </summary>
-		~MCSDataStream() => Dispose(false);
-
-		/// <summary>
-		/// 
-		/// </summary>
-		/// <param name="disposing"></param>
-		protected override void Dispose(bool disposing)
-		{
-			if (_disposed) return;
-
-			DestroyDevice();
-			if (disposing)
-			{
-				_channelReadBuffer?.Dispose();
-			}
-
-			_disposed = true;
-		}
-
-		/// <summary>
-		/// Attempt to connect to a USB-ME64 device.
-		/// </summary>
-		/// <param name="channelCount"></param>
-		/// <param name="samplingRate"></param>
-		/// <param name="pollingRate"></param>
-		/// <param name="usbDeviceIndex"></param>
-		/// <param name="useDigitalChannel"></param>
-		/// <param name="useChecksumChannels"></param>
-		/// <returns></returns>
-		public void Connect(
-			int		channelCount,
-			int		samplingRate,
-			int		pollingRate,
-			int		usbDeviceIndex		= 0,
-			bool	useDigitalChannel	= false,
-			bool	useChecksumChannels = false)
-		{
 			// disconnect currently attached device if present
 			if (IsConnected)
 				DestroyDevice();
@@ -87,7 +53,7 @@ namespace TINS.Ephys.Data
 			// configure the channels
 			_device.HWInfo().GetNumberOfHWADCChannels(out int supportedAnalogChannels);
 			if (supportedAnalogChannels == 0) supportedAnalogChannels = 64;
-			_selectedChannels = Numerics.Clamp(channelCount, (0, supportedAnalogChannels));
+			_selectedChannels = Numerics.Clamp(settings.ReadChannelCount, (0, supportedAnalogChannels));
 			_device.SetNumberOfChannels(_selectedChannels);
 
 			// set digital input
@@ -99,24 +65,51 @@ namespace TINS.Ephys.Data
 			_device.EnableChecksum(_useChecksumChannels, 0);
 
 			// set sampling rate
-			_samplingRate = samplingRate;
+			_samplingRate = Numerics.Round(settings.SamplingRate);
 			_device.SetSamplerate(_samplingRate, 1, 0);
 
 			// set the voltage range
 			_voltageRange = _device.GetVoltageRangeInMilliVolt();
-			//Gain = _device.GetGain() / 1000;
 			Gain = _device.GetGain();
 
 			// get the layout and confirm data selection
 			_device.GetChannelLayout(out int analogChannels, out int digitalChannels, out _, out _, out int blockSize, 0);
-			_channelBlockSize = _samplingRate / pollingRate;
+			_channelBlockSize = Numerics.Floor(_samplingRate * settings.Input.PollingPeriod);
 			_selectedChannels = blockSize;
 			_channelReadBuffer.Resize((_selectedChannels + (_useDigitalInput ? 1 : 0)) * _channelBlockSize);
-			_device.SetSelectedData(_selectedChannels, _samplingRate, _channelBlockSize, SampleSizeNet.SampleSize16Unsigned, blockSize);
+			
+			// TODO: play around so that we don't even read excluded channels
+			_device.SetSelectedData(_selectedChannels, _samplingRate, _channelBlockSize, SampleSizeNet.SampleSize16Unsigned, blockSize); 
 
-			// suggest a size to the data inputs in the ring
-			foreach (var input in _ringBuffer)
-				input.ResizeFrame(ChannelCount, SamplesPerBlock);
+			// map the input channels channels
+			for (int iCh = 0; iCh < settings.Input.ChannelLabels.Size; ++iCh)
+			{
+				if (settings.Input.ExcludedChannels.Contains(settings.Input.ChannelLabels[iCh]))
+					continue;
+				_channelMap.PushBack(iCh);
+			}
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		~MCSDataStream() => Dispose(false);
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="disposing"></param>
+		protected override void Dispose(bool disposing)
+		{
+			if (_disposed) return;
+
+			DestroyDevice();
+			if (disposing)
+			{
+				_channelReadBuffer?.Dispose();
+			}
+
+			_disposed = true;
 		}
 
 		/// <summary>
@@ -214,24 +207,21 @@ namespace TINS.Ephys.Data
 			_ringBuffer.RotateRight(1);
 
 			// compute scaling coefficients
-			float voltageOffset = -_voltageRange;
 			float voltageScale	= 2f * _voltageRange / ushort.MaxValue;
 
 			// determine the number of actual channels
-			int analogChannels	= ChannelCount;
-			int totalChannels	= ChannelCount + (_useDigitalInput ? 1 : 0);
+			int nSourceAnalogCh	= TotalChannelCount;
+			int nSourceTotalCh	= nSourceAnalogCh + (_useDigitalInput ? 1 : 0);
 
 			lock (dataInput)
 			{
-				// resize the newly acquired data frame
-				dataInput.ResizeFrame(analogChannels, frameCount);
-
 				// get the analog input stream
-				for (int iCh = 0; iCh < analogChannels; ++iCh)
+				for (int iCh = 0; iCh < EffectiveChannelCount; ++iCh)
 				{
+					int sourceChIndex = _channelMap[iCh];
 					for (int iFrame = 0; iFrame < frameCount; ++iFrame)
 					{
-						analogData[iCh, iFrame] = data[iFrame * totalChannels + iCh] * voltageScale - _voltageRange;
+						analogData[iCh, iFrame] = data[iFrame * nSourceTotalCh + sourceChIndex] * voltageScale - _voltageRange;
 					}
 				}
 
@@ -240,7 +230,7 @@ namespace TINS.Ephys.Data
 				{
 					for (int iFrame = 0; iFrame < frameCount; ++iFrame)
 					{
-						digitalInput[iFrame] = data[iFrame * totalChannels + analogChannels];
+						digitalInput[iFrame] = data[iFrame * nSourceTotalCh + nSourceAnalogCh];
 					}
 				}
 			}
@@ -300,6 +290,7 @@ namespace TINS.Ephys.Data
 		protected bool					_useDigitalInput		= false;
 		protected bool					_useChecksumChannels	= false;
 		protected Vector<ushort>		_channelReadBuffer		= new();
+		protected Vector<int>			_channelMap				= new();
 
 		protected int					_samplingRate			= 0;
 		protected int					_voltageRange			= 0;

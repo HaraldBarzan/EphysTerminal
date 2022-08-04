@@ -160,7 +160,7 @@ namespace TINS.Ephys
 				}
 			}
 
-			public ProcessingPipe Pipe { get; init; }
+			public ProcessingComponent Pipe { get; init; }
 		}
 
 		/// <summary>

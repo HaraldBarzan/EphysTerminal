@@ -53,6 +53,9 @@
     <Reference Include="TINS.Core">
       <HintPath>..\..\TINS\bin\Release\TINS.Core.dll</HintPath>
     </Reference>
+    <Reference Include="TINS.Ephys">
+      <HintPath>..\..\TINS\bin\Release\TINS.Ephys.dll</HintPath>
+    </Reference>
     <Reference Include="TINS.Visualization">
       <HintPath>..\..\TINS\bin\Release\TINS.Visualization.dll</HintPath>
     </Reference>

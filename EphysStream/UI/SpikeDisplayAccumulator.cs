@@ -1,5 +1,5 @@
 ﻿using System;
-using TINS.Ephys.Analysis;
+using TINS.Ephys.Analysis.Events;
 
 namespace TINS.Ephys.UI
 {

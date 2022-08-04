@@ -151,7 +151,7 @@ namespace EphysStream.Windows
 		/// </summary>
 		/// <param name="settings">Stream configuration.</param>
 		/// <param name="localDatasetPath">Path to local dataset (if necessary).</param>
-		private void OnLoadSuccessful(EphysSettings settings, string localDatasetPath)
+		private void OnLoadSuccessful(EphysTerminalSettings settings, string localDatasetPath)
 		{
 			// close the current ephys stream
 			if (EphysStream is object)
@@ -162,19 +162,19 @@ namespace EphysStream.Windows
 
 			// create the necessary input stream
 			DataInputStream inputStream = null;
-			switch (settings.Input.InputDevice)
+			switch (settings.InputDevice)
 			{
-				case DataInputDevice.Dummy:
+				case TerminalInputDevice.Dummy:
 					inputStream = new DummyDataStream(settings);
 					break;
 
-				case DataInputDevice.Local:
+				case TerminalInputDevice.Local:
 					if (string.IsNullOrEmpty(localDatasetPath))
 						throw new Exception("The parameter \'localDatasetPath\' must be provided when the input device is set to \'Local\'.");
 					inputStream = new LocalDataStream(settings, localDatasetPath);
 					break;
 
-				case DataInputDevice.MEA64USB:
+				case TerminalInputDevice.ME64USB:
 					inputStream = new MCSDataStream(settings);
 					break;
 
@@ -385,12 +385,12 @@ namespace EphysStream.Windows
 				{
 					try
 					{
-						var settings = new EphysSettings();
-						settings.Serialize(new INI(ofd.FileName), EphysSettings.HeaderSection, SerializationDirection.In);
+						var settings = new EphysTerminalSettings();
+						settings.Serialize(new INI(ofd.FileName), settings.HeaderSection, SerializationDirection.In);
 
 						// get local dataset path
 						string localDatasetPath = null;
-						if (settings.Input.InputDevice is DataInputDevice.Local)
+						if (settings.InputDevice is TerminalInputDevice.Local)
 						{
 							ofd = new OpenFileDialog()
 							{
@@ -408,7 +408,7 @@ namespace EphysStream.Windows
 						CloseEphysStream();
 						
 						// return to the old thread
-						Dispatcher.BeginInvoke(new Action<EphysSettings, string>(OnLoadSuccessful), settings, localDatasetPath);
+						Dispatcher.BeginInvoke(new Action<EphysTerminalSettings, string>(OnLoadSuccessful), settings, localDatasetPath);
 					}
 					catch (Exception e)
 					{
@@ -621,7 +621,7 @@ namespace EphysStream.Windows
 		/// </summary>
 		private void InitializeChannelDisplay()
 		{
-			var settings = EphysStream.Settings;
+			var settings = EphysStream.Settings as EphysTerminalSettings;
 
 			// create channel mapping matrix
 			var mapping		= new Matrix<DataDisplay.Mapping>(settings.UI.DisplayGridRows, settings.UI.DisplayGridColumns);
@@ -644,7 +644,7 @@ namespace EphysStream.Windows
 				yRange: (-settings.UI.MUAYRange, settings.UI.MUAYRange));
 
 			// set thresholds and waveform size
-			foreach (var set in settings.Analysis.Pipes)
+			foreach (var set in settings.Analysis.Components)
 			{
 				if (set.Name == settings.UI.MUASpikeDetector && 
 					set is SpikeSettings spikeSet)
@@ -704,7 +704,13 @@ namespace EphysStream.Windows
 		/// A list of supported y ranges.
 		/// </summary>
 		static Vector<float> SupportedYRanges = new()
-		{
+		{ 
+			0.1f,
+			0.2f,
+			0.5f,
+			1,
+			2,
+			5,
 			10,
 			20,
 			50,

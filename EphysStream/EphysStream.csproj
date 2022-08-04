@@ -22,8 +22,8 @@
     <Reference Include="TINS.Core">
       <HintPath>..\..\TINS\bin\Release\TINS.Core.dll</HintPath>
     </Reference>
-    <Reference Include="TINS.Visualization">
-      <HintPath>..\..\TINS\bin\Release\TINS.Visualization.dll</HintPath>
+    <Reference Include="TINS.Ephys">
+      <HintPath>..\..\TINS\bin\TINS.Ephys.dll</HintPath>
     </Reference>
   </ItemGroup>
 
