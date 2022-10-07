@@ -1,0 +1,151 @@
+﻿<Application x:Class="TINS.Terminal.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+			 xmlns:localdisplay="clr-namespace:TINS.Terminal.Display"
+             StartupUri="MainWindow.xaml">
+    <Application.Resources>
+		
+		<!-- Title bar button-->
+		<Style x:Key="TitleBarButtonStyle"				TargetType="Button">
+			<Setter Property="Background"				Value="#292929"/>
+			<Setter Property="BorderThickness"			Value="0"/>
+			<Setter Property="FontSize"					Value="14"/>
+			<Setter Property="Foreground"				Value="White"/>
+			<Setter Property="VerticalAlignment"		Value="Stretch"/>
+		</Style>
+		
+		<!-- normal buttons default style -->
+		<Style TargetType="Button">
+			<Setter Property="Margin"					Value="2"/>
+			<Setter Property="VerticalAlignment"		Value="Center"/>
+			<Setter Property="Background"				Value="#202020"/>
+			<Setter Property="Foreground"				Value="#FFFFFF"/>
+		</Style>
+
+		<!-- label default style -->
+		<Style TargetType="Label">
+			<Setter Property="Foreground"				Value="White"/>
+			<Setter Property="VerticalAlignment"		Value="Center"/>
+		</Style>
+
+		<!-- textbox default style -->
+		<Style TargetType="TextBox">
+			<Setter Property="Background"				Value="#303030"/>
+			<Setter Property="Foreground"				Value="White"/>
+			<Setter Property="Margin"					Value="2"/>
+			<Setter Property="Height"					Value="25"/>
+			<Setter Property="VerticalContentAlignment" Value="Center"/>
+		</Style>
+		
+		<!-- checkbox default style -->
+		<Style TargetType="CheckBox">
+			<Setter Property="Foreground"				Value="White"/>
+			<Setter Property="VerticalAlignment"		Value="Center"/>
+		</Style>
+
+		<!-- context menu default style -->
+		<Style x:Key="{x:Type ContextMenu}" TargetType="{x:Type ContextMenu}">
+			<Setter Property="OverridesDefaultStyle" Value="True"/>
+			<Setter Property="SnapsToDevicePixels" Value="True"/>
+			<Setter Property="Foreground" Value="White"/>
+			<Setter Property="Template">
+				<Setter.Value>
+					<ControlTemplate TargetType="{x:Type ContextMenu}">
+						<Border Background="#1e1e1e" BorderBrush="White" BorderThickness="1">
+							<StackPanel ClipToBounds="True" Orientation="Vertical" IsItemsHost="True" Margin="5,4,5,4"/>
+						</Border>
+					</ControlTemplate>
+				</Setter.Value>
+			</Setter>
+		</Style>
+		
+		
+
+
+		<!-- BigButton class -->
+		<Style TargetType="{x:Type localdisplay:BigButton}">
+			<Setter Property="Height" Value="60"/>
+			<Setter Property="Background" Value="Transparent" />
+			<Setter Property="BorderThickness" Value="0" />
+			<Setter Property="Template">
+				<Setter.Value>
+				    <ControlTemplate TargetType="{x:Type localdisplay:BigButton}">
+				        <Border BorderThickness="{TemplateBinding BorderThickness}"
+				                Background="{TemplateBinding Background}"
+				                BorderBrush="{TemplateBinding BorderBrush}">
+							<Grid>
+								<Grid.RowDefinitions>
+									<RowDefinition Height="*"/>
+									<RowDefinition Height="auto"/>
+								</Grid.RowDefinitions>
+								<Image Grid.Row="0" Source="{TemplateBinding Source}" Stretch="Uniform"
+									   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+								<Label Grid.Row="1" Content="{TemplateBinding Text}" FontSize="{TemplateBinding FontSize}" Foreground="White"
+									   HorizontalAlignment="Center"/>
+							</Grid>
+				        </Border>
+				    </ControlTemplate>
+				</Setter.Value>
+			</Setter>
+			<Style.Triggers>
+			    <Trigger Property="IsMouseOver" Value="True">
+			        <Setter Property="BorderBrush" Value="Transparent"/>
+			        <Setter Property="Opacity" Value="0.5"/>
+			    </Trigger>
+			    <Trigger Property="IsMouseOver" Value="False">
+			        <Setter Property="BorderBrush" Value="Transparent"/>
+			    </Trigger>
+			</Style.Triggers>
+		</Style>
+		
+		<!-- text box with validation support -->
+		<Style TargetType="{x:Type localdisplay:TextBoxValidation}">
+			<Setter Property="Background"				Value="#303030"/>
+			<Setter Property="Foreground"				Value="White"/>
+			<Setter Property="Margin"					Value="2"/>
+			<Setter Property="Height"					Value="25"/>
+			<Setter Property="VerticalContentAlignment" Value="Center"/>
+			<Setter Property="BorderThickness"			Value="1"/>
+			<Style.Triggers>
+			    <Trigger Property="ValidationState" Value="Unvalidated">
+			        <Setter Property="BorderBrush" Value="Gray"/>
+			    </Trigger>
+				<Trigger Property="ValidationState" Value="False">
+					<Setter Property="BorderBrush" Value="DarkRed"/>
+				</Trigger>
+				<Trigger Property="ValidationState" Value="True">
+					<Setter Property="BorderBrush" Value="LightGreen"/>
+				</Trigger>
+			</Style.Triggers>
+		</Style>
+		
+		<!-- numeric value text box -->
+		<Style TargetType="{x:Type localdisplay:NumericTextBox}">
+			<Setter Property="Background"				Value="#303030"/>
+			<Setter Property="Foreground"				Value="White"/>
+			<Setter Property="Margin"					Value="2"/>
+			<Setter Property="Height"					Value="25"/>
+			<Setter Property="VerticalContentAlignment" Value="Center"/>
+		</Style>
+
+
+		
+		
+		<!-- image resources -->
+		<ImageSource x:Key="OpenIcon">		Resources/folder.png		</ImageSource>
+		<ImageSource x:Key="PlayIcon">		Resources/play.png			</ImageSource>
+		<ImageSource x:Key="StopIcon">		Resources/stop.png			</ImageSource>
+		<ImageSource x:Key="RecordOnIcon">	Resources/recordingOn.png	</ImageSource>
+		<ImageSource x:Key="RecordOffIcon">	Resources/recordingOff.png	</ImageSource>
+		<ImageSource x:Key="SettingsIcon">	Resources/settings.png		</ImageSource>
+		<ImageSource x:Key="ProtLoadIcon">	Resources/protocolFolder.png</ImageSource>
+		<ImageSource x:Key="ProtStartIcon">	Resources/protocolRun.png	</ImageSource>
+		<ImageSource x:Key="ProtStopIcon">	Resources/protocolStop.png	</ImageSource>
+		<ImageSource x:Key="RobotIcon">		Resources/automaton.png		</ImageSource>
+		<ImageSource x:Key="MinimizeIcon">	Resources/minimize.png		</ImageSource>
+		<ImageSource x:Key="MaximizeIcon">	Resources/maximize.png		</ImageSource>
+		<ImageSource x:Key="RestoreIcon">	Resources/restore.png		</ImageSource>
+		<ImageSource x:Key="CloseIcon">		Resources/close.png			</ImageSource>
+		<ImageSource x:Key="TinsIcon">		Resources/tins.png			</ImageSource>
+	</Application.Resources>
+</Application>

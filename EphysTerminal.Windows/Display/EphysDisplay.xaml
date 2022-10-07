@@ -1,0 +1,59 @@
+﻿<UserControl x:Class="TINS.Terminal.Display.EphysDisplay"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:disp="clr-namespace:TINS.Terminal.Display.Ephys"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+	<Grid Grid.Row="2" Name="grdDataDisplay">
+		<Grid.RowDefinitions>
+			<RowDefinition Height="35"/>
+			<RowDefinition Height="*"/>
+		</Grid.RowDefinitions>
+		<Grid.ColumnDefinitions>
+			<ColumnDefinition Width="*"/>
+			<ColumnDefinition Width="*"/>
+		</Grid.ColumnDefinitions>
+
+		<!-- MUA controllers -->
+		<Grid Grid.Row="0" Grid.Column="0" Margin="10,0">
+			<Grid.ColumnDefinitions>
+				<ColumnDefinition Width="*"/>
+				<ColumnDefinition Width="auto"/>
+				<ColumnDefinition Width="100"/>
+				<ColumnDefinition Width="30"/>
+				<ColumnDefinition Width="80"/>
+				<ColumnDefinition Width="40"/>
+				<ColumnDefinition Width="30"/>
+			</Grid.ColumnDefinitions>
+
+			<Label		Grid.Column="0" FontSize="14" Content="Multi-unit activity (MUA)" />
+			<Label		Grid.Column="1" HorizontalAlignment="Right" Content="Y range:"/>
+			<ComboBox	Grid.Column="2" Name="cmbMuaYRange" IsEditable="false" HorizontalAlignment="Stretch" VerticalAlignment="Center" SelectionChanged="cmbYRange_SelectionChanged"/>
+			<Label		Grid.Column="4" HorizontalAlignment="Right" Content="Signal SDs:"/>
+			<TextBox	Grid.Column="5" Name="txbThreshold" Text="4"/>
+			<Button		Grid.Column="6" Name="btnAutoThreshold" Content="TH" Click="btnAutoThreshold_Click"/>
+		</Grid>
+
+		<!-- LFP controller-->
+		<Grid Grid.Row="0" Grid.Column="1" Margin="10,0">
+			<Grid.ColumnDefinitions>
+				<ColumnDefinition Width="*"/>
+				<ColumnDefinition Width="auto"/>
+				<ColumnDefinition Width="100"/>
+				<ColumnDefinition Width="30"/>
+				<ColumnDefinition Width="80"/>
+				<ColumnDefinition Width="40"/>
+			</Grid.ColumnDefinitions>
+
+			<Label		Grid.Column="0" Content="Local field potentials (LFP)" FontSize="14"/>
+			<Label		Grid.Column="1" Content="Y range:" HorizontalAlignment="Right" />
+			<ComboBox	Grid.Column="2" Name="cmbLfpYRange" IsEditable="false" HorizontalAlignment="Stretch" VerticalAlignment="Center" SelectionChanged="cmbYRange_SelectionChanged"/>
+		</Grid>
+
+
+		<disp:MultiunitDisplay Grid.Row="1" Grid.Column="0" x:Name="drawMua" Margin="10"/>
+		<disp:ContinuousDisplay Grid.Row="1" Grid.Column="1" x:Name="drawLfp" Margin="10"/>
+	</Grid>
+</UserControl>
