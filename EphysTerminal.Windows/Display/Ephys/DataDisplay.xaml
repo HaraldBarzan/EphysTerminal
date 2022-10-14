@@ -10,8 +10,7 @@
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
 	<UserControl.ContextMenu>
-		<ContextMenu>
-		</ContextMenu>
+		<ContextMenu/>
 	</UserControl.ContextMenu>
 	<Grid>
 		<sk:SKElement Panel.ZIndex="0" Name="axes" PaintSurface="axes_PaintSurface"/>

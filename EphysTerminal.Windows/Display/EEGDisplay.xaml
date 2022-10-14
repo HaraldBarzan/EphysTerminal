@@ -4,9 +4,37 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:TINS.Terminal.Display"
+			 xmlns:sk="clr-namespace:SkiaSharp.Views.WPF;assembly=SkiaSharp.Views.WPF"
              mc:Ignorable="d" 
-             d:DesignHeight="450" d:DesignWidth="800">
+             d:DesignHeight="500" d:DesignWidth="1100">
+	<UserControl.ContextMenu>
+		<ContextMenu/>
+	</UserControl.ContextMenu>
     <Grid>
-            
-    </Grid>
+		<Grid.RowDefinitions>
+			<RowDefinition Height="35"/>
+			<RowDefinition Height="*"/>
+		</Grid.RowDefinitions>
+
+		<!-- header grid -->
+		<Grid Grid.Row="0" Grid.Column="0" Margin="10,0">
+			<Grid.ColumnDefinitions>
+				<ColumnDefinition Width="auto"/>
+				<ColumnDefinition Width="*"/>
+			</Grid.ColumnDefinitions>
+
+			<Label Grid.Column="0" FontSize="14" Content="Electroencephalography" />
+		</Grid>
+
+		<UserControl Grid.Row="1" Margin="10" BorderBrush="Gray" BorderThickness="1" Background="#1e1e1e">
+			
+			<!-- data grid -->
+			<Grid>
+				<sk:SKElement Panel.ZIndex="0" Name="grid" PaintSurface="grid_PaintSurface"/>
+				<sk:SKElement Panel.ZIndex="1" Name="data" PaintSurface="data_PaintSurface"/>
+				<sk:SKElement Panel.ZIndex="2" Name="axes" PaintSurface="axes_PaintSurface"/>
+			</Grid>
+		</UserControl>
+
+	</Grid>
 </UserControl>

@@ -19,9 +19,9 @@ namespace TINS.Terminal.Display.Ephys
         /// </summary>
         public ContinuousDisplay()
         {
-            _graphPaint.Color = new(200, 0, 255);
-            _graphPaint.Style = SKPaintStyle.Stroke;
-            over.Visibility = Visibility.Hidden;
+            _graphPaint.Color   = new(200, 0, 255);
+            _graphPaint.Style   = SKPaintStyle.Stroke;
+            over.Visibility     = Visibility.Hidden;
 
             CreateContextMenu();
         }
@@ -118,11 +118,12 @@ namespace TINS.Terminal.Display.Ephys
                     var currentAxisRect = _axisRect;
                     currentAxisRect.Offset(_panelRect.Width * iCol, _panelRect.Height * iRow);
                     c.ClipRect(currentAxisRect);
-                    c.Translate(currentAxisRect.Left, currentAxisRect.Top);
+
+                    // set 0 to middle of yaxis
+                    c.Translate(currentAxisRect.Left, currentAxisRect.Top + currentAxisRect.Height / 2);
 
                     // map data coordinates to pixel coordinates
                     c.Scale(xScale, yScale);
-                    c.Translate(0, _yRange.Upper);
 
                     // draw the graph
                     c.DrawPath(_graphs[iRow, iCol], _graphPaint);
@@ -178,13 +179,13 @@ namespace TINS.Terminal.Display.Ephys
 
 
         // context menus
-        protected Point? _contextMenuLocation;
-        protected MenuItem mitRTSpectrum;
+        protected Point?                            _contextMenuLocation;
+        protected MenuItem                          mitRTSpectrum;
 
         // data
-        protected SKPaint _graphPaint = new();
-        protected Matrix<SKPath> _graphs = new();
-        protected Vector<RealTimeSpectrumDisplay> _rtSpecDisplays = new();
+        protected SKPaint                           _graphPaint     = new();
+        protected Matrix<SKPath>                     _graphs        = new();
+        protected Vector<RealTimeSpectrumDisplay>   _rtSpecDisplays = new();
 
     }
 }

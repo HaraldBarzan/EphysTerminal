@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace TINS.Terminal.Protocols.Genus
+﻿namespace TINS.Terminal.Protocols.Genus
 {
 	/// <summary>
 	/// The possible states of the Genus protocol.
@@ -12,6 +6,7 @@ namespace TINS.Terminal.Protocols.Genus
 	public enum GenusState
 	{
 		Idle,
+		Await,
 		Prestimulus,
 		Stimulus,
 		Poststimulus,
@@ -25,6 +20,7 @@ namespace TINS.Terminal.Protocols.Genus
 	{
 		Start,
 		NewBlock,
+		InitiateTrial,
 		StimulationComplete,
 		Stop
 	}

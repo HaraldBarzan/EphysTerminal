@@ -547,11 +547,10 @@ namespace TINS.Terminal.Display.Ephys
 					var currentAxisRect = _axisRect;
 					currentAxisRect.Offset(_panelRect.Width * iCol, _panelRect.Height * iRow);
 					c.ClipRect(currentAxisRect);
-					c.Translate(currentAxisRect.Left, currentAxisRect.Top);
+					c.Translate(currentAxisRect.Left, currentAxisRect.Top + currentAxisRect.Height / 2);
 
 					// map data coordinates to pixel coordinates
 					c.Scale(xScale, yScale);
-					c.Translate(0, _yRange.Upper);
 					
 					// draw the graph
 					c.DrawPath(_multiunits[iRow, iCol], _multiunitPaint);

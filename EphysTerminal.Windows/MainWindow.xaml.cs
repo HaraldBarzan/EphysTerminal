@@ -20,7 +20,8 @@ namespace TINS.Terminal
 	/// Interaction logic for MainWindow.xaml
 	/// </summary>
 	public partial class MainWindow 
-		: Window, IUserInterface
+		: Window
+		, IUserInterface
 	{
 		/// <summary>
 		/// Default constructor.
@@ -31,39 +32,36 @@ namespace TINS.Terminal
 
 			// set up the protocol wizard
 			ProtocolWizard = new ProtocolWizard(this);
+
+			// have something on the screen
+			var ed = new EphysDisplay();
+			ChannelDisplay = ed;
+			displayPanel.Children.Add(ed);
 		}
 
 		#region IUserInterface
-		/// <summary>
-		/// Update user interface activity regarding multiunit activity (spikes).
-		/// </summary>
-		/// <param name="muaAccumulator">Multiunit activity.</param>
-		/// <param name="spikeAccumulator">Spiking activity.</param>
-		public void UpdateMUA(ContinuousDisplayAccumulator muaAccumulator, SpikeDisplayAccumulator spikeAccumulator = null)
+		public void UpdateData(AbstractDisplayData displayData)
 		{
-			// switch thread
 			if (!Dispatcher.CheckAccess())
-				Dispatcher.BeginInvoke(new Action<ContinuousDisplayAccumulator, SpikeDisplayAccumulator>(UpdateMUA), muaAccumulator, spikeAccumulator);
+				Dispatcher.BeginInvoke(new Action<AbstractDisplayData>(UpdateData), displayData);
 			else
 			{
-				if (ChannelDisplay is EphysDisplay ephysDisplay)
-					ephysDisplay.UpdateMUA(muaAccumulator, spikeAccumulator);
-			}
-		}
-
-		/// <summary>
-		/// Update user interface activity regarding local field potentials.
-		/// </summary>
-		/// <param name="lfpAccumulator">Local field potentials.</param>
-		public void UpdateLFP(ContinuousDisplayAccumulator lfpAccumulator)
-		{
-			// switch thread
-			if (!Dispatcher.CheckAccess())
-				Dispatcher.BeginInvoke(new Action<ContinuousDisplayAccumulator>(UpdateLFP), lfpAccumulator);
-			else
-			{
-				if (ChannelDisplay is EphysDisplay ephysDisplay)
-					ephysDisplay.UpdateLFP(lfpAccumulator);
+				// update MUA
+				if (displayData		is EphysDisplayData ephysData &&
+					ChannelDisplay	is EphysDisplay		ephysDisplay)
+				{
+					if (ephysData.MUA is not null && ephysData.MUA.IsFull)
+						ephysDisplay.UpdateMUA(ephysData.MUA, ephysData.Spikes);
+					if (ephysData.LFP is not null && ephysData.LFP.IsFull)
+						ephysDisplay.UpdateLFP(ephysData.LFP);
+				}
+				else if (displayData	is EEGDisplayData	eegData		&&
+					ChannelDisplay		is EEGDisplay		eegDisplay	&&
+					eegData.EEG			is not null						&& 
+					eegData.EEG.IsFull)
+				{
+					eegDisplay.Update(eegData.EEG);
+				}
 			}
 		}
 
@@ -158,9 +156,16 @@ namespace TINS.Terminal
 				EphysTerminal = null;
 			}
 
+			// determine UI type
+			var displayType	= settings.UIType switch
+			{
+				"EPHYS" => DisplayType.Electrophysiology,
+				"EEG"	=> DisplayType.EEG,
+				_		=> throw new Exception()
+			};
+
 			// create the necessary input stream
-			DataInputStream inputStream		= null;
-			DisplayType displayType	= DisplayType.Electrophysiology;
+			DataInputStream inputStream	= null;
 			switch (settings.InputType)
 			{
 				case "DUMMY":
@@ -179,18 +184,18 @@ namespace TINS.Terminal
 
 				case "BIOSEMI-TCP":
 					inputStream = new BiosemiTcpStream(settings.Input as BiosemiTcpInputSettings);
-					displayType = DisplayType.EEG;
 					break;
 
 				default:
 					throw new Exception("Invalid input device specified.");
 			}
+			new Thread(() => inputStream.StartThread()).Start();
 
 			// create stream and start it on a new thread
 			EphysTerminal = new EphysTerminal(
 				settings:			settings,		// the settings item
 				ui:					this,			// the UI for the streamer
-				dataInputStream:	inputStream);   // the input stream (platform specific));
+				dataInputStream:	inputStream);	// the input stream (platform specific));
 			EphysTerminal.StateChanged	+= UpdateInterfaceControls;
 			EphysTerminal.InputReceived	+= (_, _) => ProtocolWizard.NotifyNewBlock();
 			new Thread(() => EphysTerminal.StartThread()).Start();
@@ -224,6 +229,7 @@ namespace TINS.Terminal
 			{
 				// recreate display
 				displayPanel.Children.Clear();
+				ChannelDisplay = null;
 				SwitchDisplay(displayType);
 			}
 		}
@@ -383,7 +389,7 @@ namespace TINS.Terminal
 				var ofd = new OpenFileDialog()
 				{
 					Title				= "Open configuration file",
-					InitialDirectory	= @"C:\_code\ephysstream\settings\configurations",
+					InitialDirectory	= @"C:\_code\ephysterminal\settings\configurations",
 					Filter				= "Settings files (*.ini) | *.ini",
 					Multiselect			= false
 				};

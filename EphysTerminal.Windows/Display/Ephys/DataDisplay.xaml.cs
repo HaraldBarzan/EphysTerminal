@@ -3,6 +3,7 @@ using SkiaSharp.Views.Desktop;
 using System;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 
 namespace TINS.Terminal.Display.Ephys
 {
@@ -11,6 +12,7 @@ namespace TINS.Terminal.Display.Ephys
 	/// </summary>
 	public partial class DataDisplay 
 		: UserControl
+		, IDisposable
 	{
 		/// <summary>
 		/// Offset of tick labels from their respective axes.
@@ -52,18 +54,42 @@ namespace TINS.Terminal.Display.Ephys
 		/// <summary>
 		/// Default constructor.
 		/// </summary>
-		public DataDisplay()
+		public DataDisplay(bool preInit = false)
 		{
 			InitializeComponent();
 
+			_tickFont	= new() { Size = 10, Typeface = SKTypeface.FromFamilyName("Arial") };
+			_tickPaint	= new(_tickFont) { Color = new(214, 214, 214), Style = SKPaintStyle.Fill };
+			_linePaint  = new() { Color = new(214, 214, 214), Style = SKPaintStyle.Stroke };
+
 			using var lbl = new Matrix<Mapping>(8, 4);
-		
 			for (int i = 0; i < lbl.Size; ++i)
 				lbl[i] = new() { SourceIndex = i, Label = "El_" + (i < 10 ? $"0{i}" : i.ToString()) };
-
 			Setup(lbl, (0, 1000), (-1, 1));
 		}
-		
+
+		/// <summary>
+		/// Destructor.
+		/// </summary>
+		public void Dispose()
+		{
+			Dispose(true);
+			GC.SuppressFinalize(this);
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="disposing"></param>
+		protected virtual void Dispose(bool disposing)
+		{
+			if (_disposed) return;
+			if (disposing)
+			{
+			}
+			_disposed = true;
+		}
+
 		/// <summary>
 		/// 
 		/// </summary>
@@ -179,7 +205,6 @@ namespace TINS.Terminal.Display.Ephys
 				RenderText(c, "Invalid X or Y range.");
 				return;
 			}
-
 
 			// fonts and paints
 			using var tickFont	= new SKFont()			{ Size = 10, Typeface = SKTypeface.FromFamilyName("Arial") };
@@ -356,7 +381,10 @@ namespace TINS.Terminal.Display.Ephys
 
 		}
 
-
+		// fonts and paints
+		protected SKFont						_tickFont		= default;
+		protected SKPaint						_tickPaint		= default;
+		protected SKPaint						_linePaint		= default;
 		protected Matrix<Mapping>				_channelMapping	= new();
 		protected (float Lower, float Upper)	_xRange			= default;
 		protected (float Lower, float Upper)	_yRange			= default;
@@ -364,7 +392,7 @@ namespace TINS.Terminal.Display.Ephys
 		protected bool							_canDrawData	= false;
 		protected SKRect						_axisRect		= default;
 		protected SKRect						_panelRect		= default;
-
+		private bool							_disposed		= false;
 
 	}
 }

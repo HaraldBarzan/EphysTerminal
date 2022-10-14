@@ -54,31 +54,15 @@ namespace TINS.Terminal
 			: base(settings, dataInputStream)
 		{
 			// initialize UI
-			if (ui is object)
+			if (ui is not null)
 			{
 				UI = ui;
-
-				// set MUA accumulator
-				if (settings.UI.ShowMUA &&
-					ProcessingPipeline.TryGetBuffer(settings.UI.MUAInputBuffer, out var muaBuffer))
+				DisplayData = settings.UIType switch
 				{
-					// create MUA continuous accumulator
-					_muaAcc = new ContinuousDisplayAccumulator(settings.UI.MUARefreshRate, muaBuffer);
-
-					if (AnalysisPipeline.TryGetComponent<MUASpikeDetector>(settings.UI.MUASpikeDetector, out var detector))
-					{
-						// create MUA spike accumulator
-						_spikeAcc = new SpikeDisplayAccumulator(settings.UI.MUARefreshRate, detector);
-					}
-				}
-
-				// set LFP accumulator
-				if (settings.UI.ShowLFP && 
-					ProcessingPipeline.TryGetBuffer(settings.UI.LFPInputBuffer, out var lfpBuffer))
-				{
-					// create LFP continuous accumulator
-					_lfpAcc = new ContinuousDisplayAccumulator(settings.UI.LFPRefreshRate, lfpBuffer);
-				}
+					"EPHYS" => new EphysDisplayData(this),
+					"EEG"	=> new EEGDisplayData(this),
+					_		=> null
+				};
 			}
 		}
 
@@ -93,14 +77,6 @@ namespace TINS.Terminal
 				StimulationProtocol.Stop();
 				StimulationProtocol = null;
 			}
-
-			if (disposing)
-			{
-				_lfpAcc				?.Dispose();
-				_muaAcc				?.Dispose();
-				_spikeAcc			?.Dispose();
-			}
-
 			base.Dispose(disposing);
 		}
 
@@ -116,10 +92,12 @@ namespace TINS.Terminal
 				return BeginInvoke(new Func<int, float, IAsyncResult>(ChangeDetectorThresholdAsync), channelIndex, newThreshold);
 			else
 			{
-				if (UI is object && _spikeAcc is object &&
-					_spikeAcc.Source is object)
+				if (UI is not null &&
+					DisplayData is EphysDisplayData ephysData &&
+					ephysData.Spikes is not null &&
+					ephysData.Spikes.Source is not null)
 				{
-					_spikeAcc.Source.ChangeThreshold(channelIndex, newThreshold);
+					ephysData.Spikes.Source.ChangeThreshold(channelIndex, newThreshold);
 				}
 
 				return Task.CompletedTask;
@@ -139,9 +117,11 @@ namespace TINS.Terminal
 				return BeginInvoke(new Func<float, Action<Vector<(int SourceIndex, float Threshold)>>, bool, IAsyncResult>(AutoDetectSpikeThreshold), callback);
 			else
 			{
-				if (_spikeAcc is not null && _spikeAcc.Source is not null)
+				if (DisplayData is EphysDisplayData ephysData &&
+					ephysData.Spikes is not null &&
+					ephysData.Spikes.Source is not null)
 				{
-					_spikeAcc.Source.ComputeAutoThresholdSD(out var thresholds, thresholdSD, autoApply);
+					ephysData.Spikes.Source.ComputeAutoThresholdSD(out var thresholds, thresholdSD, autoApply);
 					if (callback is not null)
 						callback(thresholds);
 				}
@@ -218,6 +198,16 @@ namespace TINS.Terminal
 		public IUserInterface UI { get; set; }
 
 		/// <summary>
+		/// Get or set the display data.
+		/// </summary>
+		public AbstractDisplayData DisplayData { get; set; }
+
+		/// <summary>
+		/// Settings item.
+		/// </summary>
+		public EphysTerminalSettings TerminalSettings => Settings as EphysTerminalSettings;
+
+		/// <summary>
 		/// Check whether the stream is currently running a protocol.
 		/// </summary>
 		public bool IsRunningProtocol => StimulationProtocol is object && StimulationProtocol.IsRunning;
@@ -237,8 +227,26 @@ namespace TINS.Terminal
 			// notify stimulation protocol
 			StimulationProtocol?.ProcessBlock();
 
-			// do rendering step 
-			NotifyUserInterface();
+			// check if UI can be updated
+			if (UI is not null)
+			{
+				// update event display
+				if (EventFinder.FoundEventCount > 0)
+				{
+					var events = new Vector<int>();
+					foreach (var evt in EventFinder.FoundEvents)
+						events.PushBack(evt.EventCode);
+					UI.UpdateEvents(events);
+				}
+
+				// update data
+				if (DisplayData is not null &&
+					DisplayData.Accumulate(e.FrameDuration))
+				{
+					UI.UpdateData(DisplayData);
+				}
+			}
+			
 		}
 
 		/// <summary>
@@ -262,43 +270,5 @@ namespace TINS.Terminal
 				StimulationProtocol.Stop();
 			}
 		}
-
-		/// <summary>
-		/// Update the user interface if present.
-		/// </summary>
-		protected void NotifyUserInterface()
-		{
-			if (UI is null) return;
-
-			// lfp, lock while writing to it
-			lock (_lfpAcc)			
-				_lfpAcc?.Accumulate();
-			if (_lfpAcc.IsFull)		
-				UI.UpdateLFP(_lfpAcc);
-
-			// mua, lock while writing to it
-			lock (_muaAcc)			
-				_muaAcc?.Accumulate();
-			lock (_spikeAcc)		
-				_spikeAcc.Accumulate();
-			if (_muaAcc.IsFull)		
-				UI.UpdateMUA(_muaAcc, _spikeAcc);
-
-			// update event display
-			if (EventFinder.FoundEventCount > 0)
-			{
-				var events = new Vector<int>();
-				foreach (var e in EventFinder.FoundEvents)
-					events.PushBack(e.EventCode);
-				UI.UpdateEvents(events);
-			}
-		}
-
-
-		protected ContinuousDisplayAccumulator	_lfpAcc			= null;
-		protected ContinuousDisplayAccumulator	_muaAcc			= null;
-		protected SpikeDisplayAccumulator		_spikeAcc		= null;
 	}
-
-
 }

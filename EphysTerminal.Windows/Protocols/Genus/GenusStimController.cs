@@ -457,6 +457,19 @@ namespace TINS.Terminal.Protocols.Genus
 		public override void EmitTrigger(byte triggerValue) => SendInstruction(Instruction.EmitTrigger(triggerValue));
 
 		/// <summary>
+		/// Trigger a beep.
+		/// </summary>
+		/// <param name="beepDuration">The duration of the beep, in milliseconds.</param>
+		public void Beep(int beepDuration = 500)
+		{
+			Span<Instruction> instructions = stackalloc Instruction[3];
+			instructions[0] = Instruction.StartAudioFlicker(0);
+			instructions[1] = Instruction.Sleep(Numerics.Round(beepDuration));
+			instructions[2] = Instruction.StopAudioFlicker();
+			SendInstructionList(instructions);
+		}
+
+		/// <summary>
 		/// Change the stimulation parameters.
 		/// </summary>
 		/// <param name="frequencyL">The flicker frequency for the left panel, in Hz. Zero to shut it down completely or null to leave the current frequency unchanged.</param>
@@ -466,12 +479,12 @@ namespace TINS.Terminal.Protocols.Genus
 		/// <param name="trigger">A trigger to emit when the stimulation frequency actually changes. If null, the emitted trigger will not change.</param>
 		public virtual void ChangeParameters(float? frequencyL, float? frequencyR, float? frequencyAudio, float? frequencyTone, byte? trigger)
 		{
-			var instructions = new Vector<Instruction>();
-			if (frequencyL.HasValue) instructions.PushBack(Instruction.StartLedFlickerLeft(frequencyL.Value));
-			if (frequencyR.HasValue) instructions.PushBack(Instruction.StartLedFlickerRight(frequencyR.Value));
-			if (frequencyAudio.HasValue) instructions.PushBack(Instruction.StartAudioFlicker(frequencyAudio.Value));
-			if (frequencyTone.HasValue) instructions.PushBack(Instruction.ChangeAudioTone(frequencyTone.Value));
-			if (trigger.HasValue) instructions.PushBack(Instruction.EmitTrigger(trigger.Value));
+			using var instructions = new Vector<Instruction>();
+			if (frequencyL.HasValue)		instructions.PushBack(Instruction.StartLedFlickerLeft(frequencyL.Value));
+			if (frequencyR.HasValue)		instructions.PushBack(Instruction.StartLedFlickerRight(frequencyR.Value));
+			if (frequencyAudio.HasValue)	instructions.PushBack(Instruction.StartAudioFlicker(frequencyAudio.Value));
+			if (frequencyTone.HasValue)		instructions.PushBack(Instruction.ChangeAudioTone(frequencyTone.Value));
+			if (trigger.HasValue)			instructions.PushBack(Instruction.EmitTrigger(trigger.Value));
 
 			if (!instructions.IsEmpty)
 				SendInstructionList(instructions.GetSpan());

@@ -1,4 +1,6 @@
-﻿namespace TINS.Terminal.UI
+﻿using System;
+
+namespace TINS.Terminal.UI
 {
 	/// <summary>
 	/// Provides methods for the GENUS to interact with user interfaces.
@@ -6,16 +8,10 @@
 	public interface IUserInterface
 	{
 		/// <summary>
-		/// Update user interface activity regarding multiunit activity (spikes).
+		/// Update the data on the screen.
 		/// </summary>
-		/// <param name="muaAccumulator">Multiunit activity.</param>
-		public void UpdateMUA(ContinuousDisplayAccumulator muaAccumulator, SpikeDisplayAccumulator spikeAccumulator);
-
-		/// <summary>
-		/// Update user interface activity regarding local field potentials.
-		/// </summary>
-		/// <param name="lfpAccumulator">Local field potentials.</param>
-		public void UpdateLFP(ContinuousDisplayAccumulator lfpAccumulator);
+		/// <param name="displayData">Display data item.</param>
+		public void UpdateData(AbstractDisplayData displayData);
 
 		/// <summary>
 		/// Update user interface activity regarding new events.
@@ -29,5 +25,37 @@
 		/// <param name="currentTrialIndex">The zero-based index of the current trial.</param>
 		/// <param name="totalTrialCount">The total number of trials.</param>
 		public void UpdateTrialIndicator(int currentTrialIndex, int totalTrialCount);
+	}
+
+
+	/// <summary>
+	/// 
+	/// </summary>
+	public abstract class AbstractDisplayData
+		: IDisposable
+	{
+		/// <summary>
+		/// 
+		/// </summary>
+		public void Dispose()
+		{
+			Dispose(true);
+			GC.SuppressFinalize(this);
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="disposing"></param>
+		protected virtual void Dispose(bool disposing)
+		{
+		}
+
+		/// <summary>
+		/// Trigger an accumulation round.
+		/// </summary>
+		/// <param name="updatePeriod">The time frame, in seconds, at the end of the buffer to accumulate.</param>
+		/// <returns>True if the buffer has reached maximum capacity.</returns>
+		public abstract bool Accumulate(float updatePeriod = float.PositiveInfinity);
 	}
 }

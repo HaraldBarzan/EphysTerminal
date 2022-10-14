@@ -10,27 +10,34 @@
     <Grid>
 		<Grid.ColumnDefinitions>
 			<ColumnDefinition Width="40"/>
-			<ColumnDefinition Width="auto"/>
 			<ColumnDefinition Width="*"/>
 			<ColumnDefinition Width="40"/>
 			<ColumnDefinition Width="40"/>
 			<ColumnDefinition Width="40"/>
 		</Grid.ColumnDefinitions>
 
+		<!-- thumbnail -->
 		<Image Grid.Row="0" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="4" Stretch="Uniform"
 			   DataContext="{Binding ElementName=_this}" Source="{Binding Path=Source}" />
+
+		<!-- title label-->
 		<Label Grid.Column="1" Name="lblTitle" VerticalAlignment="Center" 
 			   DataContext="{Binding ElementName=_this}" Content="{Binding Path=Title}" 
 			   FontSize="18" Margin="10,0,0,0" Foreground="White"
-				   MouseDown="ccDragBar_MouseDown" MouseMove="ccDragBar_MouseMove" MouseUp="ccDragBar_MouseUp" MouseDoubleClick="ccDragBar_MouseDoubleClick"/>
-		<Label Grid.Column="2" Name="ccDragBar" MouseDown="ccDragBar_MouseDown" MouseMove="ccDragBar_MouseMove" MouseUp="ccDragBar_MouseUp" MouseDoubleClick="ccDragBar_MouseDoubleClick"/>
-		<Button Grid.Column="3" Name="btnMinimize" Style="{StaticResource TitleBarButtonStyle}" Click="btnMinimize_Click" Margin="10">
+			   MouseDown="ccDragBar_MouseDown" MouseDoubleClick="ccDragBar_MouseDoubleClick"/>
+
+		<!-- minimize button -->
+		<Button Grid.Column="2" Name="btnMinimize" Style="{StaticResource TitleBarButtonStyle}" Click="btnMinimize_Click" Margin="10">
 			<Image x:Name="imgMinimize" Source="{StaticResource MinimizeIcon}"/>
 		</Button>
-		<Button Grid.Column="4" Name="btnMaximize" Style="{StaticResource TitleBarButtonStyle}" Click="btnMaximize_Click" Margin="10">
+
+		<!-- maximize button -->
+		<Button Grid.Column="3" Name="btnMaximize" Style="{StaticResource TitleBarButtonStyle}" Click="btnMaximize_Click" Margin="10">
 			<Image x:Name="imgMaximize" Source="{StaticResource MaximizeIcon}"/>
 		</Button>
-		<Button Grid.Column="5" Name="btnExit" Style="{StaticResource TitleBarButtonStyle}" Click="btnExit_Click" Margin="10">
+
+		<!-- close button -->
+		<Button Grid.Column="4" Name="btnExit" Style="{StaticResource TitleBarButtonStyle}" Click="btnExit_Click" Margin="10">
 			<Image x:Name="imgExit" Source="{StaticResource CloseIcon}"/>
 		</Button>
 	</Grid>

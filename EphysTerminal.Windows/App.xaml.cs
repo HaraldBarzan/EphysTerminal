@@ -30,17 +30,22 @@ namespace TINS.Terminal
 		/// <param name="e"></param>
 		protected override void OnStartup(StartupEventArgs e)
 		{
+			//var genus = new GenusController();
+			//genus.Connect();
+			//genus.EmitTrigger(128);
+			//Environment.Exit(0);
+
 			// check if system is 64 bit
 			if (!Environment.Is64BitOperatingSystem)
 				throw new PlatformNotSupportedException("Only 64bit OS-es can run this app.");
-
+		
 			// load native libraries
 			switch (Environment.OSVersion.Platform)
 			{
 				case PlatformID.Win32NT:
 					NativeWrapper.Provide<FFTWSingle>(@"C:\_code\_binaries\x64\libfftw3f-3.dll");
 					break;
-
+		
 				default:
 					throw new PlatformNotSupportedException($"Platform {Environment.OSVersion.Platform} is not supported.");
 			}
@@ -48,8 +53,6 @@ namespace TINS.Terminal
 			// register the available protocols
 			ProtocolFactory.RegisterProtocol(typeof(GenusProtocol),	"genus");
 		}
-
-
 
 		/// <summary>
 		/// Show a non-blocking message box.
@@ -150,9 +153,10 @@ namespace TINS.Terminal
 				Thread.Sleep(new RNG().NextInt(1000, 3000));
 			}
 
-			logger.Close();
+			logger.EndFile();
 			Environment.Exit(0);
 		}
 
+		
 	}
 }

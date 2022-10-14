@@ -108,39 +108,40 @@ namespace TINS.Terminal.Display
 			if (Window is null) return;
 
 			if (e.ChangedButton is MouseButton.Left)
-				_windowDragStartPos = e.GetPosition(this);
+				Window.DragMove();
+				//_windowDragStartPos = e.GetPosition(this);
 		}
 
-		/// <summary>
-		/// 
-		/// </summary>
-		/// <param name="sender"></param>
-		/// <param name="e"></param>
-		private void ccDragBar_MouseMove(object sender, MouseEventArgs e)
-		{
-			if (Window is null) return;
-
-			if (e.LeftButton is MouseButtonState.Pressed && _windowDragStartPos.HasValue)
-			{
-				var currentPos		= e.GetPosition(this);
-				var offset			= currentPos - _windowDragStartPos.Value;
-				Window.Left	+= offset.X;
-				Window.Top	+= offset.Y;
-			}
-		}
-
-		/// <summary>
-		/// 
-		/// </summary>
-		/// <param name="sender"></param>
-		/// <param name="e"></param>
-		private void ccDragBar_MouseUp(object sender, MouseButtonEventArgs e)
-		{
-			if (Window is null) return;
-
-			if (e.ChangedButton is MouseButton.Left)
-				_windowDragStartPos = null;
-		}
+		///// <summary>
+		///// 
+		///// </summary>
+		///// <param name="sender"></param>
+		///// <param name="e"></param>
+		//private void ccDragBar_MouseMove(object sender, MouseEventArgs e)
+		//{
+		//	if (Window is null) return;
+		//
+		//	if (e.LeftButton is MouseButtonState.Pressed && _windowDragStartPos.HasValue)
+		//	{
+		//		var currentPos		= e.GetPosition(this);
+		//		var offset			= currentPos - _windowDragStartPos.Value;
+		//		Window.Left	+= offset.X;
+		//		Window.Top	+= offset.Y;
+		//	}
+		//}
+		//
+		///// <summary>
+		///// 
+		///// </summary>
+		///// <param name="sender"></param>
+		///// <param name="e"></param>
+		//private void ccDragBar_MouseUp(object sender, MouseButtonEventArgs e)
+		//{
+		//	if (Window is null) return;
+		//
+		//	if (e.ChangedButton is MouseButton.Left)
+		//		_windowDragStartPos = null;
+		//}
 
 		/// <summary>
 		/// 
@@ -150,6 +151,6 @@ namespace TINS.Terminal.Display
 		private void ccDragBar_MouseDoubleClick(object sender, MouseButtonEventArgs e) 
 			=> btnMaximize_Click(sender, null);
 
-		private Point? _windowDragStartPos = null;
+		//private Point? _windowDragStartPos = null;
     }
 }

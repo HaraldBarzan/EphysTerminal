@@ -1,4 +1,6 @@
-﻿namespace TINS.Terminal.Display
+﻿using System;
+
+namespace TINS.Terminal.Display
 {
 	/// <summary>
 	/// Types of displays.
@@ -14,6 +16,7 @@
 	/// Channel display interface. 
 	/// </summary>
 	public interface IChannelDisplay
+		: IDisposable
 	{
 		/// <summary>
 		/// Initialize the display.

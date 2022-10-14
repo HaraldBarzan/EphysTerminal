@@ -7,42 +7,32 @@ namespace TINS.Terminal.UI
 	/// An accumulator class used to display stuff to the GUI.
 	/// </summary>
 	public sealed class ContinuousDisplayAccumulator
-		: IDisposable
+		: MultichannelBuffer
 	{
 		/// <summary>
 		/// Default constructor.
 		/// </summary>
 		ContinuousDisplayAccumulator()
+			: base(nameof(ContinuousDisplayAccumulator))
 		{
 		}
 
 		/// <summary>
 		/// Create a continuous data display accumulator.
 		/// </summary>
-		/// <param name="pollCapacity">The maximum number of source accumulations until full.</param>
+		/// <param name="capacity">Number of seconds of buffering.</param>
 		/// <param name="sourceBuffer">The source buffer.</param>
-		public ContinuousDisplayAccumulator(int pollCapacity, MultichannelBuffer sourceBuffer)
+		public ContinuousDisplayAccumulator(float capacity, MultichannelBuffer sourceBuffer)
+			: this()
 		{
-			if (sourceBuffer is null || pollCapacity < 1)
+			if (sourceBuffer is null || capacity < 1)
 				throw new Exception("Invalid arguments.");
 
 			// initialize accumulator
-			PollCapacity		= pollCapacity;
 			Source				= sourceBuffer;
+			Capacity			= Numerics.Round(capacity * sourceBuffer.SamplingRate);
 			CurrentFillIndex	= 0;
-			Data				.Resize(Source.Rows, PollCapacity * Source.Cols);
-		}
-
-		/// <summary>
-		/// Destroy the accumulator.
-		/// </summary>
-		public void Dispose()
-		{
-			Data?.Dispose();
-			CurrentFillIndex	= 0;
-			PollCapacity		= 0;
-			Source				= null;
-			GC.SuppressFinalize(this);
+			Configure(Name, sourceBuffer.ChannelLabels, Capacity, sourceBuffer.SamplingRate);
 		}
 
 		/// <summary>
@@ -50,49 +40,45 @@ namespace TINS.Terminal.UI
 		/// </summary>
 		public void Reset()
 		{
-			CurrentFillIndex = 0;
-			Data.Fill(0);
+			CurrentFillIndex	= 0;
+			_previousLeftover	= 0;
+			Fill(0);
 		}
 
 		/// <summary>
 		/// Accumulate the data currently present in the source buffer.
 		/// </summary>
-		public void Accumulate()
+		/// <param name="updatePeriod">The period, in seconds, at the end of the 
+		/// source buffer to accumulate.</param>
+		/// <returns>True if the buffer has been filled.</returns>
+		public bool Accumulate(float updatePeriod = float.PositiveInfinity, bool countPreviousLeftover = false)
 		{
-			if (IsFull) 
+			if (countPreviousLeftover) 
+				updatePeriod += _previousLeftover;
+			if (!Source.GetMostRecentPeriod(updatePeriod, out MatrixSpan<float> buffers))
+				return IsFull;
+
+			if (IsFull)
 				Reset();
 
-			int pos = CurrentFillIndex * Source.Cols;
-			lock (Source)
-				Data.Sub(0, pos, Source.Rows, Source.Cols).Assign(Source);
+			// perform copy
+			int copyCount = Math.Min(buffers.Cols, Capacity - CurrentFillIndex);
+			for (int i = 0; i < buffers.Rows; ++i)
+				buffers.GetRowSpan(i).Slice(0, copyCount).CopyTo(GetBuffer(i).Slice(CurrentFillIndex));
 
-			++CurrentFillIndex;
+			CurrentFillIndex += copyCount;
+			return IsFull;
 		}
-
-		/// <summary>
-		/// Get a buffer from the accumulator.
-		/// </summary>
-		public Span<float> GetBuffer(int index) => Data.GetBuffer(index);
 
 		/// <summary>
 		/// Check whether the accumulator is full.
 		/// </summary>
-		public bool IsFull => CurrentFillIndex == PollCapacity;
-
-		/// <summary>
-		/// The total size of each buffer.
-		/// </summary>
-		public int BufferSize => Data.Cols;
-
-		/// <summary>
-		/// The number of supported channels.
-		/// </summary>
-		public int ChannelCount => Data.Rows;
+		public bool IsFull => CurrentFillIndex == Capacity;
 
 		/// <summary>
 		/// The maximum number of pooled buffers.
 		/// </summary>
-		public int PollCapacity { get; private set; }
+		public int Capacity { get; private set; }
 
 		/// <summary>
 		/// The current fill index.
@@ -104,27 +90,6 @@ namespace TINS.Terminal.UI
 		/// </summary>
 		public MultichannelBuffer Source { get; private set; }
 
-		/// <summary>
-		/// The data buffer.
-		/// </summary>
-		public Matrix<float> Data { get; } = new();
-
-		/// <summary>
-		/// Create a dummy display accumulator with the specified number of rows and columns.
-		/// </summary>
-		/// <param name="rows">The number of rows.</param>
-		/// <param name="cols">The number of columns.</param>
-		/// <returns>A dummy display accumulator.</returns>
-		public static ContinuousDisplayAccumulator CreateDummy(int rows, int cols)
-		{
-			var result = new ContinuousDisplayAccumulator()
-			{
-				PollCapacity		= 1,
-				CurrentFillIndex	= 1,
-				Source				= null
-			};
-			result.Data.Resize(rows, cols);
-			return result;
-		}
+		private float _previousLeftover = 0;
 	}
 }

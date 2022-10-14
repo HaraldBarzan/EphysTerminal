@@ -4,6 +4,7 @@ using System;
 using TINS.Containers;
 using TINS.Ephys.Processing;
 using TINS.Terminal.Settings;
+using TINS.Terminal.Settings.UI;
 
 namespace TINS.Terminal.Display.Ephys
 {
@@ -23,10 +24,12 @@ namespace TINS.Terminal.Display.Ephys
 		public MultiunitAudioStream(EphysTerminal stream)
 		{
 			EphysStream	= stream;
-			var settings = stream.Settings as EphysTerminalSettings;
+			var settings = stream.TerminalSettings.UI as UISettingsEphys;
+			if (settings is null)
+				throw new Exception();
 
-			if (!EphysStream.ProcessingPipeline.TryGetBuffer(settings.UI.AudioSourceBuffer, out _targetBuffer) ||
-				!_targetBuffer.ChannelLabels.Contains(settings.UI.DefaultAudioChannel))
+			if (!EphysStream.ProcessingPipeline.TryGetBuffer(settings.AudioSourceBuffer, out _targetBuffer) ||
+				!_targetBuffer.ChannelLabels.Contains(settings.DefaultAudioChannel))
 			{
 				throw new Exception("Invalid buffer or channel specified!");
 			}
@@ -36,7 +39,7 @@ namespace TINS.Terminal.Display.Ephys
 			_audioOutput	= new WasapiOut(AudioClientShareMode.Shared, true, Numerics.Round(stream.Settings.Input.PollingPeriod * 1000));
 			_audioOutput	.Init(this);
 			_streamBuffer	.Resize(Numerics.Floor(_targetBuffer.SamplingRate * 2));
-			_targetChannel	= settings.UI.DefaultAudioChannel;
+			_targetChannel	= settings.DefaultAudioChannel;
 		}
 
 		/// <summary>

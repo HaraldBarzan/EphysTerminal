@@ -68,8 +68,8 @@
 		</Grid>
 
 		<!-- data -->
-		<DockPanel Grid.Row="2" x:Name="displayPanel">
-		</DockPanel>
+		<DockPanel Grid.Row="2" x:Name="displayPanel"/>
+
 
 		<!-- status bar -->
 		<Grid Grid.Row="3">

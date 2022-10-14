@@ -1,9 +1,11 @@
-﻿using TINS.Ephys.Settings;
+﻿using System;
+using TINS.Ephys.Settings;
 using TINS.IO;
+using TINS.Terminal.Settings.UI;
 
 namespace TINS.Terminal.Settings
 {
-	public class EphysTerminalSettings
+    public class EphysTerminalSettings
 		: StreamSettings
 	{
 		/// <summary>
@@ -16,6 +18,12 @@ namespace TINS.Terminal.Settings
 		/// </summary>
 		[INILine(Key = "STIMULATION_SECTION", Default = "STIMULATION")]
 		public string StimulationSection { get; set; }
+		
+		/// <summary>
+		/// Get or set the type of UI.
+		/// </summary>
+		[INILine(Key = "UI_TYPE", Default = "EPHYS")]
+		public string UIType { get; protected set; }
 
 		/// <summary>
 		/// The section name for the graphical user interface (GUI) section.
@@ -26,7 +34,7 @@ namespace TINS.Terminal.Settings
 		/// <summary>
 		/// The analysis pipeline settings.
 		/// </summary>
-		public UISettings UI { get; } = new();
+		public UISettings UI { get; set; }
 
 		/// <summary>
 		/// Serialize a <c>EphysTerminalSettings</c> item from an INI file.
@@ -37,10 +45,31 @@ namespace TINS.Terminal.Settings
 		public override void Serialize(INI ini, string sectionName, SerializationDirection direction)
 		{
 			base.Serialize(ini, sectionName, direction);
+
+			if (direction is SerializationDirection.In)
+			{
+				switch (UIType)
+				{
+					case "EPHYS":
+						UI = new UISettingsEphys();
+						break;
+
+					case "EEG":
+						UI = new UISettingsEEG();
+						break;
+
+					default:
+						throw new Exception($"UI type \'{UIType}\' not recognized.");
+				}
+			}
+
 			UI.Serialize(ini, UISection, direction);
 		}
 
-
+		/// <summary>
+		/// Attempt to detect and instantiate the correct input settings.
+		/// </summary>
+		/// <returns>True if the name is recognized, false otherwise.</returns>
 		public override bool DetectInputSettings()
 		{
 			if (!base.DetectInputSettings())
@@ -58,7 +87,5 @@ namespace TINS.Terminal.Settings
 			}
 			return true;
 		}
-
-
 	}
 }

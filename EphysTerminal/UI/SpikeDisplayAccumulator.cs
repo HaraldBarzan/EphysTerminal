@@ -16,20 +16,18 @@ namespace TINS.Terminal.UI
 		/// <summary>
 		/// 
 		/// </summary>
-		/// <param name="pollCapacity"></param>
+		/// <param name="capacity"></param>
 		/// <param name="detector"></param>
-		public SpikeDisplayAccumulator(int pollCapacity, MUASpikeDetector detector)
+		public SpikeDisplayAccumulator(float capacity, MUASpikeDetector detector)
 		{
-			if (detector is null || pollCapacity < 1)
+			if (detector is null)
 				throw new Exception("Invalid arguments.");
 
 			// initialize accumulator
-			PollCapacity		= pollCapacity;
+			Capacity			= Numerics.Round(capacity * detector.InputBuffer.SamplingRate);
 			Source				= detector;
-			CurrentFillIndex	= 0;
 			ChannelCount		= detector.ChannelCount;
 			WaveformSize		= detector.WaveformSize;
-			BufferSize			= detector.BufferSize;
 			
 			// resize storage
 			_timings	.Resize(ChannelCount);
@@ -49,9 +47,8 @@ namespace TINS.Terminal.UI
 			_timings	?.RecursiveDispose();
 			_waveforms	?.RecursiveDispose();
 
-			PollCapacity		= 0;
+			CurrentOffset	= 0;
 			Source				= null;
-			CurrentFillIndex	= 0;
 			ChannelCount		= 0;
 			WaveformSize		= 0;
 
@@ -63,7 +60,7 @@ namespace TINS.Terminal.UI
 		/// </summary>
 		public void Reset()
 		{
-			CurrentFillIndex = 0;
+			CurrentOffset = 0;
 			foreach (var vTimes in _timings)
 				vTimes?.Clear();
 			foreach (var vWaves in _waveforms)
@@ -73,10 +70,13 @@ namespace TINS.Terminal.UI
 		/// <summary>
 		/// Accumulate spikes and waveforms from the source buffer.
 		/// </summary>
-		public void Accumulate()
+		public void Accumulate(float updatePeriod = float.PositiveInfinity)
 		{
 			if (IsFull)
 				Reset();
+
+			if (!Source.InputBuffer.GetMostRecentPeriod(updatePeriod, out _, out var sampleCount))
+				return;
 
 			lock (Source)
 			{
@@ -90,7 +90,7 @@ namespace TINS.Terminal.UI
 					var dstTimes = _timings[iCh];
 
 					// add new spikes with offset
-					int offset = BufferSize * CurrentFillIndex;
+					int offset = CurrentOffset;
 					for (int i = 0; i < srcTimes.Size; ++i)
 						dstTimes[currentCount + i] = srcTimes[i] + offset;
 
@@ -105,7 +105,7 @@ namespace TINS.Terminal.UI
 				}
 			}
 
-			++CurrentFillIndex;
+			CurrentOffset += sampleCount;
 		}
 
 		/// <summary>
@@ -136,15 +136,10 @@ namespace TINS.Terminal.UI
 		public int WaveformSize { get; private set; }
 
 		/// <summary>
-		/// 
+		/// Detection capacity in samples.
 		/// </summary>
-		public int PollCapacity { get; private set; }
+		public int Capacity { get; private set; }
 
-		/// <summary>
-		/// 
-		/// </summary>
-		public int BufferSize { get; private set; }
-		
 		/// <summary>
 		/// 
 		/// </summary>
@@ -153,45 +148,15 @@ namespace TINS.Terminal.UI
 		/// <summary>
 		/// 
 		/// </summary>
-		public int CurrentFillIndex { get; private set; }
+		public int CurrentOffset { get; private set; }
 
 		/// <summary>
 		/// 
 		/// </summary>
-		public bool IsFull => CurrentFillIndex == PollCapacity;
+		public bool IsFull => CurrentOffset >= Capacity;
 
 
 		Vector<Vector<float>>	_waveforms	= new();
 		Vector<Vector<int>>		_timings	= new();
-
-
-		/// <summary>
-		/// Create a dummy display accumulator with the specified number of channels and spike counts.
-		/// </summary>
-		/// <param name="spikeCounts">The number of columns.</param>
-		/// <param name="waveformSize">The size of each waveform in samples.</param>
-		/// <returns>A dummy display accumulator.</returns>
-		public static SpikeDisplayAccumulator CreateDummy(Vector<int> spikeCounts, int waveformSize = 58)
-		{
-			var result = new SpikeDisplayAccumulator()
-			{
-				PollCapacity		= 1,
-				CurrentFillIndex	= 1,
-				Source				= null,
-				ChannelCount		= spikeCounts.Size,
-				WaveformSize		= waveformSize
-			};
-			result._timings		.Resize(spikeCounts.Size);
-			result._waveforms	.Resize(spikeCounts.Size);
-
-			for (int i = 0; i < spikeCounts.Size; ++i)
-			{
-				result._timings[i]		= new Vector<int>(spikeCounts[i]);
-				result._waveforms[i]	= new Vector<float>(spikeCounts[i] * waveformSize);
-			}
-
-			return result;
-		}
-
 	}
 }

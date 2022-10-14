@@ -116,7 +116,7 @@ namespace TINS.Terminal.Stimulation
 		/// <param name="stimulusController">The stimulus controller used by the protocol.</param>
 		public StimulationProtocol(EphysTerminal parent, TConfig config, TStim stimulusController = null)
 		{
-			ParentStream		= parent;
+			SourceStream		= parent;
 			Config				= config;
 			StimulusController	= stimulusController;
 		}
@@ -215,7 +215,7 @@ namespace TINS.Terminal.Stimulation
 		/// <summary>
 		/// The parent stream.
 		/// </summary>
-		public EphysTerminal ParentStream { get; init; }
+		public EphysTerminal SourceStream { get; init; }
 
 		/// <summary>
 		/// Raise protocol started.

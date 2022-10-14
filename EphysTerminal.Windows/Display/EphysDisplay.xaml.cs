@@ -5,6 +5,7 @@ using TINS.Ephys;
 using TINS.Ephys.Analysis.Events;
 using TINS.Terminal.Display.Ephys;
 using TINS.Terminal.Settings;
+using TINS.Terminal.Settings.UI;
 using TINS.Terminal.UI;
 
 namespace TINS.Terminal.Display
@@ -39,6 +40,30 @@ namespace TINS.Terminal.Display
 		}
 
 		/// <summary>
+		/// Destructor.
+		/// </summary>
+		public void Dispose()
+		{
+			Dispose(true);
+			GC.SuppressFinalize(this);
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="disposing"></param>
+		protected virtual void Dispose(bool disposing)
+		{
+			if (_disposed) return;
+			if (disposing)
+			{
+				drawMua?.Dispose();
+				drawLfp?.Dispose();
+			}
+			_disposed = true;
+		}
+
+		/// <summary>
 		/// Update user interface activity regarding multiunit activity (spikes).
 		/// </summary>
 		/// <param name="muaAccumulator">Multiunit activity.</param>
@@ -68,32 +93,34 @@ namespace TINS.Terminal.Display
 		{
 			// set the new terminal
 			EphysTerminal	= terminal;
-			var settings	= EphysTerminal.Settings as EphysTerminalSettings;
+			var settings	= EphysTerminal.TerminalSettings.UI as UISettingsEphys;
+			if (settings is null)
+				throw new Exception("");
 
 			// create channel mapping matrix
-			var mapping = new Matrix<DataDisplay.Mapping>(settings.UI.DisplayGridRows, settings.UI.DisplayGridColumns);
-			var channels = settings.UI.DisplayChannels;
+			var mapping = new Matrix<DataDisplay.Mapping>(settings.DisplayGridRows, settings.DisplayGridColumns);
+			var channels = settings.DisplayChannels;
 			for (int i = 0; i < channels.Size; ++i)
 			{
 				int sourceIndex;
 				if (!string.IsNullOrEmpty(channels[i]) &&   // valid label
-					(sourceIndex = settings.Input.ChannelLabels.IndexOf(channels[i])) >= 0)     // label found in inputs
+					(sourceIndex = terminal.Settings.Input.ChannelLabels.IndexOf(channels[i])) >= 0)     // label found in inputs
 				{
 					mapping[i] = new() { Label = channels[i], SourceIndex = sourceIndex };
 				}
 			}
 
 			// setup MUA axes
-			cmbMuaYRange.Text = settings.UI.MUAYRange.ToString();
+			cmbMuaYRange.Text = settings.MUAYRange.ToString();
 			drawMua.Setup(
 				channelMapping: mapping,
-				xRange: (0, settings.Input.PollingPeriod * settings.UI.MUARefreshRate * 1000 /*conv to ms*/),
-				yRange: (-settings.UI.MUAYRange, settings.UI.MUAYRange));
+				xRange: (0, settings.MUAUpdatePeriod * 1000 /*conv to ms*/),
+				yRange: (-settings.MUAYRange, settings.MUAYRange));
 
 			// set thresholds and waveform size
-			foreach (var set in settings.Analysis.Components)
+			foreach (var set in terminal.Settings.Analysis.Components)
 			{
-				if (set.Name == settings.UI.MUASpikeDetector &&
+				if (set.Name == settings.MUASpikeDetector &&
 					set is SpikeSettings spikeSet)
 				{
 					drawMua.WaveformXRange = (-spikeSet.PeakOffset, MathF.Round(spikeSet.SpikeCutWidth - spikeSet.PeakOffset, 2));
@@ -104,15 +131,15 @@ namespace TINS.Terminal.Display
 			}
 
 			// setup LFP axes
-			cmbLfpYRange.Text = settings.UI.LFPYRange.ToString();
+			cmbLfpYRange.Text = settings.LFPYRange.ToString();
 			drawLfp.Setup(
 				channelMapping: mapping,
-				xRange: (0, settings.Input.PollingPeriod * settings.UI.LFPRefreshRate * 1000 /*conv to ms*/),
-				yRange: (-settings.UI.LFPYRange, settings.UI.LFPYRange));
+				xRange: (0, settings.LFPUpdatePeriod * 1000 /*conv to ms*/),
+				yRange: (-settings.LFPYRange, settings.LFPYRange));
 
 			// create the Audio stream
 			AudioStream ??= new MultiunitAudioStream(EphysTerminal);
-			SetLiveChannel((EphysTerminal.Settings as EphysTerminalSettings).UI.DefaultAudioChannel);
+			SetLiveChannel(settings.DefaultAudioChannel);
 		}
 
 		/// <summary>
@@ -215,5 +242,8 @@ namespace TINS.Terminal.Display
 			100,    200,    500,
 			1000,   2000,   5000
 		};
+
+
+		private bool _disposed = false;
 	}
 }

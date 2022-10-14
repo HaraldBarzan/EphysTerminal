@@ -60,8 +60,11 @@
 			AVStatic("static-av-6000ms-10Hz",	10, 6000,					flickerTriggers: (FlickerTriggerAttach.AudioFlicker, 11, 12)),
 			AVStatic("static-av-6000ms-20Hz",	20, 6000,					flickerTriggers: (FlickerTriggerAttach.AudioFlicker, 11, 12)),
 			AVStatic("static-av-6000ms-30Hz",	30, 6000,					flickerTriggers: (FlickerTriggerAttach.AudioFlicker, 11, 12)),
+			AVStatic("static-av-6000ms-35Hz",	35, 6000,					flickerTriggers: (FlickerTriggerAttach.AudioFlicker, 11, 12)),
 			AVStatic("static-av-6000ms-40Hz",	40, 6000,					flickerTriggers: (FlickerTriggerAttach.AudioFlicker, 11, 12)),
+			AVStatic("static-av-6000ms-45Hz",	45, 6000,					flickerTriggers: (FlickerTriggerAttach.AudioFlicker, 11, 12)),
 			AVStatic("static-av-6000ms-50Hz",	50, 6000,					flickerTriggers: (FlickerTriggerAttach.AudioFlicker, 11, 12)),
+			AVStatic("static-av-6000ms-55Hz",	55, 6000,					flickerTriggers: (FlickerTriggerAttach.AudioFlicker, 11, 12)),
 			AVStatic("static-av-6000ms-60Hz",	60, 6000,					flickerTriggers: (FlickerTriggerAttach.AudioFlicker, 11, 12)),
 
 			// ramp slow
