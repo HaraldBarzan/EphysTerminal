@@ -7,6 +7,7 @@ using TINS.Terminal.Protocols.Genus;
 using TINS.Terminal.Stimulation;
 using TINS.Native;
 using TINS.Utilities;
+using TINS.Terminal.Display.Protocol;
 
 namespace TINS.Terminal
 {
@@ -30,6 +31,9 @@ namespace TINS.Terminal
 		/// <param name="e"></param>
 		protected override void OnStartup(StartupEventArgs e)
 		{
+			var spd = new SkiaProtocolDisplay(1);
+			spd.ShowDialog();
+
 			//var genus = new GenusController();
 			//genus.Connect();
 			//genus.EmitTrigger(128);
@@ -156,7 +160,5 @@ namespace TINS.Terminal
 			logger.EndFile();
 			Environment.Exit(0);
 		}
-
-		
 	}
 }
