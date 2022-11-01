@@ -33,6 +33,9 @@ namespace TINS.Terminal
 			// set up the protocol wizard
 			ProtocolWizard = new ProtocolWizard(this);
 
+			// set up the settings dialog
+			SettingsDialog = new SettingsDialog(this);
+
 			// have something on the screen
 			var ed = new EphysDisplay();
 			ChannelDisplay = ed;
@@ -113,6 +116,11 @@ namespace TINS.Terminal
 		/// Protocol wizard.
 		/// </summary>
 		public ProtocolWizard ProtocolWizard { get; protected init; }
+
+		/// <summary>
+		/// The settings dialog.
+		/// </summary>
+		public SettingsDialog SettingsDialog { get; protected init; }
 
 		/// <summary>
 		/// The channel display.
@@ -439,7 +447,8 @@ namespace TINS.Terminal
 		/// <param name="e"></param>
 		private void btnSettings_Click(object sender, RoutedEventArgs e)
 		{
-
+			if (SettingsDialog is not null)
+				SettingsDialog.Visibility = Visibility.Visible;
 		}
 
 		/// <summary>
@@ -449,8 +458,9 @@ namespace TINS.Terminal
 		/// <param name="e"></param>
 		private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
 		{
-			EphysTerminal		?.Dispose();
+			EphysTerminal	?.Dispose();
 			ProtocolWizard	?.Dispose();
+			SettingsDialog	?.Close();
 		}
 		
 		/// <summary>

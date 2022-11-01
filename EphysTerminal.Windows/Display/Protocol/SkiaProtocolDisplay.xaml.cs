@@ -1,20 +1,8 @@
 ﻿using SkiaSharp;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Input;
-using System.Windows.Interop;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Shapes;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace TINS.Terminal.Display.Protocol
 {
@@ -24,8 +12,8 @@ namespace TINS.Terminal.Display.Protocol
 	public enum ProtocolDisplayState
 	{
 		BlankScreen,
-		ScreenWithText,
-		ScreenWithFixation
+		Text,
+		FixationCross
 	}
 
 
@@ -37,14 +25,19 @@ namespace TINS.Terminal.Display.Protocol
 		/// <summary>
 		/// 
 		/// </summary>
+		public event KeyEventHandler KeyPressed;
+
+		/// <summary>
+		/// 
+		/// </summary>
 		public SkiaProtocolDisplay(int monitorIndex = 0)
 		{
 			InitializeComponent();
 			MonitorIndex = monitorIndex;
 
-			_fixCrossPaint	= new()				{ Color = new(0xFFFFFFFF), Style = SKPaintStyle.Stroke };
+			_fixCrossPaint	= new()				{ Color = new(0xFFFFFFFF), Style = SKPaintStyle.Stroke, StrokeWidth = 5 };
 			_textFont		= new()				{ Size = 32 };
-			_textPaint		= new(_textFont)	{ Color = new(0xFFFFFFFF), Style = SKPaintStyle.Stroke };
+			_textPaint		= new(_textFont)	{ Color = new(0xFFFFFFFF), Style = SKPaintStyle.StrokeAndFill };
 		}
 
 		
@@ -86,12 +79,13 @@ namespace TINS.Terminal.Display.Protocol
 		public void BlankScreenAsync(Color? color)
 		{
 			if (!Dispatcher.CheckAccess())
-				Dispatcher.BeginInvoke(new Action<Color?>(BlankScreenAsync));
+				Dispatcher.BeginInvoke(new Action<Color?>(BlankScreenAsync), color);
 			else
 			{
 				if (color.HasValue)
 					BackgroundColor = color.Value;
 				State = ProtocolDisplayState.BlankScreen;
+				skc.InvalidateVisual();
 			}
 		}
 
@@ -103,7 +97,7 @@ namespace TINS.Terminal.Display.Protocol
 		public void ScreenWithTextAsync(Color? backgroundColor, string text, Color? textColor)
 		{
 			if (!Dispatcher.CheckAccess())
-				Dispatcher.BeginInvoke(new Action<Color?, string, Color?>(ScreenWithTextAsync));
+				Dispatcher.BeginInvoke(new Action<Color?, string, Color?>(ScreenWithTextAsync), backgroundColor, text, textColor);
 			else
 			{
 				if (text is not null)
@@ -112,7 +106,8 @@ namespace TINS.Terminal.Display.Protocol
 					BackgroundColor = backgroundColor.Value;
 				if (textColor.HasValue)
 					BackgroundColor = textColor.Value;
-				State = ProtocolDisplayState.BlankScreen;
+				State = ProtocolDisplayState.Text;
+				skc.InvalidateVisual();
 			}
 		}
 
@@ -121,22 +116,23 @@ namespace TINS.Terminal.Display.Protocol
 		/// </summary>
 		/// <param name="backgroundColor"></param>
 		/// <param name="fixationCrossColor"></param>
-		public void FixationCrossAsync(Color? backgroundColor, Color? fixationCrossColor)
+		public void ScreenWithFixationCrossAsync(Color? backgroundColor, Color? fixationCrossColor)
 		{
 			if (!Dispatcher.CheckAccess())
-				Dispatcher.BeginInvoke(new Action<Color?, Color?>(FixationCrossAsync));
+				Dispatcher.BeginInvoke(new Action<Color?, Color?>(ScreenWithFixationCrossAsync), backgroundColor, fixationCrossColor);
 			else
 			{
 				if (fixationCrossColor is not null)
 					FixationCrossColor = fixationCrossColor.Value;
 				if (backgroundColor.HasValue)
 					BackgroundColor = backgroundColor.Value;
-				State = ProtocolDisplayState.BlankScreen;
+				State = ProtocolDisplayState.FixationCross;
+				skc.InvalidateVisual();
 			}
 		}
 
 		/// <summary>
-		/// Change the 
+		/// 
 		/// </summary>
 		/// <param name="sender"></param>
 		/// <param name="e"></param>
@@ -168,14 +164,15 @@ namespace TINS.Terminal.Display.Protocol
 				y: (hDC.DeviceClipBounds.Bottom - hDC.DeviceClipBounds.Top) / 2);
 			switch (State)
 			{
-				case ProtocolDisplayState.ScreenWithText:
-					hDC.DrawText(Text, center, _textPaint);
+				case ProtocolDisplayState.Text:
+					float textWidth = _textPaint.MeasureText(Text);
+					hDC.DrawText(Text, center.X - textWidth / 2, center.Y + _textFont.Size / 2, _textPaint);
 					break;
 
-				case ProtocolDisplayState.ScreenWithFixation:
-					int fixCrossHSize = 32;
-					hDC.DrawLine(center.X - fixCrossHSize, center.Y, center.X + fixCrossHSize, fixCrossHSize, _fixCrossPaint);
-					hDC.DrawLine(center.X, center.Y - fixCrossHSize, center.X, fixCrossHSize + fixCrossHSize, _fixCrossPaint);
+				case ProtocolDisplayState.FixationCross:
+					int fixCrossHSize = 25;
+					hDC.DrawLine(center.X - fixCrossHSize, center.Y, center.X + fixCrossHSize, center.Y, _fixCrossPaint);
+					hDC.DrawLine(center.X, center.Y - fixCrossHSize, center.X, center.Y + fixCrossHSize, _fixCrossPaint);
 					break;
 
 				default:
@@ -183,11 +180,21 @@ namespace TINS.Terminal.Display.Protocol
 			}
 		}
 
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="sender"></param>
+		/// <param name="e"></param>
+		private void Window_KeyDown(object sender, KeyEventArgs e)
+		{
+			if (e.Key is Key.Space)
+				KeyPressed?.Invoke(this, e);
+		}
+
 
 		SKPaint _fixCrossPaint	= default;
 		SKPaint _textPaint		= default;
 		SKFont	_textFont		= default;
-
 
 		/// <summary>
 		/// 
@@ -196,5 +203,6 @@ namespace TINS.Terminal.Display.Protocol
 		/// <returns></returns>
 		private static SKColor GetColor(Color c)
 			=> new SKColor(c.R, c.G, c.B, c.A);
+
 	}
 }

@@ -1,7 +1,11 @@
 ﻿using System;
 using System.IO;
 using System.Text.Json.Serialization;
+using System.Threading;
+using System.Windows.Input;
+using System.Windows.Media;
 using TINS.Conexus.Data;
+using TINS.Terminal.Display.Protocol;
 using TINS.Terminal.Stimulation;
 using TINS.Terminal.UI;
 using TINS.Utilities;
@@ -9,10 +13,26 @@ using TINS.Utilities;
 namespace TINS.Terminal.Protocols.Genus
 {
 	/// <summary>
+	/// The possible states of the Genus protocol.
+	/// </summary>
+	public enum HumanGenusState
+	{
+		Idle,
+		Await,
+		Mask,
+		Prestimulus,
+		Stimulus,
+		Poststimulus,
+		PostMask,
+		Intertrial
+	}
+
+
+	/// <summary>
 	/// Genus protocol.
 	/// </summary>
-	public class GenusProtocol
-		: StimulationProtocol<GenusConfig, GenusController>
+	public class HumanGenusProtocol
+		: StimulationProtocol<HumanGenusConfig, GenusController>
 	{
 		/// <summary>
 		/// Create a new Genus protocol.
@@ -20,7 +40,7 @@ namespace TINS.Terminal.Protocols.Genus
 		/// <param name="stream">The parent ephys stream.</param>
 		/// <param name="config">The configuration for this protocol.</param>
 		/// <param name="stimulusController">The stimulus controller for the protocol.</param>
-		public GenusProtocol(EphysTerminal stream, GenusConfig config, GenusController stimulusController)
+		public HumanGenusProtocol(EphysTerminal stream, HumanGenusConfig config, GenusController stimulusController)
 			: base(stream, config, stimulusController)
 		{
 			// load the configuration
@@ -31,7 +51,7 @@ namespace TINS.Terminal.Protocols.Genus
 			{
 				if (stream.InputStream is not BiosemiTcpStream biosemiStream)
 					throw new Exception("Trial self initiation is only compatible with the Biosemi stream.");
-				if (!biosemiStream.UseResponseSwitches)
+				if (!biosemiStream.UseResponseSwitches && !Config.UseProtocolScreen)
 					throw new Exception("Trial self initiation requires a Biosemi stream with UseResponseSwitches set to \'true\'.");
 
 				biosemiStream.ResponseSwitchPressed += BiosemiStream_ResponseSwitchPressed;
@@ -164,9 +184,17 @@ namespace TINS.Terminal.Protocols.Genus
 			=> ProcessEvent(GenusEvent.InitiateTrial);
 
 		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="sender"></param>
+		/// <param name="e"></param>
+		private void SkiaProtocolDisplay_SpaceKeyPressed(object sender, KeyEventArgs e)
+			=> ProcessEvent(GenusEvent.InitiateTrial);
+
+		/// <summary>
 		/// Assert whether the protocol is running.
 		/// </summary>
-		public override bool IsRunning => _stateMachine.CurrentState != GenusState.Idle;
+		public override bool IsRunning => _stateMachine.CurrentState != HumanGenusState.Idle;
 
 		/// <summary>
 		/// Text output for this protocol. Is active only when recording.
@@ -197,6 +225,12 @@ namespace TINS.Terminal.Protocols.Genus
 			[JsonPropertyName("postTimeout")]
 			public int PoststimulusTimeout { get; set; }
 
+			[JsonPropertyName("maskTimeout")]
+			public int MaskTimeout { get; set; }
+
+			[JsonPropertyName("postMaskTimeout")]
+			public int PostMaskTimeout { get; set; }
+
 			public GenusCachedTrial Instructions { get; set; }
 		}
 
@@ -204,7 +238,7 @@ namespace TINS.Terminal.Protocols.Genus
 		/// Genus protocol state machine.
 		/// </summary>
 		public class StateMachine
-			: StateMachine<GenusState, GenusEvent>
+			: StateMachine<HumanGenusState, GenusEvent>
 		{
 			/// <summary>
 			/// Raised when a trial is completed.
@@ -220,11 +254,12 @@ namespace TINS.Terminal.Protocols.Genus
 			/// Create a state machine for a Genus protocol.
 			/// </summary>
 			/// <param name="protocol">The parent Genus protocol.</param>
-			public StateMachine(GenusProtocol protocol)
+			public StateMachine(HumanGenusProtocol protocol)
 			{
-				_p = protocol;
-				_stim = protocol.StimulusController;
-				_ui = protocol.SourceStream.UI;
+				_p				= protocol;
+				_stim			= protocol.StimulusController;
+				_ui				= protocol.SourceStream.UI;
+				_protoDisplay	= null;
 
 				// just so we have a list at any time
 				ResetTrials();
@@ -236,68 +271,107 @@ namespace TINS.Terminal.Protocols.Genus
 			protected override void ConfigureStates()
 			{
 				// IDLE
-				AddState(GenusState.Idle,
+				AddState(HumanGenusState.Idle,
 					eventAction: (e) =>
 					{
 						if (e is GenusEvent.Start)
 						{
 							ResetTrials();
-							return GenusState.Intertrial;
+							return HumanGenusState.Intertrial;
 						}
 						return CurrentState;
 					},
-					enterStateAction: () => _stim.Reset());
+					enterStateAction: () =>
+					{
+						_stim.Reset();
+						StopProtocolDisplay();
+					},
+					exitStateAction: StartProtocolDisplay);
 
 				// PRETRIAL
-				AddState(GenusState.Await,
+				AddState(HumanGenusState.Await,
 					eventAction: (e) => e switch
 					{
-						GenusEvent.InitiateTrial	=> GenusState.Prestimulus,
+						GenusEvent.InitiateTrial	=> HumanGenusState.Mask,
 						_							=> CurrentState
 					},
-					enterStateAction: () => _stim.Beep());
+					enterStateAction: () =>
+					{
+						_stim.Beep();
+						_protoDisplay?.ScreenWithTextAsync(Color.FromRgb(0, 0, 0), "Press SPACE or one of the EEG buttons to start a new trial...", null);
+					});
 
-
-				// PRESTIMULUS
-				AddState(GenusState.Prestimulus,
+				// MASK
+				AddState(HumanGenusState.Mask,
 					eventAction: (e) => e switch
 					{
-						GenusEvent.NewBlock		=> Elapse(GenusState.Stimulus),
-						GenusEvent.Stop			=> GenusState.Idle,
+						GenusEvent.NewBlock => Elapse(HumanGenusState.Prestimulus),
+						GenusEvent.Stop => HumanGenusState.Idle,
+						_ => CurrentState
+					},
+					enterStateAction: () =>
+					{
+						_stateTimeout = CurrentTrial.MaskTimeout;
+						_stim.EmitTrigger(_p.Config.TrialStartTrigger);
+						_protoDisplay?.ScreenWithFixationCrossAsync(Color.FromRgb(0, 0, 0), null);
+					});
+
+				// PRESTIMULUS
+				AddState(HumanGenusState.Prestimulus,
+					eventAction: (e) => e switch
+					{
+						GenusEvent.NewBlock		=> Elapse(HumanGenusState.Stimulus),
+						GenusEvent.Stop			=> HumanGenusState.Idle,
 						_						=> CurrentState
 					},
 					enterStateAction: () =>
 					{
 						_stateTimeout = _trials[CurrentTrialIndex].PrestimulusTimeout;
+						_protoDisplay?.ScreenWithFixationCrossAsync(Color.FromRgb(128, 128, 128), null);
 						_stim.EmitTrigger(_p.Config.TrialStartTrigger);
 					});
 
 
 				// STIMULUS
-				AddState(GenusState.Stimulus,
+				AddState(HumanGenusState.Stimulus,
 					eventAction: (e) => e switch
 					{
-						GenusEvent.StimulationComplete	=> GenusState.Poststimulus,
-						GenusEvent.Stop					=> GenusState.Idle,
+						GenusEvent.StimulationComplete	=> HumanGenusState.Poststimulus,
+						GenusEvent.Stop					=> HumanGenusState.Idle,
 						_								=> CurrentState
 					},
 					enterStateAction: () => _stim.SendInstructionList(CurrentTrial.Instructions.Instructions));
 
 
 				// POSTSTIMULUS
-				AddState(GenusState.Poststimulus,
+				AddState(HumanGenusState.Poststimulus,
 					eventAction: (e) => e switch
 					{
-						GenusEvent.NewBlock => Elapse(GenusState.Intertrial),
-						GenusEvent.Stop		=> GenusState.Idle,
+						GenusEvent.NewBlock => Elapse(HumanGenusState.PostMask),
+						GenusEvent.Stop		=> HumanGenusState.Idle,
 						_					=> CurrentState
 					},
 					enterStateAction:	() => _stateTimeout = CurrentTrial.PoststimulusTimeout,
 					exitStateAction:	() => _stim.EmitTrigger(_p.Config.TrialEndTrigger));
 
+				// POST-MASK
+				AddState(HumanGenusState.PostMask,
+					eventAction: (e) => e switch
+					{
+						GenusEvent.NewBlock => Elapse(HumanGenusState.Intertrial),
+						GenusEvent.Stop => HumanGenusState.Idle,
+						_ => CurrentState
+					},
+					enterStateAction: () => _stateTimeout = CurrentTrial.PostMaskTimeout,
+					exitStateAction: () => 
+					{
+						_stim.EmitTrigger(_p.Config.TrialEndTrigger);
+						_protoDisplay?.ScreenWithFixationCrossAsync(Color.FromRgb(0, 0, 0), null); 
+					});
+
 
 				// INTERTRIAL
-				AddState(GenusState.Intertrial,
+				AddState(HumanGenusState.Intertrial,
 					eventAction: (e) =>
 					{
 						if (e is GenusEvent.NewBlock || e is GenusEvent.InitiateTrial)
@@ -312,20 +386,20 @@ namespace TINS.Terminal.Protocols.Genus
 								if (CurrentTrialIndex == TrialCount)
 								{
 									RunCompleted?.Invoke();
-									return GenusState.Idle;
+									return HumanGenusState.Idle;
 								}
 
 								// begin a new trial
 								TrialBegin?.Invoke(CurrentTrialIndex);
 								if (_p.Config.TrialSelfInitiate)
-									return GenusState.Await;
-								return GenusState.Prestimulus;
+									return HumanGenusState.Await;
+								return HumanGenusState.Mask;
 							}
 							--_stateTimeout;
 						}
 
 						if (e is GenusEvent.Stop)
-							return GenusState.Idle;
+							return HumanGenusState.Idle;
 						return CurrentState;
 					},
 					enterStateAction: () =>
@@ -407,7 +481,7 @@ namespace TINS.Terminal.Protocols.Genus
 			/// </summary>
 			/// <param name="onTimeoutReached">The state to go to on timeout zero.</param>
 			/// <returns>A state.</returns>
-			protected GenusState Elapse(GenusState onTimeoutReached)
+			protected HumanGenusState Elapse(HumanGenusState onTimeoutReached)
 			{
 				if (_stateTimeout == 0)
 					return onTimeoutReached;
@@ -415,13 +489,43 @@ namespace TINS.Terminal.Protocols.Genus
 				return CurrentState;
 			}
 
+			/// <summary>
+			/// 
+			/// </summary>
+			protected void StartProtocolDisplay()
+			{
+				StopProtocolDisplay();
+				if (_p.Config.UseProtocolScreen)
+				{
+					var thread = new Thread(() => 
+					{
+						_protoDisplay = new SkiaProtocolDisplay(Monitors.MonitorCount - 1);
+						_protoDisplay.KeyPressed += (_, _) => _p.ProcessEvent(GenusEvent.InitiateTrial);
+						_protoDisplay.ShowDialog();
+					});
+					thread.SetApartmentState(ApartmentState.STA);
+					thread.Start();
+				}
+			}
 
+			/// <summary>
+			/// 
+			/// </summary>
+			protected void StopProtocolDisplay()
+			{
+				if (_protoDisplay is not null)
+				{
+					_protoDisplay.Dispatcher.BeginInvoke(_protoDisplay.Close);
+					_protoDisplay = null;
+				}
+			}
 
-			protected GenusProtocol		_p;
-			protected GenusController	_stim;
-			protected IUserInterface	_ui;
-			protected Vector<Trial>		_trials			= new();
-			protected int				_stateTimeout;
+			protected HumanGenusProtocol	_p;
+			protected GenusController		_stim;
+			protected SkiaProtocolDisplay	_protoDisplay;
+			protected IUserInterface		_ui;
+			protected Vector<Trial>			_trials			= new();
+			protected int					_stateTimeout;
 		}
 	}
 
@@ -430,7 +534,7 @@ namespace TINS.Terminal.Protocols.Genus
 	/// <summary>
 	/// Genus configuration.
 	/// </summary>
-	public class GenusConfig
+	public class HumanGenusConfig
 		: ProtocolConfig
 	{
 		/// <summary>
@@ -454,6 +558,18 @@ namespace TINS.Terminal.Protocols.Genus
 		/// <summary>
 		/// 
 		/// </summary>
+		[JsonPropertyName("maskTrigger")]
+		public byte MaskTrigger { get; set; }
+
+		/// <summary>
+		/// 
+		/// </summary>
+		[JsonPropertyName("postMaskTrigger")]
+		public byte PostMaskTrigger { get; set; }
+
+		/// <summary>
+		/// 
+		/// </summary>
 		[JsonPropertyName("intertrialTimeout")]
 		public int IntertrialTimeout { get; set; }
 
@@ -470,9 +586,15 @@ namespace TINS.Terminal.Protocols.Genus
 		public bool TrialSelfInitiate { get; set; }
 
 		/// <summary>
+		/// 
+		/// </summary>
+		[JsonPropertyName("useProtocolScreen")]
+		public bool UseProtocolScreen { get; set; }
+
+		/// <summary>
 		/// The list of trials.
 		/// </summary>
 		[JsonPropertyName("trials")]
-		public Vector<GenusProtocol.Trial> Trials { get; set; } = new();
+		public Vector<HumanGenusProtocol.Trial> Trials { get; set; } = new();
 	}
 }

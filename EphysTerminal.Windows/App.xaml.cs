@@ -8,6 +8,8 @@ using TINS.Terminal.Stimulation;
 using TINS.Native;
 using TINS.Utilities;
 using TINS.Terminal.Display.Protocol;
+using System.Windows.Media;
+using System.Diagnostics.CodeAnalysis;
 
 namespace TINS.Terminal
 {
@@ -31,12 +33,9 @@ namespace TINS.Terminal
 		/// <param name="e"></param>
 		protected override void OnStartup(StartupEventArgs e)
 		{
-			var spd = new SkiaProtocolDisplay(1);
-			spd.ShowDialog();
-
 			//var genus = new GenusController();
 			//genus.Connect();
-			//genus.EmitTrigger(128);
+			//genus.ChangeParameters(40, null, null, null, null);
 			//Environment.Exit(0);
 
 			// check if system is 64 bit
@@ -55,7 +54,8 @@ namespace TINS.Terminal
 			}
 			
 			// register the available protocols
-			ProtocolFactory.RegisterProtocol(typeof(GenusProtocol),	"genus");
+			ProtocolFactory.RegisterProtocol(typeof(GenusProtocol),			"genus");
+			ProtocolFactory.RegisterProtocol(typeof(HumanGenusProtocol),	"genus-human");
 		}
 
 		/// <summary>

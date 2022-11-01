@@ -6,7 +6,7 @@
         xmlns:sk="clr-namespace:SkiaSharp.Views.WPF;assembly=SkiaSharp.Views.WPF"
         mc:Ignorable="d"
         Title="SkiaProtocolDisplay" Height="450" Width="800" WindowStyle="None" 
-		IsVisibleChanged="Window_IsVisibleChanged" Cursor="None">
+		IsVisibleChanged="Window_IsVisibleChanged" Cursor="None" KeyDown="Window_KeyDown">
     <Grid>
 		<sk:SKElement Name="skc" PaintSurface="skc_PaintSurface"/>
 	</Grid>
