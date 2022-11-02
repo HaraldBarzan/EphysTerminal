@@ -53,6 +53,20 @@
 				<disp:NumericTextBox Grid.Row="2" Grid.Column="1" x:Name="txbGenusTrig" Text="129"/>
 			</Grid>
 
+			<Grid Grid.Row="0" Grid.Column="1" Margin="5">
+				<Grid.RowDefinitions>
+					<RowDefinition Height="auto"/>
+					<RowDefinition Height="*"/>
+				</Grid.RowDefinitions>
+				
+				<disp:BigButton Grid.Row="0"
+							x:Name="btnGFP" Text="Compute GFP channel" Source="{StaticResource SettingsIcon}" Click="btnGFP_Click"/>
+
+				<CheckBox Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center" 
+						  Foreground="White" Content="Apply EEG filters" IsChecked="true"/>
+			</Grid>
+
+		
 			
 		</Grid>
 

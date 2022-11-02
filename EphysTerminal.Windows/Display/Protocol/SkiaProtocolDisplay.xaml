@@ -8,6 +8,6 @@
         Title="SkiaProtocolDisplay" Height="450" Width="800" WindowStyle="None" 
 		IsVisibleChanged="Window_IsVisibleChanged" Cursor="None" KeyDown="Window_KeyDown">
     <Grid>
-		<sk:SKElement Name="skc" PaintSurface="skc_PaintSurface"/>
+		<sk:SKElement Name="skc" PaintSurface="skc_PaintSurface" MouseUp="skc_MouseUp"/>
 	</Grid>
 </Window>

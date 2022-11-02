@@ -1,16 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using Microsoft.Win32;
+using System;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Shapes;
+using TINS.Data.EPD;
+using TINS.Filtering;
+using TINS.IO;
 using TINS.Terminal.Protocols.Genus;
 
 namespace TINS.Terminal.Display
@@ -18,7 +12,7 @@ namespace TINS.Terminal.Display
 	/// <summary>
 	/// Interaction logic for SettingsDialog.xaml
 	/// </summary>
-	public partial class SettingsDialog : Window
+	public partial class SettingsDialog : System.Windows.Window
 	{
 		/// <summary>
 		/// 
@@ -83,6 +77,53 @@ namespace TINS.Terminal.Display
 		{
 			e.Cancel = true;
 			Visibility = Visibility.Hidden;
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="sender"></param>
+		/// <param name="e"></param>
+		private void btnGFP_Click(object sender, RoutedEventArgs e)
+		{
+			var ofd = new OpenFileDialog()
+			{
+				Filter		= "EEG Processor files (*.epd) | *.epd",
+				Multiselect = false
+			};
+
+			if (ofd.ShowDialog() == true)
+			{
+				try
+				{
+					// open dataset
+					var name	= System.IO.Path.GetFileNameWithoutExtension(ofd.FileName);
+					var ds		= new Dataset(ofd.FileName);
+
+					// load everything into memory (will except if OOM)
+					using var allData = new Matrix<float>(ds.ChannelCount, ds.RecordingLength);
+					Parallel.For(0, allData.Rows, (i) =>
+					{
+						var chBuffer = allData.GetBuffer(i);
+						using (var io = new IOStream(ds.GetChannelPath(ds.Channels[i])))
+							io.Read(chBuffer);
+
+						var filt1 = new IIRFilter(IIRFilterType.Butterworth, FilterPass.Bandpass, 3, ds.SamplingRate, (0.1, 150));
+						var filt2 = new IIRFilter(IIRFilterType.Butterworth, FilterPass.Bandstop, 3, ds.SamplingRate, (49.5, 50.5));
+						filt1.BidirectionalFilter(chBuffer, chBuffer);
+						filt2.BidirectionalFilter(chBuffer, chBuffer);
+					});
+
+					// compute GFP
+					using var gfp	= new Vector<float>(allData.ColWise().StandardDeviation());
+					using var io	= new IOStream(System.IO.Path.Combine(ds.Directory, name + "-GFP.bin"), System.IO.FileAccess.Write);
+					io.Write(gfp);
+				}
+				catch (Exception exc)
+				{
+					MessageBox.Show($"Could not perform operation: \"{exc.Message}\".");
+				}
+			}
 		}
 	}
 }

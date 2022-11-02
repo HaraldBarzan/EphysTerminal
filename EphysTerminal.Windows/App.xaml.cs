@@ -33,10 +33,20 @@ namespace TINS.Terminal
 		/// <param name="e"></param>
 		protected override void OnStartup(StartupEventArgs e)
 		{
-			//var genus = new GenusController();
-			//genus.Connect();
-			//genus.ChangeParameters(40, null, null, null, null);
-			//Environment.Exit(0);
+			//SkiaProtocolDisplay sk = default;
+			//var t = new Thread(() =>
+			//{
+			//	sk = new SkiaProtocolDisplay(1);
+			//	sk.ShowDialog();
+			//});
+			//t.SetApartmentState(ApartmentState.STA);
+			//t.Start();
+			//
+			//Thread.Sleep(1000);
+			//sk.SwitchToChannelSelectAsync(Color.FromRgb(0, 0, 0), new Vector<string>(128, "Ch ??"), 5, "Select source channel and press SPACE or one of the EEG buttons to initiate next trial...", (5, 10));
+			//
+			//Thread.Sleep(5000);
+			//sk.SwitchToFixationCrossAsync(null, null);
 
 			// check if system is 64 bit
 			if (!Environment.Is64BitOperatingSystem)
@@ -54,8 +64,9 @@ namespace TINS.Terminal
 			}
 			
 			// register the available protocols
-			ProtocolFactory.RegisterProtocol(typeof(GenusProtocol),			"genus");
-			ProtocolFactory.RegisterProtocol(typeof(HumanGenusProtocol),	"genus-human");
+			ProtocolFactory.RegisterProtocol(typeof(GenusProtocol),				"genus");
+			ProtocolFactory.RegisterProtocol(typeof(HumanGenusProtocol),		"genus-human");
+			ProtocolFactory.RegisterProtocol(typeof(GenusClosedLoopProtocol),	"genus-closedloop");
 		}
 
 		/// <summary>

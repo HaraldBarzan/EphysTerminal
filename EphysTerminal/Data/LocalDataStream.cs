@@ -1,12 +1,10 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Threading;
-using TINS.Ephys.Settings;
 using TINS.Data;
 using TINS.Data.EPD;
+using TINS.Ephys.Settings;
 using TINS.IO;
-using System.Linq;
-using TINS.Terminal.Settings;
 
 namespace TINS.Ephys.Data
 {

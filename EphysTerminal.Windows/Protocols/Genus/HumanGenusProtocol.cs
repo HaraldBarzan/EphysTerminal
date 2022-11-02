@@ -298,7 +298,7 @@ namespace TINS.Terminal.Protocols.Genus
 					enterStateAction: () =>
 					{
 						_stim.Beep();
-						_protoDisplay?.ScreenWithTextAsync(Color.FromRgb(0, 0, 0), "Press SPACE or one of the EEG buttons to start a new trial...", null);
+						_protoDisplay?.SwitchToTextAsync(Color.FromRgb(0, 0, 0), "Press SPACE or one of the EEG buttons to start a new trial...", null);
 					});
 
 				// MASK
@@ -312,8 +312,8 @@ namespace TINS.Terminal.Protocols.Genus
 					enterStateAction: () =>
 					{
 						_stateTimeout = CurrentTrial.MaskTimeout;
-						_stim.EmitTrigger(_p.Config.TrialStartTrigger);
-						_protoDisplay?.ScreenWithFixationCrossAsync(Color.FromRgb(0, 0, 0), null);
+						_stim.EmitTrigger(_p.Config.MaskTrigger);
+						_protoDisplay?.SwitchToFixationCrossAsync(Color.FromRgb(0, 0, 0), null);
 					});
 
 				// PRESTIMULUS
@@ -327,7 +327,7 @@ namespace TINS.Terminal.Protocols.Genus
 					enterStateAction: () =>
 					{
 						_stateTimeout = _trials[CurrentTrialIndex].PrestimulusTimeout;
-						_protoDisplay?.ScreenWithFixationCrossAsync(Color.FromRgb(128, 128, 128), null);
+						_protoDisplay?.SwitchToFixationCrossAsync(Color.FromRgb(128, 128, 128), null);
 						_stim.EmitTrigger(_p.Config.TrialStartTrigger);
 					});
 
@@ -365,8 +365,8 @@ namespace TINS.Terminal.Protocols.Genus
 					enterStateAction: () => _stateTimeout = CurrentTrial.PostMaskTimeout,
 					exitStateAction: () => 
 					{
-						_stim.EmitTrigger(_p.Config.TrialEndTrigger);
-						_protoDisplay?.ScreenWithFixationCrossAsync(Color.FromRgb(0, 0, 0), null); 
+						_stim.EmitTrigger(_p.Config.PostMaskTrigger);
+						_protoDisplay?.SwitchToFixationCrossAsync(Color.FromRgb(0, 0, 0), null); 
 					});
 
 
