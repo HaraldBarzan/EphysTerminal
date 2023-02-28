@@ -36,17 +36,17 @@ namespace TINS.Terminal
 			//SkiaProtocolDisplay sk = default;
 			//var t = new Thread(() =>
 			//{
-			//	sk = new SkiaProtocolDisplay(1);
+			//	sk = new();
 			//	sk.ShowDialog();
 			//});
 			//t.SetApartmentState(ApartmentState.STA);
 			//t.Start();
 			//
 			//Thread.Sleep(1000);
-			//sk.SwitchToChannelSelectAsync(Color.FromRgb(0, 0, 0), new Vector<string>(128, "Ch ??"), 5, "Select source channel and press SPACE or one of the EEG buttons to initiate next trial...", (5, 10));
+			//var c = new Vector<string>(128, "Ch??");
+			//sk.SwitchToChannelSelectAsync(null, c, 0, "MATA", (0, 10));
 			//
-			//Thread.Sleep(5000);
-			//sk.SwitchToFixationCrossAsync(null, null);
+			//Thread.Sleep(100000);
 
 			// check if system is 64 bit
 			if (!Environment.Is64BitOperatingSystem)
@@ -56,7 +56,7 @@ namespace TINS.Terminal
 			switch (Environment.OSVersion.Platform)
 			{
 				case PlatformID.Win32NT:
-					NativeWrapper.Provide<FFTWSingle>(@"C:\_code\_binaries\x64\libfftw3f-3.dll");
+					NativeWrapper.Provide<FFTWSingle>(@"libfftw3f-3.dll");
 					break;
 		
 				default:

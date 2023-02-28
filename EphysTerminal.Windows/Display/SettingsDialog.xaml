@@ -20,7 +20,7 @@
 		<!-- contents -->
 		<Grid Grid.Row="1" Margin="10">
 			<Grid.RowDefinitions>
-				<RowDefinition Height="*"/>
+				<RowDefinition Height="auto"/>
 				<RowDefinition Height="*"/>
 				<RowDefinition Height="*"/>
 			</Grid.RowDefinitions>
@@ -38,6 +38,7 @@
 					<RowDefinition Height="*"/>
 					<RowDefinition Height="auto"/>
 					<RowDefinition Height="auto"/>
+					<RowDefinition Height="auto"/>
 				</Grid.RowDefinitions>
 				<Grid.ColumnDefinitions>
 					<ColumnDefinition Width="40"/>
@@ -46,11 +47,13 @@
 
 				<disp:BigButton Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
 								x:Name="btnGenusTest" Text="Genus Mk2 Test" Source="{StaticResource SettingsIcon}" Click="btnGenusTest_Click"/>
-				<Label Grid.Row="1" Grid.Column="0" Foreground="White" HorizontalAlignment="Right" Content="Freq."/>
-				<Label Grid.Row="2" Grid.Column="0" Foreground="White" HorizontalAlignment="Right" Content="Trig."/>
+				<Label Grid.Row="1" Grid.Column="0" Foreground="White" HorizontalAlignment="Right" Content="Port"/>
+				<Label Grid.Row="2" Grid.Column="0" Foreground="White" HorizontalAlignment="Right" Content="Freq."/>
+				<Label Grid.Row="3" Grid.Column="0" Foreground="White" HorizontalAlignment="Right" Content="Trig."/>
 
-				<disp:NumericTextBox Grid.Row="1" Grid.Column="1" x:Name="txbGenusFreq" Text="50"/>
-				<disp:NumericTextBox Grid.Row="2" Grid.Column="1" x:Name="txbGenusTrig" Text="129"/>
+				<ComboBox Grid.Row="1" Grid.Column="1" x:Name="cmbPort" IsEditable="false" SelectionChanged="cmbPort_SelectionChanged"/>
+				<disp:NumericTextBox Grid.Row="2" Grid.Column="1" x:Name="txbGenusFreq" Text="50"/>
+				<disp:NumericTextBox Grid.Row="3" Grid.Column="1" x:Name="txbGenusTrig" Text="129"/>
 			</Grid>
 
 			<Grid Grid.Row="0" Grid.Column="1" Margin="5">

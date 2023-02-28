@@ -77,6 +77,7 @@ namespace TINS.Terminal.Settings
 				switch (InputType)
 				{
 					case "LOCAL":
+					case "USB-ME64":
 						Input = new InputSettings();
 						return true;
 

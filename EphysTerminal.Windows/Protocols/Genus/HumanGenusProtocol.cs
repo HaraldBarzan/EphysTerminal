@@ -95,7 +95,8 @@ namespace TINS.Terminal.Protocols.Genus
 		public override void Start()
 		{
 			// connect to stimulus controller
-			StimulusController.Connect();
+			var port = (SourceStream.UI as MainWindow).SettingsDialog.SelectedPortGenus;
+			StimulusController.Connect(port);
 			StimulusController.Reset();
 
 			// start state machine

@@ -4,7 +4,7 @@
   "trialStartTrigger": 128,
   "trialEndTrigger": 192,
   "maskTrigger": 120,
-  "postMaskTrigger":  151,
+  "postMaskTrigger":  199,
   "supportedTriggers": [ 120, 128, 129, 150, 192, 199, 11, 12, 144 ],
   "useProtocolScreen": true,
   "randomize": true,

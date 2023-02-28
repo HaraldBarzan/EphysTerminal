@@ -6,7 +6,6 @@ using System.Windows.Input;
 using System.Windows.Media;
 using TINS.Analysis;
 using TINS.Conexus.Data;
-using TINS.Containers;
 using TINS.Ephys.Processing;
 using TINS.Terminal.Display.Protocol;
 using TINS.Terminal.Stimulation;
@@ -49,7 +48,7 @@ namespace TINS.Terminal.Protocols.Genus
 			Config		= config;
 			TrialLogger = null;
 
-			if (Config.TrialSelfInitiate)
+			if (Config.TrialSelfInitiate && !Config.UseProtocolScreen)
 			{
 				if (stream.InputStream is not BiosemiTcpStream biosemiStream)
 					throw new Exception("Trial self initiation is only compatible with the Biosemi stream.");
@@ -82,6 +81,8 @@ namespace TINS.Terminal.Protocols.Genus
 		/// <param name="disposing"></param>
 		protected override void Dispose(bool disposing)
 		{
+			//if (SourceStream.UI is not null  && SourceStream.UI is MainWindow mw)
+			//	mw.
 			if (StimulusController is not null)
 				StimulusController.FeedbackReceived -= OnDeviceFeedback;
 			if (SourceStream.InputStream is BiosemiTcpStream biosemiTcpStream)
@@ -198,7 +199,7 @@ namespace TINS.Terminal.Protocols.Genus
 		/// <summary>
 		/// Number of trials.
 		/// </summary>
-		public int TrialCount => _stateMachine.TrialCount;
+		public int TrialCount => _stateMachine.TotalTrialCount;
 
 		/// <summary>
 		/// 
@@ -227,22 +228,19 @@ namespace TINS.Terminal.Protocols.Genus
 			/// <param name="protocol">The parent Genus protocol.</param>
 			public StateMachine(GenusClosedLoopProtocol protocol)
 			{
-				_p	= protocol;
-				_gc = protocol.StimulusController;
-
+				_p					= protocol;
+				_gc					= protocol.StimulusController;
 				_stateTimeout		= 0;
 				_stimUpdateTimeout	= 0;
+				TotalTrialCount		= _p.Config.TrialCount;
+				CurrentTrialIndex	= 0;
 
 				// init spectrum primitives
-				_input = _p.SourceStream.ProcessingPipeline.GetBuffer(_p.Config.InputBuffer);
-				_sourceCh = _input.ChannelLabels.Front;
-				var nfft = Math.Min(Numerics.Round(
-					_p.Config.SupportedSamplingPeriod * 
-					_p.Config.UpdateTimeout * 
-					_input.SamplingRate),
-					_input.BufferSize);
-				_ft		.Initialize(nfft);
-				_spec	.Initialize(nfft, (0, _input.SamplingRate / 2));
+				_input		= _p.SourceStream.ProcessingPipeline.GetBuffer(_p.Config.InputBuffer);
+				_sourceCh	= _input.ChannelLabels.Front;
+				var nfft	= Math.Min(Numerics.Round(_p.Config.SupportedSamplingPeriod *  _p.Config.UpdateTimeout *  _input.SamplingRate), _input.BufferSize);
+				_ft			.Initialize(nfft);
+				_spec		.Initialize(nfft, (0, _input.SamplingRate / 2));
 
 			}
 
@@ -253,10 +251,12 @@ namespace TINS.Terminal.Protocols.Genus
 			{
 				// IDLE
 				AddState(GenusClosedLoopState.Idle,
-					eventAction: (e) => e is GenusEvent.Start ? GenusClosedLoopState.Intertrial : CurrentState,
+					eventAction: (e) => e is GenusEvent.Start 
+						? GenusClosedLoopState.Intertrial 
+						: CurrentState,
 					enterStateAction: () =>
 					{
-						TrialCount = 0;
+						CurrentTrialIndex = 0;
 						_gc.Reset();
 						StopProtocolDisplay();
 					},
@@ -264,8 +264,29 @@ namespace TINS.Terminal.Protocols.Genus
 
 				// INTERTRIAL
 				AddState(GenusClosedLoopState.Intertrial,
+					//eventAction: (e) =>
+					//{
+					//	if (CurrentTrialIndex < TotalTrialCount)
+					//	{
+					//		switch (e)
+					//		{
+					//			case GenusEvent.NewBlock:
+					//				return Elapse(_p.Config.TrialSelfInitiate ? GenusClosedLoopState.Await : GenusClosedLoopState.Mask);
+					//			case GenusEvent.Stop:
+					//				RunCompleted?.Invoke();
+					//				return GenusClosedLoopState.Idle;
+					//			default:
+					//				return CurrentState;
+					//		}
+					//	}
+					//	else
+					//	{
+					//		RunCompleted?.Invoke();
+					//		return GenusClosedLoopState.Idle;
+					//	}
+					//},
 					eventAction:		(e) => Elapse(
-						CurrentTrialIndex < TrialCount // check stopping condition
+						CurrentTrialIndex < TotalTrialCount // check stopping condition
 							? (_p.Config.TrialSelfInitiate ? GenusClosedLoopState.Await : GenusClosedLoopState.Mask) 
 							: GenusClosedLoopState.Idle, e),
 					enterStateAction:	() =>
@@ -287,7 +308,7 @@ namespace TINS.Terminal.Protocols.Genus
 					_input.ChannelLabels,
 					_input.ChannelLabels.IndexOf(_sourceCh),
 					"Select source channel and press SPACE or one of the EEG buttons to initiate next trial...", 
-					(CurrentTrialIndex, TrialCount)),
+					(CurrentTrialIndex, TotalTrialCount)),
 					exitStateAction: () =>
 					{
 						if (_pd is not null)
@@ -299,7 +320,7 @@ namespace TINS.Terminal.Protocols.Genus
 					eventAction: (e) => Elapse(GenusClosedLoopState.Prestimulus, e),
 					enterStateAction: () =>
 					{
-						TrialBegin?.Invoke(TrialCount + 1);
+						TrialBegin?.Invoke(CurrentTrialIndex);
 						_stateTimeout = _p.Config.MaskTimeout;
 						_gc.EmitTrigger(_p.Config.TrialStartTrigger);
 						_pd?.SwitchToFixationCrossAsync(Color.FromRgb(0, 0, 0), null);
@@ -324,11 +345,10 @@ namespace TINS.Terminal.Protocols.Genus
 						_stimUpdateTimeout	= _p.Config.UpdateTimeout;
 						_updateIndex		= 0;
 
-						_gc.EmitTrigger(_p.Config.StimulationStartTrigger);
 						_stimFreq = _p.Config.StartingFlickerFrequency;
-						_gc.ChangeParameters(_stimFreq, _stimFreq, _stimFreq, null, null);
+						_gc.ChangeParameters(_stimFreq, null, _stimFreq, 10000, _p.Config.StimulationStartTrigger);
 
-						_p.TrialLogger.LogTrial(
+						_p.TrialLogger?.LogTrial(
 							CurrentTrialIndex + 1,
 							_updateIndex,
 							_sourceCh,
@@ -337,7 +357,7 @@ namespace TINS.Terminal.Protocols.Genus
 					},
 					exitStateAction: () =>
 					{
-						_gc.EmitTrigger(_p.Config.StimulationEndTrigger);
+						_gc.ChangeParameters(0, null, 0, null, _p.Config.StimulationEndTrigger);
 					});
 
 				// POSTSTIMULUS
@@ -366,7 +386,7 @@ namespace TINS.Terminal.Protocols.Genus
 			/// <summary>
 			/// Total number of trials.
 			/// </summary>
-			public int TrialCount { get; protected set; }
+			public int TotalTrialCount { get; protected set; }
 
 			/// <summary>
 			/// Index of current trial.
@@ -396,12 +416,12 @@ namespace TINS.Terminal.Protocols.Genus
 					{
 						_stimUpdateTimeout = _p.Config.UpdateTimeout;
 
-						float oldFreq = _stimFreq;
-						_stimFreq = SpectrumMax();
+						float oldFreq	= _stimFreq;
+						_stimFreq		= SpectrumMax();
 						_updateIndex++;
 						
 						// emit eti line
-						_p.TrialLogger.LogTrial(
+						_p.TrialLogger?.LogTrial(
 							CurrentTrialIndex + 1,
 							_updateIndex,
 							_sourceCh,
@@ -409,7 +429,8 @@ namespace TINS.Terminal.Protocols.Genus
 							_stimFreq);
 
 						// update trigger
-						_gc.EmitTrigger(_p.Config.StimUpdateTrigger);
+						_gc.ChangeParameters(_stimFreq, null, _stimFreq, 10000, _p.Config.StimUpdateTrigger);
+						//_gc.EmitTrigger(_p.Config.StimUpdateTrigger);
 					}
 					else
 						--_stimUpdateTimeout;
@@ -461,7 +482,8 @@ namespace TINS.Terminal.Protocols.Genus
 				{
 					var thread = new Thread(() =>
 					{
-						_pd = new SkiaProtocolDisplay(Monitors.MonitorCount - 1);
+						_pd = new SkiaProtocolDisplay();
+						//_pd = new SkiaProtocolDisplay(Monitors.MonitorCount - 1);
 						_pd.KeyPressed += (_, _) => _p.ProcessEvent(GenusEvent.InitiateTrial);
 						_pd.ShowDialog();
 					});
@@ -610,8 +632,6 @@ namespace TINS.Terminal.Protocols.Genus
 		/// </summary>
 		[JsonPropertyName("maskTimeout")]
 		public int MaskTimeout { get; set; }
-
-
 
 		/// <summary>
 		///  The prestimulus timeout in blocks.

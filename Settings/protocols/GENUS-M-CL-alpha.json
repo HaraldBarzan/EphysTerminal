@@ -1,14 +1,15 @@
 {
   "protocolType": "genus-closedloop",
   "supportedSamplingPeriod": 0.25,
+  "supportedTriggers": [ 120, 128, 129, 150, 192, 199, 11 ],
   "trialSelfInitiate": true,
   "useProtocolScreen": true,
   "trialCount": 20,
-  "inputBuffer": "FILTERED",
+  "inputBuffer": "LFP-DECIMATED",
   "startingFlickerFrequency": 40,
   "frequencyRange": [ 20, 60 ],
   "useLog10": true,
-  
+
   "intertrialTimeout": 4,
   "stimulationTimeout": 80,
   "updateTimeout": 4,

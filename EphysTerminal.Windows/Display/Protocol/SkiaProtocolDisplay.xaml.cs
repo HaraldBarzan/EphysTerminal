@@ -1,4 +1,5 @@
 ﻿using SkiaSharp;
+using SkiaSharp.Views.WPF;
 using System;
 using System.Windows;
 using System.Windows.Input;
@@ -329,11 +330,13 @@ namespace TINS.Terminal.Display.Protocol
 		/// <param name="e"></param>
 		private void skc_MouseUp(object sender, MouseButtonEventArgs e)
 		{
-			var pos = e.GetPosition(skc);
-			if (State is ProtocolDisplayState.ChannelSelect && 
-				e.LeftButton == MouseButtonState.Released && 
-				ChannelLabels is not null &&
-				_chSelectBox.Contains(pos))
+			var pos = e.GetPosition(this);
+			pos = PresentationSource.FromVisual(skc).CompositionTarget.TransformToDevice.Transform(pos);
+
+			if (State			is ProtocolDisplayState.ChannelSelect && 
+				e.LeftButton	is MouseButtonState.Released && 
+				ChannelLabels	is not null &&
+				_chSelectBox	.Contains(pos))
 			{
 				// pressed channel label
 				int xIndex = Numerics.Floor((float)((pos.X - _chSelectBox.X) * (_chSelectBoxCols / _chSelectBox.Width)));

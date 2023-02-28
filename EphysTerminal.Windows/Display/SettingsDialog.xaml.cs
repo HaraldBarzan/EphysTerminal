@@ -1,10 +1,13 @@
 ﻿using Microsoft.Win32;
 using System;
+using System.IO.Ports;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using TINS.Data.EPD;
 using TINS.Filtering;
 using TINS.IO;
+using TINS.Terminal.Display.Protocol;
 using TINS.Terminal.Protocols.Genus;
 
 namespace TINS.Terminal.Display
@@ -21,9 +24,22 @@ namespace TINS.Terminal.Display
 		{
 			InitializeComponent();
 			ParentWindow = mainWindow;
+
+			// setup genus
+			GenusRefreshPorts();
+			if (cmbPort.Items.Count > 0)
+				cmbPort.SelectedIndex = 0;
 		}
 
+		/// <summary>
+		/// 
+		/// </summary>
 		public MainWindow ParentWindow { get; init; }
+
+		/// <summary>
+		/// 
+		/// </summary>
+		public string SelectedPortGenus { get; protected set; }
 
 		/// <summary>
 		/// 
@@ -48,12 +64,22 @@ namespace TINS.Terminal.Display
 					return;
 				}
 
+				// refresh the ports
+				GenusRefreshPorts();
+				if (cmbPort.Items.Count == 0)
+				{
+					MessageBox.Show("No devices connected.");
+					return;
+				}
+
+
 				// create, connect to and change the parameters of the Genus device
-				var ctl = new GenusController();
+				GenusController ctl = null;
 				try
 				{
-					ctl.Connect();
-					ctl.ChangeParameters(freq, freq, freq, null, trig);
+					ctl = new();
+					ctl.Connect(SelectedPortGenus);
+					ctl.ChangeParameters(freq, null, freq, 10000, trig);
 				}
 				catch (Exception exc)
 				{
@@ -69,6 +95,21 @@ namespace TINS.Terminal.Display
 		}
 
 		/// <summary>
+		//
+		/// </summary>
+		private void GenusRefreshPorts()
+		{
+			int oldSelectedIndex = cmbPort.SelectedIndex;
+
+			cmbPort.Items.Clear();
+			foreach (var p in SerialPort.GetPortNames())
+				cmbPort.Items.Add(p);
+
+			if (oldSelectedIndex > -1)
+				cmbPort.SelectedIndex = oldSelectedIndex;
+		}
+
+		/// <summary>
 		/// 
 		/// </summary>
 		/// <param name="sender"></param>
@@ -77,6 +118,16 @@ namespace TINS.Terminal.Display
 		{
 			e.Cancel = true;
 			Visibility = Visibility.Hidden;
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="sender"></param>
+		/// <param name="e"></param>
+		private void cmbPort_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+		{
+			SelectedPortGenus = cmbPort.SelectedIndex > -1 ? cmbPort.SelectedValue as string : null;
 		}
 
 		/// <summary>
@@ -125,5 +176,7 @@ namespace TINS.Terminal.Display
 				}
 			}
 		}
+
+		
 	}
 }
