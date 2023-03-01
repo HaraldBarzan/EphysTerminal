@@ -635,10 +635,9 @@ namespace TINS.Terminal
 			}
 		}
 
+
+
+
 		#endregion
-
-		
-
-
-	}
+    }
 }

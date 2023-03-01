@@ -1,13 +1,11 @@
 ﻿using Microsoft.Win32;
 using System;
 using System.IO.Ports;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using TINS.Data.EPD;
 using TINS.Filtering;
 using TINS.IO;
-using TINS.Terminal.Display.Protocol;
 using TINS.Terminal.Protocols.Genus;
 
 namespace TINS.Terminal.Display
