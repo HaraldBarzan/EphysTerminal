@@ -97,7 +97,7 @@ namespace GammaHealController
 				_controller = new GenusController();
 				_controller.FeedbackReceived += _controller_FeedbackReceived;
 				_controller.Connect(teensyPort);
-				_controller.SendInstruction(Instr.SetTriggerPin(true));
+				//_controller.SendInstruction(Instr.SetTriggerPin(true));
 				lblStatus.Content = $"{teensyName} on port {teensyPort}.";
 			}
 		}

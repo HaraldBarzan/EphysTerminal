@@ -1,9 +1,12 @@
-﻿using System;
+﻿using Microsoft.Win32;
+using System;
+using System.IO;
 using System.Windows;
 using System.Windows.Media;
 using TeensyNet;
 using TINS;
 using TINS.Analysis.Transforms;
+using TINS.Ephys.Analysis.Events;
 using TINS.Ephys.Data;
 using TINS.Ephys.Settings;
 using TINS.Filtering;
@@ -35,6 +38,7 @@ namespace GammaHealController
 			_highPass		= new IIRFilter(IIRFilterType.Butterworth, FilterPass.Highpass, 3, SamplingFrequency / DecimationFactor, 0.1);
 			_downsampled	= new Vector<float>(Numerics.Floor(SamplingFrequency * PollingPeriod / DecimationFactor));
 			_superlet		= new SuperletTransform((5, 100), 96, SamplingFrequency / DecimationFactor, 3, (2, 10), _downsampled.Size, 2);
+			_eventFinder	= new LineEventFinder();
 		}
 
 		/// <summary>
@@ -42,9 +46,12 @@ namespace GammaHealController
 		/// </summary>
 		public void Dispose()
 		{
+			_controller	?.SendInstruction(Instr.Reset());
 			_controller	?.Dispose();
 			_daq		?.Dispose();
 			_superlet	?.Dispose();
+			_downsampled?.Dispose();
+			_recorder	?.Dispose();
 		}
 
 		/// <summary>
@@ -118,7 +125,32 @@ namespace GammaHealController
 		/// <param name="e"></param>
 		private void btnRecord_Click(object sender, RoutedEventArgs e)
 		{
+			if (_recorder is null)
+			{
+				var ofd = new SaveFileDialog()
+				{
+					Filter = "EEG Processor Dataset (*.epd)|*.epd",
+				};
+				if (ofd.ShowDialog() == true)
+				{
+					_recorder = new DataOutputStream(
+						outputFolder:	Path.GetDirectoryName(ofd.FileName),
+						datasetName:	Path.GetFileNameWithoutExtension(ofd.FileName),
+						samplingRate:	SamplingFrequency,
+						channelLabels:	new Vector<string> { "AnalogData" });
 
+					_recorder.StartThreadAsync();
+					btnRecord.Source	= App.GetResource<ImageSource>("RecordOnIcon");
+					btnRecord.Text		= "Stop recording";
+				}
+			}
+			else
+			{
+				_recorder.Dispose();
+				_recorder = null;
+				btnRecord.Source	= App.GetResource<ImageSource>("RecordOffIcon");
+				btnRecord.Text		= "Start recording";
+			}
 		}
 
 		/// <summary>
@@ -219,13 +251,21 @@ namespace GammaHealController
 		/// <param name="e"></param>
 		private void _daq_DataAvailable(object sender, InputDataFrame e)
 		{
+			// save data if necessary
+			if (_recorder is not null)
+			{
+				_eventFinder.FindEvents(e.DigitalInput);
+				if (_eventFinder.FoundEventCount > 0)
+					_recorder.WriteEvents(_eventFinder.FoundEvents, MarkerAlignment.CurrentSweep);
+				_recorder.WriteData(e.AnalogInput);
+			}
+
 			// perform decimation and filtering
 			_lowPass.ForwardFilter(e.AnalogInput.GetSpan(), e.AnalogInput.GetSpan());
 			Numerics.Decimate(e.AnalogInput, 1, 32, result: _downsampled);
 			_highPass.ForwardFilter(_downsampled, _downsampled);
 
 			// do processing if needed
-			_closedLoopControl = true;
 			if (_closedLoopControl && _controller is not null)
 			{
 				// perform superlet transform and find frequency with highest power
@@ -233,8 +273,8 @@ namespace GammaHealController
 				float stimFreq = PickBestFrequency(_superlet.Output);
 
 				// send the power back to the stimulation device
-				//lock (_controller)
-				//	_controller.SendInstruction(Instr.StartFlicker(stimFreq));
+				lock (_controller)
+					_controller.SendInstruction(Instr.StartFlicker(stimFreq));
 				Dispatcher.BeginInvoke(() =>
 				{
 					lblStatus.Content = $"New data frame received at {DateTime.Now} - adjusting frequency to {stimFreq}.";
@@ -314,6 +354,7 @@ namespace GammaHealController
 		protected SuperletTransform _superlet;
 		protected Vector<float>		_downsampled;
 		protected DataOutputStream	_recorder;
+		protected LineEventFinder	_eventFinder;
 
 
 	}
