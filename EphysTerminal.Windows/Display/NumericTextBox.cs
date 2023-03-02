@@ -5,7 +5,7 @@ using System.Windows.Input;
 
 namespace TINS.Terminal.Display
 {
-	enum NumericType
+	public enum NumericType
 	{
 		Integer,
 		Real
@@ -14,7 +14,7 @@ namespace TINS.Terminal.Display
 	/// <summary>
 	/// Text box which only accepts numeric types.
 	/// </summary>
-	class NumericTextBox : TextBox
+	public class NumericTextBox : TextBox
 	{
 		public NumericTextBox()
 			: base()

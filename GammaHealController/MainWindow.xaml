@@ -3,49 +3,31 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:disp="clr-namespace:TINS.Terminal.Display"
-        mc:Ignorable="d"
-        Title="MainWindow" Height="500" Width="500" Background="#2d2d30" BorderBrush="LightGray" BorderThickness="1"
-		WindowStyle="None" WindowStartupLocation="CenterScreen" ResizeMode="CanResizeWithGrip" AllowsTransparency="True"
-		Closing="Window_Closing"
+        xmlns:disp="clr-namespace:TINS.Terminal.Display;assembly=EphysTerminal.Windows"
+		mc:Ignorable="d"
+        Title="MainWindow" Height="200" Width="700" Background="#2d2d30" BorderBrush="LightGray" BorderThickness="1"
+		WindowStyle="None" WindowStartupLocation="CenterScreen" ResizeMode="NoResize" AllowsTransparency="True"
 		Name="_this">
     <Grid>
 		<Grid.RowDefinitions>
 			<RowDefinition Height="40"/>
-			<RowDefinition Height="20"/>
-			<RowDefinition Height="4*"/>
-			<RowDefinition Height="1*"/>
-			<RowDefinition Height="4*"/>
-			<RowDefinition Height="1*"/>
-			<RowDefinition Height="20"/>
+			<RowDefinition Height="*"/>
 		</Grid.RowDefinitions>
 		<Grid.ColumnDefinitions>
+			<ColumnDefinition Width="*"/>
+			<ColumnDefinition Width="*"/>
 			<ColumnDefinition Width="*"/>
 			<ColumnDefinition Width="*"/>
 		</Grid.ColumnDefinitions>
 
 		<!-- title bar -->
-		<disp:TitleBar Grid.Row="0" Grid.ColumnSpan="2"  Window="{Binding ElementName=_this}" Title="GammaHeal Controller" Source="{StaticResource TinsIcon}"/>
+		<disp:TitleBar Grid.Row="0" Grid.ColumnSpan="4" Window="{Binding ElementName=_this}" Title="GammaHeal Controller" Source="{StaticResource TinsIcon}"/>
 		
-		<!-- left panel -->
-		<disp:BigButton Grid.Row="2" Grid.Column="0" x:Name="btnLeftLED" Click="btnLeftLED_Click" 
-						Text="Left panel LEDs" Source="{StaticResource PlayIcon}" FontSize="15"/>
-		<disp:NumericTextBox Grid.Row="3" Grid.Column="0" x:Name="ntbLeftLED" Width="100" Text="40"/>
-
-		<!-- right panel -->
-		<disp:BigButton Grid.Row="2" Grid.Column="1" x:Name="btnRightLED" Click="btnRightLED_Click" 
-						Text="Right panel LEDs" Source="{StaticResource PlayIcon}" FontSize="15"/>
-		<disp:NumericTextBox Grid.Row="3" Grid.Column="1" x:Name="ntbRightLED" Width="100" Text="40"/>
-
-		<!-- audio -->
-		<disp:BigButton Grid.Row="4" Grid.Column="0" x:Name="btnAudio" Click="btnAudio_Click" 
-						Text="Audio" Source="{StaticResource PlayIcon}" FontSize="15"/>
-		<disp:NumericTextBox Grid.Row="5" Grid.Column="0" x:Name="ntbAudio" Width="100" Text="40"/>
-
-		<!-- triggers -->
-		<disp:BigButton Grid.Row="4" Grid.Column="1" x:Name="btnTriggers" Click="btnTriggers_Click" 
-						Text="Triggers" Source="{StaticResource PlayIcon}" FontSize="15"/>
-		<disp:NumericTextBox Grid.Row="5" Grid.Column="1" x:Name="ntbTriggers" Width="100" Text="0"/>
+		<!-- -->
+		<disp:BigButton Grid.Row="1" Grid.Column="0" Source="{StaticResource PlayIcon}" Text="Stimulation" Name="btnStim" Click="btnStim_Click"/>
+		<disp:BigButton Grid.Row="1" Grid.Column="1" Source="{StaticResource PlayIcon}" Text="Closed loop stimulation" Name="btnCLStim" Click="btnCLStim_Click"/>
+		<disp:BigButton Grid.Row="1" Grid.Column="2" Source="{StaticResource PlayIcon}" Text="Test device" Name="btnTest" Click="btnTest_Click"/>
+		<disp:BigButton Grid.Row="1" Grid.Column="3" Source="{StaticResource CloseIcon}" Text="Close app" Name="btnExit" Click="btnExit_Click"/>
 
 	</Grid>
 </Window>

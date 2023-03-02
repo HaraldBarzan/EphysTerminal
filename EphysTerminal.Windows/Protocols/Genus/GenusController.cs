@@ -38,7 +38,9 @@ namespace TINS.Terminal.Protocols.Genus
 		{
 			OK,
 			StimulationComplete,
-			Error
+			Error,
+			TriggerPinRise,
+			TriggerPinFall
 		}
 
 		/// <summary>
@@ -76,7 +78,8 @@ namespace TINS.Terminal.Protocols.Genus
 				Sleep,                      // wait a number of milliseconds (int)
 				SleepMicroseconds,          // wait a number of microseconds (int)
 				Reset,                      // reset all parameters and stop flickering
-				Feedback                    // send feedback to the computer
+				Feedback,                   // send feedback to the computer
+				TriggerPinSetting			// enable or disable the trigger pin
 			}
 
 			public Commands Command;
@@ -133,7 +136,7 @@ namespace TINS.Terminal.Protocols.Genus
 				=> new()
 				{
 					Command = Commands.FreqFlickerL,
-					PFloat = frequency
+					PFloat	= frequency
 				};
 
 			/// <summary>
@@ -157,7 +160,7 @@ namespace TINS.Terminal.Protocols.Genus
 				=> new()
 				{
 					Command = Commands.FreqFlickerL,
-					PFloat = frequency
+					PFloat	= frequency
 				};
 
 			/// <summary>
@@ -169,11 +172,11 @@ namespace TINS.Terminal.Protocols.Genus
 				=> new()
 				{
 					Command = Commands.FreqFlickerAudio,
-					PFloat = frequency
+					PFloat	= frequency
 				};
 
 			/// <summary>
-			/// Start flickering both LED panels and the the audio tone.
+			/// Start flickering both LED panels and the audio tone.
 			/// </summary>
 			/// <param name="frequency">The desired flicker frequency (50% duty cycle square wave).</param>
 			/// <returns>An instruction set.</returns>
@@ -181,11 +184,11 @@ namespace TINS.Terminal.Protocols.Genus
 				=> new()
 				{
 					Command = Commands.FreqFlickerAll,
-					PFloat = frequency
+					PFloat	= frequency
 				};
 
 			/// <summary>
-			/// Start flickering both LED panels and the the audio tone and emit a trigger.
+			/// Start flickering both LED panels and the audio tone and emit a trigger.
 			/// </summary>
 			/// <param name="frequency">The desired flicker frequency (50% duty cycle square wave).</param>
 			/// <param name="trigger">The trigger value.</param>
@@ -201,7 +204,7 @@ namespace TINS.Terminal.Protocols.Genus
 				=> new()
 				{
 					Command = Commands.FreqFlickerL,
-					PFloat = 0
+					PFloat	= 0
 				};
 
 			/// <summary> 
@@ -212,7 +215,7 @@ namespace TINS.Terminal.Protocols.Genus
 				=> new()
 				{
 					Command = Commands.FreqFlickerR,
-					PFloat = 0
+					PFloat	= 0
 				};
 
 			/// <summary>
@@ -234,7 +237,7 @@ namespace TINS.Terminal.Protocols.Genus
 				=> new()
 				{
 					Command = Commands.FreqFlickerAll,
-					PFloat = 0
+					PFloat	= 0
 				};
 
 			/// <summary>
@@ -254,7 +257,7 @@ namespace TINS.Terminal.Protocols.Genus
 				=> new()
 				{
 					Command = Commands.FreqToneAudio,
-					PFloat = frequency
+					PFloat	= frequency
 				};
 
 			/// <summary>
@@ -265,8 +268,8 @@ namespace TINS.Terminal.Protocols.Genus
 			public static Instruction EmitTrigger(byte trigger)
 				=> new()
 				{
-					Command = Commands.EmitTrigger,
-					Parameter = trigger
+					Command		= Commands.EmitTrigger,
+					Parameter	= trigger
 				};
 
 			/// <summary>
@@ -289,8 +292,20 @@ namespace TINS.Terminal.Protocols.Genus
 			public static Instruction DisableFlickerTriggers()
 				=> new()
 				{
-					Command = Commands.ChangeFlickerTriggerAttach,
-					PFTAttach = FlickerTriggerAttach.None
+					Command		= Commands.ChangeFlickerTriggerAttach,
+					PFTAttach	= FlickerTriggerAttach.None
+				};
+
+			/// <summary>
+			/// Enable or disable the trigger pin.
+			/// </summary>
+			/// <param name="enabled">True to enable and false to disable.</param>
+			/// <returns>An instruction.</returns>
+			public static Instruction SetTriggerPin(bool enabled)
+				=> new()
+				{
+					Command = Commands.TriggerPinSetting,
+					PBool	= enabled
 				};
 
 			/// <summary>
@@ -301,8 +316,8 @@ namespace TINS.Terminal.Protocols.Genus
 			public static Instruction AwaitFullInstructionList(int count)
 				=> new()
 				{
-					Command = Commands.AwaitFullInstructionList,
-					Parameter = count
+					Command		= Commands.AwaitFullInstructionList,
+					Parameter	= count
 				};
 
 			/// <summary>
@@ -313,8 +328,8 @@ namespace TINS.Terminal.Protocols.Genus
 			public static Instruction Sleep(int milliseconds)
 				=> new()
 				{
-					Command = Commands.Sleep,
-					Parameter = milliseconds
+					Command		= Commands.Sleep,
+					Parameter	= milliseconds
 				};
 
 			/// <summary>
@@ -325,8 +340,8 @@ namespace TINS.Terminal.Protocols.Genus
 			public static Instruction SleepMicroseconds(int microseconds)
 				=> new()
 				{
-					Command = Commands.SleepMicroseconds,
-					Parameter = microseconds
+					Command		= Commands.SleepMicroseconds,
+					Parameter	= microseconds
 				};
 
 			/// <summary>
@@ -343,8 +358,8 @@ namespace TINS.Terminal.Protocols.Genus
 			public static Instruction Feedback(Feedback fb)
 				=> new()
 				{
-					Command = Commands.Feedback,
-					Parameter = (int)fb
+					Command		= Commands.Feedback,
+					Parameter	= (int)fb
 				};
 
 			/// <summary>
@@ -372,12 +387,13 @@ namespace TINS.Terminal.Protocols.Genus
 					case Commands.ChangeFlickerTriggers:
 						return $"{Command}: {P2Short.S1}(L), {P2Short.S2}(R)";
 					case Commands.ChangeFlickerTriggerAttach:
+					case Commands.TriggerPinSetting:
 						return $"{Command}: {PBool.ToString().ToLower()}";
 					case Commands.AwaitFullInstructionList:
 						return $"{Command}: {Parameter} instructions";
-					default:
 					case Commands.NoOp:
 					case Commands.Reset:
+					default:
 						return Command.ToString();
 				}
 			}

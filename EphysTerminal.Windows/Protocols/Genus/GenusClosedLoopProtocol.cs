@@ -407,9 +407,9 @@ namespace TINS.Terminal.Protocols.Genus
 				if (e is GenusEvent.NewBlock)
 				{
 					// elapse
+					--_stateTimeout;
 					if (_stateTimeout == 0)
 						return GenusClosedLoopState.Poststimulus;
-					--_stateTimeout;
 
 					// update stim parameters if necessary
 					if (_stimUpdateTimeout == 0)

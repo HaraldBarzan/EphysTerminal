@@ -18,7 +18,8 @@ namespace TINS.Terminal
 	{
 		Dummy	= 0,
 		Local	= 1,
-		ME64USB = 2
+		ME64USB = 2,
+		NIDAQmx	= 3
 	}
 
 	/// <summary>

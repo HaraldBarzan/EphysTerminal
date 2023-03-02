@@ -194,6 +194,10 @@ namespace TINS.Terminal
 					inputStream = new BiosemiTcpStream(settings.Input as BiosemiTcpInputSettings);
 					break;
 
+				case "NI-DAQMX":
+					inputStream = new DAQmxStream(settings.Input as DAQmxInputSettings);
+					break;
+
 				default:
 					throw new Exception("Invalid input device specified.");
 			}

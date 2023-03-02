@@ -13,6 +13,8 @@
     <None Remove="Resources\maximize.png" />
     <None Remove="Resources\minimize.png" />
     <None Remove="Resources\play.png" />
+    <None Remove="Resources\recordingOff.png" />
+    <None Remove="Resources\recordingOn.png" />
     <None Remove="Resources\restore.png" />
     <None Remove="Resources\stop.png" />
     <None Remove="Resources\tins.png" />
@@ -24,15 +26,23 @@
 
   <ItemGroup>
     <PackageReference Include="System.IO.Ports" Version="7.0.0" />
+    <PackageReference Include="System.Management" Version="7.0.0" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\EphysTerminal.Windows\EphysTerminal.Windows.csproj" />
     <ProjectReference Include="..\EphysTerminal\EphysTerminal.csproj" />
   </ItemGroup>
 
   <ItemGroup>
+    <Reference Include="TeensyNet">
+      <HintPath>..\..\Labware\TeensyNet\TeensyNet\bin\Release\net7.0-windows\TeensyNet.dll</HintPath>
+    </Reference>
     <Reference Include="TINS.Core">
       <HintPath>..\..\TINS\bin\TINS.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="TINS.Ephys">
+      <HintPath>..\..\TINS\bin\Release\TINS.Ephys.dll</HintPath>
     </Reference>
   </ItemGroup>
 
@@ -40,15 +50,11 @@
     <Resource Include="Resources\maximize.png" />
     <Resource Include="Resources\minimize.png" />
     <Resource Include="Resources\play.png" />
+    <Resource Include="Resources\recordingOff.png" />
+    <Resource Include="Resources\recordingOn.png" />
     <Resource Include="Resources\restore.png" />
     <Resource Include="Resources\stop.png" />
     <Resource Include="Resources\tins.png" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Update="TitleBar.xaml.cs">
-      <SubType>Code</SubType>
-    </Compile>
   </ItemGroup>
 
 </Project>

@@ -1,0 +1,113 @@
+﻿<Window x:Class="GammaHealController.ClosedLoopWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:disp="clr-namespace:TINS.Terminal.Display;assembly=EphysTerminal.Windows"
+		mc:Ignorable="d"
+        Title="Closed loop window" Height="700" Width="500" Background="#2d2d30" BorderBrush="LightGray" BorderThickness="1"
+		WindowStyle="None" WindowStartupLocation="CenterScreen" ResizeMode="NoResize" AllowsTransparency="True" IsVisibleChanged="_this_IsVisibleChanged"
+		Name="_this">
+    <Grid>
+		<Grid.RowDefinitions>
+			<RowDefinition Height="40"/>
+			<RowDefinition Height="60"/>
+			<RowDefinition Height="60"/>
+			<RowDefinition Height="2*"/>
+			<RowDefinition Height="*"/>
+			<RowDefinition Height="auto"/>
+			<RowDefinition Height="auto"/>
+			<RowDefinition Height="*"/>
+			<RowDefinition Height="auto"/>
+		</Grid.RowDefinitions>
+
+		<!-- title bar -->
+		<disp:TitleBar Grid.Row="0" Grid.ColumnSpan="4" Window="{Binding ElementName=_this}" Title="GammaHeal Closed Loop" Source="{StaticResource TinsIcon}"/>
+
+		<!-- device detector -->
+		<Grid Grid.Row="1" Margin="5">
+			<Grid.ColumnDefinitions>
+				<ColumnDefinition Width="*"/>
+				<ColumnDefinition Width="1.7*"/>
+			</Grid.ColumnDefinitions>
+
+			<Button Grid.Column="0" Name="btnRefreshCtl" Content="Refresh" Width="100" Height="30" Click="btnRefreshCtl_Click"/>
+			<Label Grid.Column="1" Name="lblStatusCtl" Content="No GammaHeal device detected."/>
+		</Grid>
+
+		<!-- device detector -->
+		<Grid Grid.Row="2" Margin="5">
+			<Grid.ColumnDefinitions>
+				<ColumnDefinition Width="*"/>
+				<ColumnDefinition Width="1.7*"/>
+			</Grid.ColumnDefinitions>
+
+			<Button Grid.Column="0" Name="btnRefreshDaq" Content="Refresh" Width="100" Height="30" Click="btnRefreshDaq_Click"/>
+			<Label Grid.Column="1" Name="lblStatusDaq" Content="No NI-DAQmx device detected."/>
+		</Grid>
+		
+		<!-- parameters -->
+		<Grid Grid.Row="3" Margin="5">
+			<Grid.RowDefinitions>
+				<RowDefinition Height="*"/>
+				<RowDefinition Height="*"/>
+				<RowDefinition Height="*"/>
+				<RowDefinition Height="*"/>
+				<RowDefinition Height="*"/>
+			</Grid.RowDefinitions>
+			<Grid.ColumnDefinitions>
+				<ColumnDefinition Width="3*"/>
+				<ColumnDefinition Width="2*"/>
+				<ColumnDefinition Width="2*"/>
+			</Grid.ColumnDefinitions>
+
+			<!-- daq -->
+			<Label Grid.Row="0" Grid.Column="0" Content="NI-DAQmx device name"/>
+			<TextBox Grid.Row="0" Grid.Column="1" x:Name="txbDaqName" Text="Dev1"/>
+			
+			<!-- digital input port -->
+			<Label Grid.Row="1" Grid.Column="0" Content="Digital input port"/>
+			<TextBox Grid.Row="1" Grid.Column="1" x:Name="txbDaqDigitalPort" Text="port0"/>
+			<CheckBox Grid.Row="1" Grid.Column="2" Name="ckbUseDigitalPort" IsChecked="True" Content="Use port"/>
+
+			<!-- initial stim freq -->
+			<Label Grid.Row="2" Grid.Column="0" Content="Initial stimulation frequency"/>
+			<disp:NumericTextBox Grid.Row="2" Grid.Column="1" Name="ntbInitialFreq" Text="40"/>
+			<Label Grid.Row="2" Grid.Column="2" Content="Hz (5, 100)"/>
+
+			<!-- stimulation start trigger -->
+			<Label Grid.Row="3" Grid.Column="0" Content="Stimulation start trigger"/>
+			<disp:NumericTextBox Grid.Row="3" Grid.Column="1" Name="ntbStartTrigger" Text="10"/>
+			<Label Grid.Row="3" Grid.Column="2" Content="(1, 63)"/>
+
+			<!-- stimulation end trigger -->
+			<Label Grid.Row="4" Grid.Column="0" Content="Stimulation end trigger"/>
+			<disp:NumericTextBox Grid.Row="4" Grid.Column="1" Name="ntbEndTrigger" Text="11"/>
+			<Label Grid.Row="4" Grid.Column="2" Content="(1, 63)"/>
+		</Grid>
+
+		<!-- recording and streaming -->
+		<Grid Grid.Row="4" Margin="5">
+			<Grid.ColumnDefinitions>
+				<ColumnDefinition Width="*"/>
+				<ColumnDefinition Width="*"/>
+			</Grid.ColumnDefinitions>
+
+			<disp:BigButton Grid.Column="0" Name="btnRecord" Source="{StaticResource RecordOffIcon}" Text="Start recording" Click="btnRecord_Click"/>
+			<disp:BigButton Grid.Column="1" Name="btnStream" Source="{StaticResource PlayIcon}" Text="Start streaming" Click="btnStream_Click"/>
+		</Grid>
+
+		<TextBlock Grid.Row="5" Margin="10" Foreground="White" TextWrapping="Wrap">
+			This is an open-loop stimulation protocol that is externally driven by TTL on pin 20. While the TTL is high, the device provides stimulation. 
+			The device will stimulate on all channels (left, right, audio) with the given stimulation frequency (values between 0 and 100).
+		</TextBlock>
+
+		<TextBlock Grid.Row="6" Margin="10" Foreground="Orange" TextWrapping="Wrap">
+			Warning! The Teensy LC pins are not 5 V tolerant. Do not attempt to drive the device with more than 3.3V.
+			Use a logic-level voltage converter or a voltage divider (eg. 1kOhm + 2kOhm resistors) to step down the voltage to 3.3 V.
+		</TextBlock>
+		
+		<!-- status label -->
+		<Label Grid.Row="8" Margin="5" Name="lblStatus" Content="status label"/>
+	</Grid>
+</Window>

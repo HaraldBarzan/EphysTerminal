@@ -2,8 +2,8 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:GammaHealController"
-			 xmlns:localdisplay="clr-namespace:TINS.Terminal.Display"
-             StartupUri="MainWindow.xaml">
+			 xmlns:localdisplay="clr-namespace:TINS.Terminal.Display;assembly=EphysTerminal.Windows"
+             Startup="Application_Startup">
     <Application.Resources>
          <!-- Title bar button-->
 		<Style x:Key="TitleBarButtonStyle"				TargetType="Button">
@@ -132,6 +132,8 @@
 		
 		
 		<!-- image resources -->
+		<ImageSource x:Key="RecordOnIcon">	Resources/recordingOn.png	</ImageSource>
+		<ImageSource x:Key="RecordOffIcon">	Resources/recordingOff.png	</ImageSource>
 		<ImageSource x:Key="PlayIcon">		Resources/play.png			</ImageSource>
 		<ImageSource x:Key="StopIcon">		Resources/stop.png			</ImageSource>
 		<ImageSource x:Key="MinimizeIcon">	Resources/minimize.png		</ImageSource>

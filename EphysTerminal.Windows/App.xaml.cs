@@ -2,14 +2,10 @@
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
-using TINS;
+using TINS.Native;
 using TINS.Terminal.Protocols.Genus;
 using TINS.Terminal.Stimulation;
-using TINS.Native;
 using TINS.Utilities;
-using TINS.Terminal.Display.Protocol;
-using System.Windows.Media;
-using System.Diagnostics.CodeAnalysis;
 
 namespace TINS.Terminal
 {

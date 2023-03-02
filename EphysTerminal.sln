@@ -7,7 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EphysTerminal", "EphysTermi
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EphysTerminal.Windows", "EphysTerminal.Windows\EphysTerminal.Windows.csproj", "{840CE0B7-9A6E-4899-B3DA-0AC5A15CBD4A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GammaHealController", "GammaHealController\GammaHealController.csproj", "{9F11A271-E109-4284-A1CB-43D16F0544CD}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GammaHealController", "GammaHealController\GammaHealController.csproj", "{9F11A271-E109-4284-A1CB-43D16F0544CD}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -1,0 +1,61 @@
+﻿<Window x:Class="GammaHealController.StimulationWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:disp="clr-namespace:TINS.Terminal.Display;assembly=EphysTerminal.Windows"
+        mc:Ignorable="d"
+        Title="GammaHeal Controller" Height="400" Width="500" Background="#2d2d30" BorderBrush="LightGray" BorderThickness="1"
+		WindowStyle="None" WindowStartupLocation="CenterScreen" ResizeMode="CanResizeWithGrip" AllowsTransparency="True" IsVisibleChanged="_this_IsVisibleChanged"
+		Closing="Window_Closing"
+		Name="_this">
+    <Grid>
+		<Grid.RowDefinitions>
+			<RowDefinition Height="40"/>
+			<RowDefinition Height="50"/>
+			<RowDefinition Height="2*"/>
+			<RowDefinition Height="*"/>
+			<RowDefinition Height="auto"/>
+			<RowDefinition Height="auto"/>
+		</Grid.RowDefinitions>
+		
+		<!-- title bar -->
+		<disp:TitleBar Grid.Row="0" Grid.ColumnSpan="2" Window="{Binding ElementName=_this}" Title="GammaHeal Stimulation" Source="{StaticResource TinsIcon}"/>
+		
+		<!-- device detector -->
+		<Grid Grid.Row="1" Margin="5">
+			<Grid.ColumnDefinitions>
+				<ColumnDefinition Width="*"/>
+				<ColumnDefinition Width="2*"/>
+			</Grid.ColumnDefinitions>
+
+			<Button Grid.Column="0" Name="btnRefresh" Content="Refresh" Width="100" Height="30" Click="btnRefresh_Click"/>
+			<Label Grid.Column="1" Name="lblStatus" Content="No GammaHeal device detected."/>
+		</Grid>
+		
+		<!-- stimulation frequencies -->
+		<Grid Grid.Row="2">
+			<Grid.ColumnDefinitions>
+				<ColumnDefinition Width="2.5*"/>
+				<ColumnDefinition Width="2*"/>
+				<ColumnDefinition Width="1*"/>
+			</Grid.ColumnDefinitions>
+
+			<Label Grid.Column="0" Content="Stimulation frequency" HorizontalAlignment="Right" Margin="10"/>
+			<disp:NumericTextBox Grid.Column="1" Name="ntbFrequency" Text="40"/>
+			<Label Grid.Column="2" Content="Hz"/>
+		</Grid>
+
+		<TextBlock Grid.Row="4" Margin="10" Foreground="White" TextWrapping="Wrap">
+			This is an open-loop stimulation protocol that is externally driven by TTL on pin 20. While the TTL is high, the device provides stimulation. 
+			The device will stimulate on all channels (left, right, audio) with the given stimulation frequency (values between 0 and 100). 
+		</TextBlock>
+
+		<TextBlock Grid.Row="5" Margin="10" Foreground="Orange" TextWrapping="Wrap">
+			Warning! The Teensy LC pins are not 5 V tolerant. Do not attempt to drive the device with more than 3.3V.
+			Use a logic-level voltage converter or a voltage divider (eg. 1kOhm + 2kOhm resistors) to step down the voltage to 3.3 V.
+		</TextBlock>
+
+
+	</Grid>
+</Window>
