@@ -97,7 +97,8 @@ namespace GammaHealController
 				_controller = new GenusController();
 				_controller.FeedbackReceived += _controller_FeedbackReceived;
 				_controller.Connect(teensyPort);
-				//_controller.SendInstruction(Instr.SetTriggerPin(true));
+				_controller.SendInstruction(Instr.Reset());
+				_controller.SendInstruction(Instr.SetTriggerPin(true));
 				lblStatus.Content = $"{teensyName} on port {teensyPort}.";
 			}
 		}
@@ -109,18 +110,25 @@ namespace GammaHealController
 		/// <param name="e"></param>
 		private void _controller_FeedbackReceived(object sender, GenusController.Feedback e)
 		{
-			if (e is GenusController.Feedback.TriggerPinRise)
+			Dispatcher.BeginInvoke(() =>
 			{
-				if (float.TryParse(ntbFrequency.Text, out var frequency))
+				if (e is GenusController.Feedback.TriggerPinRise)
 				{
-					frequency = Numerics.Clamp(frequency, GenusController.FlickerFrequencyRange);
-					_controller.SendInstruction(Instr.StartFlicker(frequency));
+					if (float.TryParse(ntbFrequency.Text, out var frequency) &&
+						Numerics.IsClamped(frequency, (5, 100)))
+					{
+						frequency = Numerics.Clamp(frequency, GenusController.FlickerFrequencyRange);
+						lock (_controller)
+							_controller.SendInstruction(Instr.StartFlicker(frequency));
+					}
 				}
-			}
-			else if (e is GenusController.Feedback.TriggerPinFall) 
-			{
-				_controller.SendInstruction(Instr.StopFlicker());
-			}
+				else if (e is GenusController.Feedback.TriggerPinFall)
+				{
+					lock (_controller)
+						_controller.SendInstruction(Instr.StopFlicker());
+				}
+			});
+			
 		}
 
 

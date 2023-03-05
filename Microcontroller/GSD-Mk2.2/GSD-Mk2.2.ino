@@ -27,7 +27,7 @@ struct Instruction
 
   Commands  Command;
   long      Parameter;
-
+  
   float GetPFloat();
   byte  GetPByte();
   void  SetPFloat(float p);
@@ -333,7 +333,7 @@ void Instruction::ProcessInstruction()
     case Commands::EmitTrigger:
         //PORTD bits 0 and 1 are part of USB serial interface, we skip those instead (only 64 values possible now)
         //PORTD = (byte)Parameter;
-        PORTD = (byte)((Parameter << 2) | 0b11111100);
+        PORTD = (byte)((Parameter << 2) & 0b11111100);
         break;
 
     // CHANGE FLICKER TRIGGER ATTACH
@@ -405,9 +405,6 @@ void setup()
 
   digitalWrite(LedPinL, HIGH);
   digitalWrite(LedPinR, HIGH);
-
-  _FreqFlickerL(20);
-  _FreqFlickerAudio(20);
 }
 
 void loop() 

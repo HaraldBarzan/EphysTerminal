@@ -187,9 +187,9 @@ namespace GammaHealController
 				try
 				{
 					_controller = new GenusController();
-					_controller.FeedbackReceived += _controller_FeedbackReceived; ;
+					_controller.FeedbackReceived += _controller_FeedbackReceived;
 					_controller.Connect(teensyPort);
-					//_controller.SendInstruction(Instr.SetTriggerPin(true));
+					_controller.SendInstruction(Instr.SetTriggerPin(true));
 					lblStatusCtl.Content = $"{teensyName} on port {teensyPort}.";
 				}
 				catch (Exception ex)
@@ -260,25 +260,28 @@ namespace GammaHealController
 				_recorder.WriteData(e.AnalogInput);
 			}
 
-			// perform decimation and filtering
-			_lowPass.ForwardFilter(e.AnalogInput.GetSpan(), e.AnalogInput.GetSpan());
-			Numerics.Decimate(e.AnalogInput, 1, 32, result: _downsampled);
-			_highPass.ForwardFilter(_downsampled, _downsampled);
-
 			// do processing if needed
 			if (_closedLoopControl && _controller is not null)
 			{
+				// perform decimation and filtering
+				_lowPass.ForwardFilter(e.AnalogInput.GetSpan(), e.AnalogInput.GetSpan());
+				Numerics.Decimate(e.AnalogInput, 1, 32, result: _downsampled);
+				_highPass.ForwardFilter(_downsampled, _downsampled);
+
 				// perform superlet transform and find frequency with highest power
 				_superlet.Analyze(_downsampled);
 				float stimFreq = PickBestFrequency(_superlet.Output);
 
 				// send the power back to the stimulation device
-				lock (_controller)
-					_controller.SendInstruction(Instr.StartFlicker(stimFreq));
-				Dispatcher.BeginInvoke(() =>
+				if (_closedLoopControl)
 				{
-					lblStatus.Content = $"New data frame received at {DateTime.Now} - adjusting frequency to {stimFreq}.";
-				});
+					lock (_controller)
+						_controller.SendInstruction(Instr.StartFlicker(stimFreq));
+					Dispatcher.BeginInvoke(() =>
+					{
+						lblStatus.Content = $"New data frame received at {DateTime.Now} - adjusting frequency to {stimFreq}.";
+					});
+				}
 			}
 			else
 			{
@@ -297,27 +300,49 @@ namespace GammaHealController
 		/// <exception cref="NotImplementedException"></exception>
 		private void _controller_FeedbackReceived(object sender, GenusController.Feedback e)
 		{
-			if (e is GenusController.Feedback.TriggerPinRise)
+			using var instructions = new Vector<Instr>();
+
+			Dispatcher.BeginInvoke(() =>
 			{
-				_closedLoopControl = true;
-				_controller.SendInstructionList(new[]
+				if (e is GenusController.Feedback.TriggerPinRise)
 				{
-					Instr.StartFlicker(0),
-					Instr.EmitTrigger(0)
-				});
-			}
-			else if (e is GenusController.Feedback.TriggerPinFall)
-			{
-				_closedLoopControl = false;
-				lock (_controller)
-				{
-					_controller.SendInstructionList(new[]
+					bool start = false;
+					if (float.TryParse(ntbInitialFreq.Text, out var initialFreq) &&
+						Numerics.IsClamped(initialFreq, (5, 100)))
 					{
-						Instr.StopFlicker(),
-						Instr.EmitTrigger(0)
-					});
+						instructions.PushBack(Instr.StartFlicker(initialFreq));
+						start = true;
+					}
+
+					if (byte.TryParse(ntbStartTrigger.Text, out var startTrigger) &&
+						Numerics.IsClamped(startTrigger, (1, 63)))
+					{
+						instructions.PushBack(Instr.EmitTrigger(startTrigger));
+					}
+
+					if (start)
+					{
+						_closedLoopControl = true;
+						_controller.SendInstructionList(instructions);
+					}
 				}
-			}
+				else if (e is GenusController.Feedback.TriggerPinFall)
+				{
+					_closedLoopControl = false;
+
+					instructions.PushBack(Instr.StopFlicker());
+					if (byte.TryParse(ntbEndTrigger.Text, out var endTrigger) &&
+						Numerics.IsClamped(endTrigger, (1, 63)))
+					{
+						instructions.PushBack(Instr.EmitTrigger(endTrigger));
+					}
+
+					lock (_controller)
+					{
+						_controller.SendInstructionList(instructions);
+					}
+				}
+			});
 		}
 
 		/// <summary>
@@ -355,7 +380,5 @@ namespace GammaHealController
 		protected Vector<float>		_downsampled;
 		protected DataOutputStream	_recorder;
 		protected LineEventFinder	_eventFinder;
-
-
 	}
 }

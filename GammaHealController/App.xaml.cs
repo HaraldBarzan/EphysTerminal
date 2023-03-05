@@ -19,7 +19,7 @@ namespace GammaHealController
 		{
 			// provide the necessary DLLs
 			NativeWrapper.Provide<DAQmx>("nicaiu");
-			NativeWrapper.Provide<FFTWSingle>(@"libfftw3f-3.dll");
+			NativeWrapper.Provide<FFTWSingle>("libfftw3f-3.dll");
 		}
 
 		/// <summary>
