@@ -21,7 +21,7 @@
 		</Grid.RowDefinitions>
 
 		<!-- title bar -->
-		<disp:TitleBar Grid.Row="0" Window="{Binding ElementName=_this}" Title="TINS Electrophysiology Terminal" Source="{StaticResource TinsIcon}"/>
+		<disp:TitleBar Grid.Row="0" Window="{Binding ElementName=_this}" Title="TINS Electrophysiology Terminal - v1.0.0" Source="{StaticResource TinsIcon}"/>
 
 		<!-- header -->
 		<Grid Grid.Row="1" Name="grdHeader" Margin="5,5">
