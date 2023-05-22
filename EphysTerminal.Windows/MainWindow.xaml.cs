@@ -1,9 +1,11 @@
 ﻿using Microsoft.Win32;
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Windows;
 using System.Windows.Media;
+using TeensyNet;
 using TINS.Conexus.Data;
 using TINS.Ephys.Data;
 using TINS.Ephys.Settings;
@@ -40,9 +42,22 @@ namespace TINS.Terminal
 			var ed = new EphysDisplay();
 			ChannelDisplay = ed;
 			displayPanel.Children.Add(ed);
+
+			// set the teensyfactory
+			App.TeensyFactory.TeensyAdded += TeensyFactory_TeensyAdded;
+			var firstTeensy = App.GetConnectedTeensys().FirstOrDefault();
+			if (firstTeensy != null)
+				lblDeviceStatus.Content = $"Device {firstTeensy.Name} connected on port {firstTeensy.PortName}.";
 		}
 
+		
+
+
 		#region IUserInterface
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="displayData"></param>
 		public void UpdateData(AbstractDisplayData displayData)
 		{
 			if (!Dispatcher.CheckAccess())
@@ -172,49 +187,56 @@ namespace TINS.Terminal
 				_		=> throw new Exception()
 			};
 
-			// create the necessary input stream
-			DataInputStream inputStream	= null;
-			switch (settings.InputType)
+			try
 			{
-				case "DUMMY":
-					inputStream = new DummyDataStream(settings.Input);
-					break;
+				// create the necessary input stream
+				DataInputStream inputStream	= null;
+				switch (settings.InputType)
+				{
+					case "DUMMY":
+						inputStream = new DummyDataStream(settings.Input);
+						break;
 
-				case "LOCAL":
-					if (string.IsNullOrEmpty(localDatasetPath))
-						throw new Exception("The parameter \'localDatasetPath\' must be provided when the input device is set to \'Local\'.");
-					inputStream = new LocalDataStream(settings.Input, localDatasetPath);
-					break;
+					case "LOCAL":
+						if (string.IsNullOrEmpty(localDatasetPath))
+							throw new Exception("The parameter \'localDatasetPath\' must be provided when the input device is set to \'Local\'.");
+						inputStream = new LocalDataStream(settings.Input, localDatasetPath);
+						break;
 
-				case "USB-ME64":
-					inputStream = new MCSDataStream(settings.Input);
-					break;
+					case "USB-ME64":
+						inputStream = new MCSDataStream(settings.Input);
+						break;
 
-				case "BIOSEMI-TCP":
-					inputStream = new BiosemiTcpStream(settings.Input as BiosemiTcpInputSettings);
-					break;
+					case "BIOSEMI-TCP":
+						inputStream = new BiosemiTcpStream(settings.Input as BiosemiTcpInputSettings);
+						break;
 
-				case "NI-DAQMX":
-					inputStream = new DAQmxStream(settings.Input as DAQmxInputSettings);
-					break;
+					case "NI-DAQMX":
+						inputStream = new DAQmxStream(settings.Input as DAQmxInputSettings);
+						break;
 
-				default:
-					throw new Exception("Invalid input device specified.");
+					default:
+						throw new Exception("Invalid input device specified.");
+				}
+				new Thread(() => inputStream.StartThread()).Start();
+
+				// create stream and start it on a new thread
+				EphysTerminal = new EphysTerminal(
+					settings:			settings,		// the settings item
+					ui:					this,			// the UI for the streamer
+					dataInputStream:	inputStream);	// the input stream (platform specific));
+				EphysTerminal.StateChanged	+= UpdateInterfaceControls;
+				EphysTerminal.InputReceived	+= (_, _) => ProtocolWizard.NotifyNewBlock();
+				new Thread(() => EphysTerminal.StartThread()).Start();
+				EphysTerminal.ProcessingComplete += EphysStream_ProcessingComplete;
+
+				UpdateInterfaceControls();
+				SwitchDisplay(displayType);
 			}
-			new Thread(() => inputStream.StartThread()).Start();
-
-			// create stream and start it on a new thread
-			EphysTerminal = new EphysTerminal(
-				settings:			settings,		// the settings item
-				ui:					this,			// the UI for the streamer
-				dataInputStream:	inputStream);	// the input stream (platform specific));
-			EphysTerminal.StateChanged	+= UpdateInterfaceControls;
-			EphysTerminal.InputReceived	+= (_, _) => ProtocolWizard.NotifyNewBlock();
-			new Thread(() => EphysTerminal.StartThread()).Start();
-			EphysTerminal.ProcessingComplete += EphysStream_ProcessingComplete;
-
-			UpdateInterfaceControls();
-			SwitchDisplay(displayType);
+			catch (Exception ex)
+			{
+				MessageBox.Show($"An error has occurred while connecting to the target device:\n\n{ex.Message}", "Error!", MessageBoxButton.OK, MessageBoxImage.Error);
+			}
 		}
 
 		/// <summary>
@@ -380,7 +402,6 @@ namespace TINS.Terminal
 			{
 				if (EphysTerminal is not null && EphysTerminal.IsStreaming)
 				{
-
 					if (MessageBox.Show("A configuration already exists. Do you wish to overwrite it?",
 						"Caution!", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
 					{
@@ -465,6 +486,8 @@ namespace TINS.Terminal
 			EphysTerminal	?.Dispose();
 			ProtocolWizard	?.Dispose();
 			SettingsDialog	?.Close();
+
+			Environment.Exit(0);
 		}
 		
 		/// <summary>
@@ -497,7 +520,7 @@ namespace TINS.Terminal
 				{
 					Title				= "Open protocol configuration file",
 					InitialDirectory	= @"C:\_code\ephysstream\settings\protocols",
-					Filter				= "Configuration files (*.json) | *.json",
+					Filter				= "Protocol configuration files (*.ini) | *.ini",
 					Multiselect			= false
 				};
 
@@ -519,6 +542,18 @@ namespace TINS.Terminal
 			});
 			t.SetApartmentState(ApartmentState.STA);
 			t.Start();
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="e"></param>
+		private void TeensyFactory_TeensyAdded(Teensy e)
+		{
+			Dispatcher.BeginInvoke(() =>
+			{
+				lblDeviceStatus.Content = $"Device {e.Name} connected on port {e.PortName}.";
+			});
 		}
 
 		/// <summary>
@@ -572,7 +607,6 @@ namespace TINS.Terminal
 
 
 		#region Protected members
-
 		/// <summary>
 		/// 
 		/// </summary>
@@ -638,9 +672,6 @@ namespace TINS.Terminal
 				}
 			}
 		}
-
-
-
 
 		#endregion
     }

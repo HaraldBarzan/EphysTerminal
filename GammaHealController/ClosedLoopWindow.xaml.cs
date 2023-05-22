@@ -370,7 +370,6 @@ namespace GammaHealController
 		}
 
 
-
 		protected bool				_closedLoopControl;
 		protected DAQmxStream		_daq;
 		protected GenusController	_controller;

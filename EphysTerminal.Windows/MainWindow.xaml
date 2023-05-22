@@ -5,8 +5,8 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:disp="clr-namespace:TINS.Terminal.Display"
         mc:Ignorable="d"
-        Title="EphysStream" 
-		Width="1800" Height="900"
+        Title="TINS Ephys Terminal" 
+		Width="1600" Height="800"
 		MinWidth="1200" MinHeight="700" 
 		Background="#2d2d30" BorderBrush="LightGray" BorderThickness="1"
 		WindowStyle="None" WindowStartupLocation="CenterScreen" ResizeMode="CanResizeWithGrip" AllowsTransparency="True"
@@ -75,13 +75,15 @@
 		<Grid Grid.Row="3">
 			<Grid.ColumnDefinitions>
 				<ColumnDefinition Width="*"/>
+				<ColumnDefinition Width="*"/>
 				<ColumnDefinition Width="200"/>
 				<ColumnDefinition Width="200"/>
 			</Grid.ColumnDefinitions>
 			
 			<Label Grid.Column="0" Name="lblStatus" Content="No configuration loaded" FontSize="12" Margin="10,0,0,0"/>
-			<ProgressBar Grid.Column="1" x:Name="pgbTrials" Background="#383838" Margin="2,5" Foreground="White"/>
-			<Label Grid.Column="2" Name="lblTrialStatus" Content="No protocol loaded." FontSize="12" Margin="10,0,0,0"/>
+			<Label Grid.Column="1" Name="lblDeviceStatus" Content="No external devices connected" FontSize="12" Margin="0,0,10,0" HorizontalAlignment="Right"/>
+			<ProgressBar Grid.Column="2" x:Name="pgbTrials" Background="#383838" Margin="2,5" Foreground="White"/>
+			<Label Grid.Column="3" Name="lblTrialStatus" Content="No protocol loaded." FontSize="12" Margin="10,0,0,0"/>
 		</Grid>
     </Grid>
 </Window>

@@ -1,0 +1,29 @@
+{
+  "protocolType": "genus",
+  "supportedSamplingPeriod": 1,
+  "trialStartTrigger": 1,
+  "stimStartTrigger": 2,
+  "stimEndTrigger": 3,
+  "trialEndTrigger": 4,
+  "flickerTriggersBinding": "L",
+  "flickerTriggersRiseTrigger": 5,
+  "flickerTriggersFallTrigger": 6,
+  "supportedTriggers": [ 1, 2, 3, 4, 5, 6, 7 ],
+  "randomize": true,
+  "feedbackOnTrialCompletion": true,
+  "intertrialTimeout": 2,
+  "trials": [
+    {
+      "count": 10,
+      "instructionGenerator": "static",
+      "trialName": "static-v-6000ms-07Hz",
+      "frequency": 7,
+      "audioToneFrequency": 10000,
+      "duration": 6000,
+      "audio": false,
+      "visual": true,
+      "preTimeout": 1,
+      "postTimeout": 1
+    }
+  ]
+}

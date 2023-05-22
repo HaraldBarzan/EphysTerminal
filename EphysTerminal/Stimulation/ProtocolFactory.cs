@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
+using TINS.IO;
 
 namespace TINS.Terminal.Stimulation
 {
@@ -22,7 +23,6 @@ namespace TINS.Terminal.Stimulation
 		static Type ProtocolGenericBase { get; } = typeof(StimulationProtocol<,>);
 		static Type ProtocolConfigBase { get; } = typeof(ProtocolConfig);
 		static Type StimulusControllerBase { get; } = typeof(StimulusController);
-
 
 
 		/// <summary>
@@ -87,24 +87,26 @@ namespace TINS.Terminal.Stimulation
 		/// </summary>
 		/// <param name="protocolFile"></param>
 		/// <returns></returns>
-		public static IStimulationProtocol LoadProtocol(EphysTerminal stream, string protocolFile)
+		public static IStimulationProtocol LoadProtocol(EphysTerminal stream, string protocolFile, string headerSection = "PROTOCOL")
 		{
 			if (!File.Exists(protocolFile))
 				throw new FileNotFoundException($"Protocol file \'{protocolFile}\' does not exist.");
 
 
 			// will throw an error if something is wrong
-			var file	= File.ReadAllText(protocolFile);
-			var cfg		= JsonSerializer.Deserialize<ProtocolConfig>(file);
-			var type	= GetProtocolType(cfg.ProtocolType);
+			var ini	= new INI(protocolFile);
+			var cfg = new ProtocolConfig();
+			INISerialization.Serialize(ini[headerSection], cfg);
+			var type = GetProtocolType(cfg.ProtocolType.ToLower());
 
 			// typecast and load the configuration
 			if (GetProtocolUnderlyingTypes(type, out var configType, out var stimCtlType))
 			{
 				// load the config (under the provided type)
-				var config = JsonSerializer.Deserialize(file, configType);
+				var config = Activator.CreateInstance(configType) as ProtocolConfig;
+				config.Serialize(ini, headerSection, Ephys.Settings.SerializationDirection.In);
 
-				// create the stimulus controller
+				// create the stimulus controller (if needed)
 				var stimCtl = stimCtlType != StimulusControllerBase
 					? Activator.CreateInstance(stimCtlType)
 					: null;

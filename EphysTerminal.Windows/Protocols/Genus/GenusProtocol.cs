@@ -1,7 +1,8 @@
 ﻿using System;
 using System.IO;
-using System.Text.Json.Serialization;
 using TINS.Conexus.Data;
+using TINS.Ephys.Settings;
+using TINS.IO;
 using TINS.Terminal.Stimulation;
 using TINS.Terminal.UI;
 using TINS.Utilities;
@@ -38,7 +39,7 @@ namespace TINS.Terminal.Protocols.Genus
 			}
 
 			// check compatibility
-			if (Config.SupportedSamplingPeriod != SourceStream.Settings.Input.PollingPeriod)
+			if (Config.BlockPeriod != SourceStream.Settings.Input.PollingPeriod)
 				throw new Exception("The protocol's polling period does not match the current settings.");
 
 			// attach feedback detector
@@ -183,18 +184,21 @@ namespace TINS.Terminal.Protocols.Genus
 		/// <summary>
 		/// Encapsulates a genus trial type.
 		/// </summary>
-		public class Trial
+		public class TrialTemplate
 		{
-			[JsonPropertyName("count")]
+			[INILine(Key = "REPETITIONS")]
 			public int Count { get; set; }
 
-			[JsonPropertyName("instructionList")]
-			public string InstructionList { get; set; }
+			[INILine(Key = "INSTRUCTION_GENERATOR")]
+			public string InstructionGenerator { get; set; }
 
-			[JsonPropertyName("preTimeout")]
+			[INILine(Key = "TRIAL_NAME")]
+			public string TrialName { get; set; }
+
+			[INILine(Key = "PRESTIMULUS_TIMEOUT")]
 			public int PrestimulusTimeout { get; set; }
 
-			[JsonPropertyName("postTimeout")]
+			[INILine(Key = "POSTSTIMULUS_TIMEOUT")]
 			public int PoststimulusTimeout { get; set; }
 
 			public GenusCachedTrial Instructions { get; set; }
@@ -222,9 +226,9 @@ namespace TINS.Terminal.Protocols.Genus
 			/// <param name="protocol">The parent Genus protocol.</param>
 			public StateMachine(GenusProtocol protocol)
 			{
-				_p = protocol;
-				_stim = protocol.StimulusController;
-				_ui = protocol.SourceStream.UI;
+				_p		= protocol;
+				_stim	= protocol.StimulusController;
+				_ui		= protocol.SourceStream.UI;
 
 				// just so we have a list at any time
 				ResetTrials();
@@ -270,6 +274,7 @@ namespace TINS.Terminal.Protocols.Genus
 					{
 						_stateTimeout = _trials[CurrentTrialIndex].PrestimulusTimeout;
 						_stim.EmitTrigger(_p.Config.TrialStartTrigger);
+						Console.WriteLine($"Emit trigger {_p.Config.TrialStartTrigger} at {DateTime.Now}.");
 					});
 
 
@@ -302,6 +307,7 @@ namespace TINS.Terminal.Protocols.Genus
 					{
 						if (e is GenusEvent.NewBlock || e is GenusEvent.InitiateTrial)
 						{
+							--_stateTimeout;
 							if (_stateTimeout == 0)
 							{
 								// emit line
@@ -321,7 +327,6 @@ namespace TINS.Terminal.Protocols.Genus
 									return GenusState.Await;
 								return GenusState.Prestimulus;
 							}
-							--_stateTimeout;
 						}
 
 						if (e is GenusEvent.Stop)
@@ -333,6 +338,13 @@ namespace TINS.Terminal.Protocols.Genus
 						if (!_p.Config.TrialSelfInitiate)
 							_stateTimeout = _p.Config.IntertrialTimeout;
 					});
+			}
+
+			protected override bool TransitionTo(GenusState newState)
+			{
+				if (newState != CurrentState)
+					Console.WriteLine($"State transition to {newState} at {DateTime.Now}.");
+				return base.TransitionTo(newState);
 			}
 
 			/// <summary>
@@ -348,7 +360,7 @@ namespace TINS.Terminal.Protocols.Genus
 			/// <summary>
 			/// Current trial.
 			/// </summary>
-			public Trial CurrentTrial => _trials.IsEmpty ? null : _trials[CurrentTrialIndex];
+			public TrialTemplate CurrentTrial => _trials.IsEmpty ? null : _trials[CurrentTrialIndex];
 
 			/// <summary>
 			/// Reset the trial list and the current index.
@@ -358,7 +370,7 @@ namespace TINS.Terminal.Protocols.Genus
 				// prepare the trial list
 				_trials.Clear();
 				CurrentTrialIndex = -1;
-				foreach (var t in _p.Config.Trials)
+				foreach (var t in _p.Config.TrialTemplates)
 					for (int i = 0; i < t.Count; ++i)
 						_trials.PushBack(t);
 
@@ -369,9 +381,9 @@ namespace TINS.Terminal.Protocols.Genus
 				// assign each trial its instruction list
 				foreach (var t in _trials)
 				{
-					var instructions = GenusCachedTrial.Get(t.InstructionList);
+					var instructions = GenusCachedTrial.Create(_p.Config, t);
 					if (instructions is null)
-						throw new Exception($"Instruction list \'{t.InstructionList}\' not found for trial.");
+						throw new Exception($"Instruction list \'{t.InstructionGenerator}\' not found for trial.");
 					t.Instructions = instructions;
 				}
 			}
@@ -409,19 +421,19 @@ namespace TINS.Terminal.Protocols.Genus
 			/// <returns>A state.</returns>
 			protected GenusState Elapse(GenusState onTimeoutReached)
 			{
+				--_stateTimeout;
 				if (_stateTimeout == 0)
 					return onTimeoutReached;
-				--_stateTimeout;
 				return CurrentState;
 			}
 
 
 
-			protected GenusProtocol		_p;
-			protected GenusController	_stim;
-			protected IUserInterface	_ui;
-			protected Vector<Trial>		_trials			= new();
-			protected int				_stateTimeout;
+			protected GenusProtocol				_p;
+			protected GenusController			_stim;
+			protected IUserInterface			_ui;
+			protected Vector<TrialTemplate>		_trials			= new();
+			protected int						_stateTimeout;
 		}
 	}
 
@@ -436,43 +448,189 @@ namespace TINS.Terminal.Protocols.Genus
 		/// <summary>
 		/// 
 		/// </summary>
-		[JsonPropertyName("supportedSamplingPeriod")]
-		public float SupportedSamplingPeriod { get; set; }
+		public struct TrialDefinition
+		{
+			[INILine(Key = "NAME")]
+			public string Name { get; set; }
+
+			[INILine(Key = "TYPE")]
+			public string TemplateType { get; set; }
+		}
+
+		/// <summary>
+		/// The duration, in seconds, of a single block of data.
+		/// </summary>
+		[INILine(Key = "BLOCK_PERIOD")]
+		public float BlockPeriod { get; set; }
 
 		/// <summary>
 		/// 
 		/// </summary>
-		[JsonPropertyName("trialStartTrigger")]
+		[INILine(Key = "TRIAL_START_TRIGGER")]
 		public byte TrialStartTrigger { get; set; }
 
 		/// <summary>
 		/// 
 		/// </summary>
-		[JsonPropertyName("trialEndTrigger")]
+		[INILine(Key = "STIMULUS_START_TRIGGER")]
+		public byte StimulationStartTrigger { get; set; }
+
+		/// <summary>
+		/// 
+		/// </summary>
+		[INILine(Key = "STIMULUS_END_TRIGGER")]
+		public byte StimulationEndTrigger { get; set; }
+
+		/// <summary>
+		/// 
+		/// </summary>
+		[INILine(Key = "TRIAL_END_TRIGGER")]
 		public byte TrialEndTrigger { get; set; }
 
 		/// <summary>
 		/// 
 		/// </summary>
-		[JsonPropertyName("intertrialTimeout")]
+		public GenusController.FlickerTriggerAttach FlickerTriggersBinding
+		{
+			get => (GenusController.FlickerTriggerAttach)FlickerTriggersBindingInt;
+			set => FlickerTriggersBindingInt = (int)value;
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		[INILine(Key = "FLICKER_TRIGGERS_BINDING", Default = 0)]
+		protected int FlickerTriggersBindingInt { get; set; }
+
+		/// <summary>
+		/// 
+		/// </summary>
+		[INILine(Key = "FLICKER_TRIGGERS_RISE_TRIGGER")]
+		public byte FlickerTriggersRiseTrigger { get; set; }
+
+		/// <summary>
+		/// 
+		/// </summary>
+		[INILine(Key = "FLICKER_TRIGGERS_FALL_TRIGGER")]
+		public byte FlickerTriggersFallTrigger { get; set; }
+
+		/// <summary>
+		/// 
+		/// </summary>
+		[INILine(Key = "INTERTRIAL_TIMEOUT")]
 		public int IntertrialTimeout { get; set; }
 
 		/// <summary>
 		/// 
 		/// </summary>
-		[JsonPropertyName("randomize")]
+		[INILine(Key = "RANDOMIZE_TRIALS")]
 		public bool Randomize { get; set; }
 
 		/// <summary>
 		/// 
 		/// </summary>
-		[JsonPropertyName("trialSelfInitiate")]
+		[INILine(Key = "TRIAL_SELF_INITIATE")]
 		public bool TrialSelfInitiate { get; set; }
+
+		/// <summary>
+		/// 
+		/// </summary>
+		[INILine(Key = "FEEDBACK_ON_STIMULUS_END")]
+		public bool FeedbackOnStimulusEnd { get; set; }
+
+		/// <summary>
+		/// 
+		/// </summary>
+		[INIStructVector(Key = "TRIAL_TEMPLATE_COUNT", ValueMask = "TRIAL_TEMPLATE_*_", StructType = typeof(TrialDefinition))]
+		public Vector<TrialDefinition> TrialDefinitions { get; set; } = new();
 
 		/// <summary>
 		/// The list of trials.
 		/// </summary>
-		[JsonPropertyName("trials")]
-		public Vector<GenusProtocol.Trial> Trials { get; set; } = new();
+		public Vector<GenusProtocol.TrialTemplate> TrialTemplates { get; set; } = new();
+
+		/// <summary>
+		/// Serialization.
+		/// </summary>
+		/// <param name="ini"></param>
+		/// <param name="sectionName"></param>
+		/// <param name="direction"></param>
+		public override void Serialize(INI ini, string sectionName, SerializationDirection direction)
+		{
+			base.Serialize(ini, sectionName, direction);
+
+			if (direction is SerializationDirection.In)
+			{
+				TrialTemplates.Resize(TrialDefinitions.Size);
+
+				for (int i = 0; i < TrialDefinitions.Size; i++)
+				{
+					TrialTemplates[i] = TrialDefinitions[i].TemplateType switch
+					{
+						"STATIC"	=> new GenusStaticTrial(),
+						"RAMP"		=> new GenusRampTrial(),
+						_			=> null
+					};
+
+					if (TrialTemplates[i] is not null)
+						INISerialization.Serialize(ini[TrialDefinitions[i].Name], TrialTemplates[i]);
+				}
+			}
+			else
+			{
+				for (int i = 0; i < TrialTemplates.Size; ++i)
+					INISerialization.Serialize(TrialTemplates, ini[TrialDefinitions[i].Name]);
+			}
+		}
+	}
+
+	/// <summary>
+	/// Genus static trial.
+	/// </summary>
+	public class GenusStaticTrial
+		: GenusProtocol.TrialTemplate
+	{
+		[INILine(Key = "FREQUENCY")]
+		public float Frequency { get; set; }
+
+		[INILine(Key = "AUDIO_TONE_FREQUENCY")]
+		public float AudioToneFrequency { get; set; } = 10000;
+
+		[INILine(Key = "DURATION")]
+		public int Duration { get; set; }
+
+		[INILine(Key = "USE_AUDIO_STIMULATION")]
+		public bool UseAudioStimulation { get; set; }
+
+		[INILine(Key = "USE_VISUAL_STIMULATION")]
+		public bool UseVisualStimulation { get; set; }
+	}
+
+	/// <summary>
+	/// 
+	/// </summary>
+	public class GenusRampTrial
+		: GenusProtocol.TrialTemplate
+	{
+		[INILine(Key = "FREQUENCY_START")]
+		public float FrequencyStart { get; set; }
+
+		[INILine(Key = "FREQUENCY_END")]
+		public float FrequencyEnd { get; set; }
+
+		[INILine(Key = "FREQUENCY_STEPS")]
+		public int FrequencySteps { get; set; }
+
+		[INILine(Key = "AUDIO_TONE_FREQUENCY")]
+		public float AudioToneFrequency { get; set; } = 10000;
+
+		[INILine(Key = "DURATION")]
+		public int Duration { get; set; }
+
+		[INILine(Key = "USE_AUDIO_STIMULATION")]
+		public bool UseAudioStimulation { get; set; }
+
+		[INILine(Key = "USE_VISUAL_STIMULATION")]
+		public bool UseVisualStimulation { get; set; }
 	}
 }

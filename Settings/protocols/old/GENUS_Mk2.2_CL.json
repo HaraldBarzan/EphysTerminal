@@ -1,0 +1,28 @@
+{
+  "protocolType": "genus-closedloop",
+  "supportedSamplingPeriod": 1,
+  "supportedTriggers": [ 1, 2, 3, 4, 5, 6, 7 ],
+  "trialSelfInitiate": false,
+  "useProtocolScreen": true,
+  "trialCount": 20,
+  "inputBuffer": "LFP-DECIMATED",
+  "startingFlickerFrequency": 40,
+  "frequencyRange": [ 20, 60 ],
+  "useLog10": true,
+
+  "intertrialTimeout": 4,
+  "stimulationTimeout": 80,
+  "updateTimeout": 4,
+  "maskTimeout": 4,
+  "prestimulusTimeout": 4,
+  "poststimulusTimeout": 4,
+  "postMaskTimeout": 4,
+
+  "trialStartTrigger": 1,
+  "prestimulusTrigger": 2,
+  "stimulationStartTrigger": 3,
+  "stimulationEndTrigger": 4,
+  "poststimulusEndTrigger": 5,
+  "trialEndTrigger": 6,
+  "updateTrigger": 7
+}

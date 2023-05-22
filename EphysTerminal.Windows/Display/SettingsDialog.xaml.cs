@@ -100,8 +100,8 @@ namespace TINS.Terminal.Display
 			int oldSelectedIndex = cmbPort.SelectedIndex;
 
 			cmbPort.Items.Clear();
-			foreach (var p in SerialPort.GetPortNames())
-				cmbPort.Items.Add(p);
+			foreach (var p in App.GetConnectedTeensys())
+				cmbPort.Items.Add(p.PortName);
 
 			if (oldSelectedIndex > -1)
 				cmbPort.SelectedIndex = oldSelectedIndex;

@@ -7,6 +7,7 @@ using System.Windows.Media;
 using TINS.Analysis;
 using TINS.Conexus.Data;
 using TINS.Ephys.Processing;
+using TINS.IO;
 using TINS.Terminal.Display.Protocol;
 using TINS.Terminal.Stimulation;
 using TINS.Utilities;
@@ -45,8 +46,9 @@ namespace TINS.Terminal.Protocols.Genus
 			: base(stream, config, stimulusController)
 		{
 			// load the configuration
-			Config		= config;
-			TrialLogger = null;
+			Config			= config;
+			UpdateLogger	= null;
+			TrialLogger		= null;
 
 			if (Config.TrialSelfInitiate && !Config.UseProtocolScreen)
 			{
@@ -59,7 +61,7 @@ namespace TINS.Terminal.Protocols.Genus
 			}
 
 			// check compatibility
-			if (Config.SupportedSamplingPeriod != SourceStream.Settings.Input.PollingPeriod)
+			if (Config.BlockPeriod != SourceStream.Settings.Input.PollingPeriod)
 				throw new Exception("The protocol's polling period does not match the current settings.");
 
 			// attach feedback detector
@@ -107,10 +109,9 @@ namespace TINS.Terminal.Protocols.Genus
 			{
 				// obtain path from output 
 				SourceStream.OutputStream.GetPath(out var dir, out var dsName);
-				var outputPath = Path.Combine(dir, dsName + ".eti");
 
 				// create the text writer
-				TrialLogger = new TrialInfoLogger(outputPath,
+				UpdateLogger = new TrialInfoLogger(Path.Combine(dir, dsName + "-updates.eti"),
 					header: new()
 					{
 						"Trial",
@@ -119,6 +120,14 @@ namespace TINS.Terminal.Protocols.Genus
 						"OldFrequency",
 						"NewFrequency"
 					});
+				TrialLogger = new TrialInfoLogger(Path.Combine(dir, dsName + ".eti"),
+					header: new()
+					{
+						"Trial",
+						"SourceChannel",
+					});
+
+				Console.WriteLine("Created trial logger");
 			}
 
 			RaiseProtocolStarted();
@@ -133,6 +142,8 @@ namespace TINS.Terminal.Protocols.Genus
 			{
 				_stateMachine.ProcessEvent(GenusEvent.Stop);
 
+				UpdateLogger?.Dispose();
+				UpdateLogger = null;
 				TrialLogger?.Dispose();
 				TrialLogger = null;
 
@@ -192,7 +203,12 @@ namespace TINS.Terminal.Protocols.Genus
 		public override bool IsRunning => _stateMachine.CurrentState != GenusClosedLoopState.Idle;
 
 		/// <summary>
-		/// Text output for this protocol. Is active only when recording.
+		/// Text output for this protocol. Tracks frequency updates. Is active only when recording.
+		/// </summary>
+		public TrialInfoLogger UpdateLogger { get; protected set; }
+
+		/// <summary>
+		/// Text output for this protocol. Tracks actual trials. Is active only when recording.
 		/// </summary>
 		public TrialInfoLogger TrialLogger { get; protected set; }
 
@@ -238,10 +254,9 @@ namespace TINS.Terminal.Protocols.Genus
 				// init spectrum primitives
 				_input		= _p.SourceStream.ProcessingPipeline.GetBuffer(_p.Config.InputBuffer);
 				_sourceCh	= _input.ChannelLabels.Front;
-				var nfft	= Math.Min(Numerics.Round(_p.Config.SupportedSamplingPeriod *  _p.Config.UpdateTimeout *  _input.SamplingRate), _input.BufferSize);
+				var nfft	= Math.Min(Numerics.Round(_p.Config.BlockPeriod *  _p.Config.UpdateTimeout *  _input.SamplingRate), _input.BufferSize);
 				_ft			.Initialize(nfft);
 				_spec		.Initialize(nfft, (0, _input.SamplingRate / 2));
-
 			}
 
 			/// <summary>
@@ -251,8 +266,8 @@ namespace TINS.Terminal.Protocols.Genus
 			{
 				// IDLE
 				AddState(GenusClosedLoopState.Idle,
-					eventAction: (e) => e is GenusEvent.Start 
-						? GenusClosedLoopState.Intertrial 
+					eventAction: (e) => e is GenusEvent.Start
+						? GenusClosedLoopState.Intertrial
 						: CurrentState,
 					enterStateAction: () =>
 					{
@@ -264,32 +279,32 @@ namespace TINS.Terminal.Protocols.Genus
 
 				// INTERTRIAL
 				AddState(GenusClosedLoopState.Intertrial,
-					//eventAction: (e) =>
-					//{
-					//	if (CurrentTrialIndex < TotalTrialCount)
-					//	{
-					//		switch (e)
-					//		{
-					//			case GenusEvent.NewBlock:
-					//				return Elapse(_p.Config.TrialSelfInitiate ? GenusClosedLoopState.Await : GenusClosedLoopState.Mask);
-					//			case GenusEvent.Stop:
-					//				RunCompleted?.Invoke();
-					//				return GenusClosedLoopState.Idle;
-					//			default:
-					//				return CurrentState;
-					//		}
-					//	}
-					//	else
-					//	{
-					//		RunCompleted?.Invoke();
-					//		return GenusClosedLoopState.Idle;
-					//	}
-					//},
-					eventAction:		(e) => Elapse(
-						CurrentTrialIndex < TotalTrialCount // check stopping condition
-							? (_p.Config.TrialSelfInitiate ? GenusClosedLoopState.Await : GenusClosedLoopState.Mask) 
-							: GenusClosedLoopState.Idle, e),
-					enterStateAction:	() =>
+					eventAction: (e) =>
+					{
+						if (e is GenusEvent.NewBlock || e is GenusEvent.InitiateTrial)
+						{
+							if (CurrentTrialIndex < TotalTrialCount)
+							{
+								switch (e)
+								{
+									case GenusEvent.NewBlock:
+										return Elapse(_p.Config.TrialSelfInitiate ? GenusClosedLoopState.Await : GenusClosedLoopState.Mask);
+									default:
+										return CurrentState;
+								}
+							}
+							else
+							{
+								RunCompleted?.Invoke();
+								return GenusClosedLoopState.Idle;
+							}
+						}
+
+						if (e is GenusEvent.Stop)
+							return GenusClosedLoopState.Idle;
+						return CurrentState;
+					},
+					enterStateAction: () =>
 					{
 						_stateTimeout = _p.Config.IntertrialTimeout;
 						_pd?.ClearScreenAsync(Color.FromRgb(0, 0, 0));
@@ -298,17 +313,20 @@ namespace TINS.Terminal.Protocols.Genus
 
 				// AWAIT
 				AddState(GenusClosedLoopState.Await,
-					eventAction: (e) => e switch 
-					{ 
-						GenusEvent.InitiateTrial	=> GenusClosedLoopState.Mask,
-						GenusEvent.Stop				=> GenusClosedLoopState.Idle,
-						_							=> CurrentState
+					eventAction: (e) => e switch
+					{
+						GenusEvent.InitiateTrial => GenusClosedLoopState.Mask,
+						GenusEvent.Stop => GenusClosedLoopState.Idle,
+						_ => CurrentState
 					},
-					enterStateAction: () => _pd?.SwitchToChannelSelectAsync(Color.FromRgb(0, 0, 0), 
-					_input.ChannelLabels,
-					_input.ChannelLabels.IndexOf(_sourceCh),
-					"Select source channel and press SPACE or one of the EEG buttons to initiate next trial...", 
-					(CurrentTrialIndex, TotalTrialCount)),
+					enterStateAction: () =>
+					{
+						_pd?.SwitchToChannelSelectAsync(Color.FromRgb(0, 0, 0),
+							_input.ChannelLabels,
+							_input.ChannelLabels.IndexOf(_sourceCh),
+							"Select source channel and press SPACE or one of the EEG buttons to initiate next trial...",
+							(CurrentTrialIndex, TotalTrialCount));
+					},
 					exitStateAction: () =>
 					{
 						if (_pd is not null)
@@ -348,7 +366,7 @@ namespace TINS.Terminal.Protocols.Genus
 						_stimFreq = _p.Config.StartingFlickerFrequency;
 						_gc.ChangeParameters(_stimFreq, null, _stimFreq, 10000, _p.Config.StimulationStartTrigger);
 
-						_p.TrialLogger?.LogTrial(
+						_p.UpdateLogger?.LogTrial(
 							CurrentTrialIndex + 1,
 							_updateIndex,
 							_sourceCh,
@@ -376,12 +394,11 @@ namespace TINS.Terminal.Protocols.Genus
 					},
 					exitStateAction:	() =>
 					{
+						_p.TrialLogger?.LogTrial(CurrentTrialIndex + 1, _sourceCh);
 						_gc.EmitTrigger(_p.Config.TrialEndTrigger);
 						CurrentTrialIndex++;
 					});
 			}
-
-
 
 			/// <summary>
 			/// Total number of trials.
@@ -412,6 +429,7 @@ namespace TINS.Terminal.Protocols.Genus
 						return GenusClosedLoopState.Poststimulus;
 
 					// update stim parameters if necessary
+					--_stimUpdateTimeout;
 					if (_stimUpdateTimeout == 0)
 					{
 						_stimUpdateTimeout = _p.Config.UpdateTimeout;
@@ -421,7 +439,7 @@ namespace TINS.Terminal.Protocols.Genus
 						_updateIndex++;
 						
 						// emit eti line
-						_p.TrialLogger?.LogTrial(
+						_p.UpdateLogger?.LogTrial(
 							CurrentTrialIndex + 1,
 							_updateIndex,
 							_sourceCh,
@@ -429,14 +447,33 @@ namespace TINS.Terminal.Protocols.Genus
 							_stimFreq);
 
 						// update trigger
-						_gc.ChangeParameters(_stimFreq, null, _stimFreq, 10000, _p.Config.StimUpdateTrigger);
+						//_gc.ChangeParameters(_stimFreq, null, _stimFreq, 10000, _p.Config.StimUpdateTrigger);
+						if (_p.Config.UseAudioStimulation && _p.Config.UseVisualStimulation)
+							_gc.ChangeParameters(_stimFreq, _p.Config.AudioToneFrequency, _p.Config.StimUpdateTrigger);
+						else
+						{
+							_gc.ChangeParameters(
+								frequencyL:		_p.Config.UseVisualStimulation ? _stimFreq : null,
+								frequencyR:		null,
+								frequencyAudio: _p.Config.UseAudioStimulation ? _stimFreq : null,
+								frequencyTone:	_p.Config.AudioToneFrequency,
+								trigger:		_p.Config.StimUpdateTrigger);
+						}
+
+						Thread.Sleep(20);
+						_gc.EmitTrigger(0);
 						//_gc.EmitTrigger(_p.Config.StimUpdateTrigger);
 					}
-					else
-						--_stimUpdateTimeout;
 				}
 
 				return CurrentState;
+			}
+
+			protected override bool TransitionTo(GenusClosedLoopState newState)
+			{
+				if (newState != CurrentState)
+					Console.WriteLine($"State transition to {newState} at {DateTime.Now}.");
+				return base.TransitionTo(newState);
 			}
 
 			/// <summary>
@@ -466,9 +503,9 @@ namespace TINS.Terminal.Protocols.Genus
 			/// <returns>A state.</returns>
 			protected GenusClosedLoopState Elapse(GenusClosedLoopState onTimeoutReached)
 			{
-				if (_stateTimeout == 0)
-					return onTimeoutReached;
 				--_stateTimeout;
+				if (_stateTimeout <= 0)
+					return onTimeoutReached;
 				return CurrentState;
 			}
 
@@ -524,8 +561,8 @@ namespace TINS.Terminal.Protocols.Genus
 				}
 
 				// find maximum
-				int iMax	= _spec.FrequencyToBin(_p.Config.FrequencyRange.Front);
-				int end		= _spec.FrequencyToBin(_p.Config.FrequencyRange.Back) + 1;
+				int iMax	= _spec.FrequencyToBin(_p.Config.StimulationFrequencyLower);
+				int end		= _spec.FrequencyToBin(_p.Config.StimulationFrequencyUpper) + 1;
 
 				for (int i = iMax + 1; i < end; ++i)
 				{
@@ -533,7 +570,7 @@ namespace TINS.Terminal.Protocols.Genus
 						iMax = i;
 				}
 
-				return Numerics.Clamp(MathF.Round(_spec.BinToFrequency(iMax)), (_p.Config.FrequencyRange.Front, _p.Config.FrequencyRange.Back));
+				return Numerics.Clamp(MathF.Round(_spec.BinToFrequency(iMax)), _p.Config.StimulationFrequencyRange);
 			}
 
 
@@ -553,8 +590,6 @@ namespace TINS.Terminal.Protocols.Genus
 		}
 	}
 
-
-
 	/// <summary>
 	/// 
 	/// </summary>
@@ -564,133 +599,170 @@ namespace TINS.Terminal.Protocols.Genus
 		/// <summary>
 		/// 
 		/// </summary>
-		[JsonPropertyName("supportedSamplingPeriod")]
-		public float SupportedSamplingPeriod { get; set; }
+		[INILine(Key = "BLOCK_PERIOD")]
+		public float BlockPeriod { get; set; }
 
 		/// <summary>
 		/// User input is required to start a trial.
 		/// </summary>
-		[JsonPropertyName("trialSelfInitiate")]
+		[INILine(Key = "TRIAL_SELF_INITIATE", Default = false)]
 		public bool TrialSelfInitiate { get; set; }
 
 		/// <summary>
 		/// Use the protocol screen with fixation cross.
 		/// </summary>
-		[JsonPropertyName("useProtocolScreen")]
+		[INILine(Key = "USE_PROTOCOL_SCREEN", Default = false)]
 		public bool UseProtocolScreen { get; set; }
 
 		/// <summary>
 		/// Number of trials in the protocol.
 		/// </summary>
-		[JsonPropertyName("trialCount")]
+		[INILine(Key = "TRIAL_COUNT")]
 		public int TrialCount { get; set; }
 
 		/// <summary>
 		/// 
 		/// </summary>
-		[JsonPropertyName("inputBuffer")]
+		[INILine(Key = "INPUT_BUFFER")]
 		public string InputBuffer { get; set; }
 
 		/// <summary>
 		/// 
 		/// </summary>
-		[JsonPropertyName("startingFlickerFrequency")]
+		[INILine(Key = "INITIAL_FREQUENCY")]
 		public float StartingFlickerFrequency { get; set; }
 
 		/// <summary>
 		/// 
 		/// </summary>
-		[JsonPropertyName("frequencyRange")]
-		public Vector<float> FrequencyRange { get; set; }
+		public (float Lower, float Upper) StimulationFrequencyRange
+		{
+			get => (StimulationFrequencyLower, StimulationFrequencyUpper);
+			set 
+			{
+				StimulationFrequencyLower = value.Lower;
+				StimulationFrequencyUpper = value.Upper;
+			}
+		}
 
 		/// <summary>
 		/// 
 		/// </summary>
-		[JsonPropertyName("useLog10")]
+		[INILine(Key = "FREQUENCY_RANGE_LOWER", Default = 20f)]
+		public float StimulationFrequencyLower { get; set; }
+
+		/// <summary>
+		/// 
+		/// </summary>
+		[INILine(Key = "FREQUENCY_RANGE_UPPER", Default = 60f)]
+		public float StimulationFrequencyUpper { get; set; }
+
+		/// <summary>
+		/// 
+		/// </summary>
+		[INILine(Key = "USE_AUDIO_STIMULATION", Default = true)]
+		public bool UseAudioStimulation { get; set; }
+
+		/// <summary>
+		/// 
+		/// </summary>
+		[INILine(Key = "AUDIO_TONE_FREQUENCY", Default = 10000f)]
+		public float AudioToneFrequency { get; set; }
+
+		/// <summary>
+		/// 
+		/// </summary>
+		[INILine(Key = "USE_VISUAL_STIMULATION", Default = true)]
+		public bool UseVisualStimulation { get; set; }
+
+		/// <summary>
+		/// 
+		/// </summary>
+		[INILine(Key = "USE_LOG10", Default = true)]
 		public bool UseLog10 { get; set; }
 
 		/// <summary>
 		/// The intertrial timeout in blocks.
 		/// </summary>
-		[JsonPropertyName("intertrialTimeout")]
+		[INILine(Key = "INTERTRIAL_TIMEOUT")]
 		public int IntertrialTimeout { get; set; }
 
 		/// <summary>
 		/// The stimulation timeout in blocks.
 		/// </summary>
-		[JsonPropertyName("stimulationTimeout")]
+		[INILine(Key = "STIMULATION_TIMEOUT")]
 		public int StimulationTimeout { get; set; }
 
 		/// <summary>
 		/// 
 		/// </summary>
-		[JsonPropertyName("updateTimeout")]
+		[INILine(Key = "UPDATE_TIMEOUT")]
 		public int UpdateTimeout { get; set; }
 
 		/// <summary>
 		/// The post-mask timeout in blocks.
 		/// </summary>
-		[JsonPropertyName("maskTimeout")]
+		[INILine(Key = "MASK_TIMEOUT")]
 		public int MaskTimeout { get; set; }
 
 		/// <summary>
 		///  The prestimulus timeout in blocks.
 		/// </summary>
-		[JsonPropertyName("prestimulusTimeout")]
+		[INILine(Key = "PRESTIMULUS_TIMEOUT")]
 		public byte PrestimulusTimeout { get; set; }
 
 		/// <summary>
 		///  The poststimulus timeout in blocks.
 		/// </summary>
-		[JsonPropertyName("poststimulusTimeout")]
+		[INILine(Key = "POSTSTIMULUS_TIMEOUT")]
 		public byte PoststimulusTimeout { get; set; }
 
 		/// <summary>
 		/// The mask timeout in blocks.
 		/// </summary>
-		[JsonPropertyName("postMaskTimeout")]
+		[INILine(Key = "POSTMASK_TIMEOUT")]
 		public int PostMaskTimeout { get; set; }
 
 		/// <summary>
 		/// The trial start trigger.
 		/// </summary>
-		[JsonPropertyName("trialStartTrigger")]
+		[INILine(Key = "TRIAL_START_TRIGGER")]
 		public byte TrialStartTrigger { get; set; }
 
 		/// <summary>
 		/// 
 		/// </summary>
-		[JsonPropertyName("prestimulusStartTrigger")]
+		[INILine(Key = "MASK_START_TRIGGER")]
 		public byte PrestimulusStartTrigger { get; set; }
 
 		/// <summary>
 		/// 
 		/// </summary>
-		[JsonPropertyName("stimulationStartTrigger")]
+		[INILine(Key = "STIMULUS_START_TRIGGER")]
 		public byte StimulationStartTrigger { get; set; }
 
 		/// <summary>
 		/// 
 		/// </summary>
-		[JsonPropertyName("stimulationEndTrigger")]
+		[INILine(Key = "STIMULUS_END_TRIGGER")]
 		public byte StimulationEndTrigger { get; set; }
 
 		/// <summary>
 		/// 
 		/// </summary>
-		[JsonPropertyName("poststimulusEndTrigger")]
+		[INILine(Key = "POSTSTIMULUS_END_TRIGGER")]
 		public byte PoststimulusEndTrigger { get; set; }
 
 		/// <summary>
 		/// The trial end trigger.
 		/// </summary>
-		[JsonPropertyName("trialEndTrigger")]
+		[INILine(Key = "TRIAL_END_TRIGGER")]
 		public byte TrialEndTrigger { get; set; }
 
 		/// <summary>
 		/// 
 		/// </summary>
-		[JsonPropertyName("updateTrigger")]
+		[INILine(Key = "FREQUENCY_UPDATE_TRIGGER")]
 		public byte StimUpdateTrigger { get; set; }
 	}
 }

@@ -2,7 +2,11 @@
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using TeensyNet;
+using TINS.Analysis;
+using TINS.Ephys.Native;
 using TINS.Native;
+using TINS.Terminal.Display.Protocol;
 using TINS.Terminal.Protocols.Genus;
 using TINS.Terminal.Stimulation;
 using TINS.Utilities;
@@ -14,6 +18,11 @@ namespace TINS.Terminal
 	/// </summary>
 	public partial class App : Application
 	{
+		/// <summary>
+		/// Teensy factory (for the application).
+		/// </summary>
+		public static TeensyFactory TeensyFactory { get; } = new();
+
 		/// <summary>
 		/// Attempt to get a resource by type and name.
 		/// </summary>
@@ -29,21 +38,6 @@ namespace TINS.Terminal
 		/// <param name="e"></param>
 		protected override void OnStartup(StartupEventArgs e)
 		{
-			//SkiaProtocolDisplay sk = default;
-			//var t = new Thread(() =>
-			//{
-			//	sk = new();
-			//	sk.ShowDialog();
-			//});
-			//t.SetApartmentState(ApartmentState.STA);
-			//t.Start();
-			//
-			//Thread.Sleep(1000);
-			//var c = new Vector<string>(128, "Ch??");
-			//sk.SwitchToChannelSelectAsync(null, c, 0, "MATA", (0, 10));
-			//
-			//Thread.Sleep(100000);
-
 			// check if system is 64 bit
 			if (!Environment.Is64BitOperatingSystem)
 				throw new PlatformNotSupportedException("Only 64bit OS-es can run this app.");
@@ -52,7 +46,8 @@ namespace TINS.Terminal
 			switch (Environment.OSVersion.Platform)
 			{
 				case PlatformID.Win32NT:
-					NativeWrapper.Provide<FFTWSingle>(@"libfftw3f-3.dll");
+					NativeWrapper.Provide<FFTWSingle>("libfftw3f-3.dll");
+					NativeWrapper.Provide<DAQmx>("nicaiu.dll");
 					break;
 		
 				default:
@@ -76,7 +71,7 @@ namespace TINS.Terminal
 			string				text,
 			string				title,
 			MessageBoxButton	buttons = MessageBoxButton.OK,
-			MessageBoxImage		image = MessageBoxImage.Information)
+			MessageBoxImage		image	= MessageBoxImage.Information)
 		{
 			// define the result
 			var result = new Task<MessageBoxResult>(() => MessageBox.Show(text, title, buttons, image));
@@ -90,10 +85,51 @@ namespace TINS.Terminal
 			return result;
 		}
 
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <returns></returns>
+		public static Vector<Teensy> GetConnectedTeensys()
+		{
+			var result = new Vector<Teensy>();
+			TeensyFactory.EnumTeensies((e) =>
+			{
+				result.PushBack(e);
+				return true;
+			});
+			return result;
+		}
 
-		
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <returns></returns>
+		public static string GetFirstTeensyPort()
+		{
+			using var teensys = GetConnectedTeensys();
+			return teensys.IsEmpty ? null : teensys.Front.PortName;
+		}
 
+		/// <summary>
+		/// 
+		/// </summary>
+		static void TestSkiaProtocolDisplay()
+		{
+			SkiaProtocolDisplay sk = default;
+			var t = new Thread(() =>
+			{
+				sk = new();
+				sk.ShowDialog();
+			});
+			t.SetApartmentState(ApartmentState.STA);
+			t.Start();
 
+			Thread.Sleep(1000);
+			var c = new Vector<string>(128, "Ch??");
+			sk.SwitchToChannelSelectAsync(null, c, 0, "MATA", (0, 10));
+
+			Thread.Sleep(100000);
+		}
 
 		/// <summary>
 		/// 
@@ -167,5 +203,7 @@ namespace TINS.Terminal
 			logger.EndFile();
 			Environment.Exit(0);
 		}
+
+
 	}
 }

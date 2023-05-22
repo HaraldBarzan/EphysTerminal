@@ -314,7 +314,7 @@ namespace TINS.Terminal
 			var ofd = new OpenFileDialog()
 			{
 				InitialDirectory	= @"C:\_code\ephysstream\settings\protocols",
-				Filter				= "Protocol files (*.json) | *.json",
+				Filter				= "Protocol configuration files (*.ini) | *.ini",
 				Multiselect			= false
 			};
 

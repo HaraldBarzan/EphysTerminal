@@ -181,7 +181,7 @@ namespace TINS.Terminal.Display.Ephys
 					_multiunits[iRow, iCol] ??= new SKPath();
 					var lineGraph		= _multiunits[iRow, iCol];
 					var lineData		= muaAcc.GetBuffer(_channelMapping[iRow, iCol].SourceIndex);
-					
+
 					lineGraph.Rewind();
 					lineGraph.MoveTo(0, -lineData[0]);
 					for (int i = 1; i < lineData.Length; ++i)

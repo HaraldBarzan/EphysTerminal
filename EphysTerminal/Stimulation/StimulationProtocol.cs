@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Text.Json.Serialization;
+using TINS.Ephys.Settings;
+using TINS.IO;
 
 namespace TINS.Terminal.Stimulation
 {
@@ -69,17 +71,18 @@ namespace TINS.Terminal.Stimulation
 	/// Base class for stimulation configurations.
 	/// </summary>
 	public class ProtocolConfig
+		: SerializableSettingsItem
 	{
 		/// <summary>
 		/// The registered type of the protocol.
 		/// </summary>
-		[JsonPropertyName("protocolType")]
+		[INILine(Key = "PROTOCOL_TYPE")]
 		public string ProtocolType { get; set; }
 
 		/// <summary>
 		/// Output EPD file will only contain the listed triggers.
 		/// </summary>
-		[JsonPropertyName("supportedTriggers")]
+		[INIVector(Key = "SUPPORTED_TRIGGER_COUNT", ValueMask = "SUPPORTED_TRIGGER_*")]
 		public Vector<int> SupportedTriggers { get; set; } = new();
 	}
 

@@ -27,6 +27,11 @@ namespace TINS.Terminal.Protocols.Genus
 		public const float DefaultToneFrequency = 10000;
 
 		/// <summary>
+		/// Trigger range (lower inclusive, upper exclusive).
+		/// </summary>
+		public static (byte Lower, byte Upper) TriggerRange { get; } = (0, 64);
+
+		/// <summary>
 		/// Signal the receival of a feedback.
 		/// </summary>
 		public event EventHandler<Feedback> FeedbackReceived;
@@ -79,7 +84,8 @@ namespace TINS.Terminal.Protocols.Genus
 				SleepMicroseconds,          // wait a number of microseconds (int)
 				Reset,                      // reset all parameters and stop flickering
 				Feedback,                   // send feedback to the computer
-				TriggerPinSetting			// enable or disable the trigger pin
+				TriggerPinSetting,			// enable or disable the trigger pin
+				DigitalWrite				// write a value to a digital pin
 			}
 
 			public Commands Command;
@@ -269,7 +275,7 @@ namespace TINS.Terminal.Protocols.Genus
 				=> new()
 				{
 					Command		= Commands.EmitTrigger,
-					Parameter	= trigger
+					Parameter	= Numerics.Clamp(trigger, TriggerRange)
 				};
 
 			/// <summary>
@@ -306,6 +312,18 @@ namespace TINS.Terminal.Protocols.Genus
 				{
 					Command = Commands.TriggerPinSetting,
 					PBool	= enabled
+				};
+
+			/// <summary>
+			/// Write a value to a digital pin. 
+			/// </summary>
+			/// <param name="digitalValue">True for HIGH; false for LOW.</param>
+			/// <returns>An instruction.</returns>
+			public static Instruction DigitalWrite(bool digitalValue)
+				=> new()
+				{
+					Command = Commands.DigitalWrite,
+					PBool	= digitalValue
 				};
 
 			/// <summary>
@@ -491,7 +509,7 @@ namespace TINS.Terminal.Protocols.Genus
 		/// <param name="frequencyL">The flicker frequency for the left panel, in Hz. Zero to shut it down completely or null to leave the current frequency unchanged.</param>
 		/// <param name="frequencyR">The flicker frequency for the right panel, in Hz. Zero to shut it down completely or null to leave the current frequency unchanged.</param>
 		/// <param name="frequencyAudio">The flicker frequency of the audio tone, in Hz. Zero to shut it down completely or null to leave the current frequency unchanged.</param>
-		/// <param name="frequencyTone">The flicker frequency of the audio tone, in Hz. Zero to shut it down completely or null to leave the current frequency unchanged.</param>
+		/// <param name="frequencyTone">The base frequency of the audio tone, in Hz.</param>
 		/// <param name="trigger">A trigger to emit when the stimulation frequency actually changes. If null, the emitted trigger will not change.</param>
 		public virtual void ChangeParameters(float? frequencyL, float? frequencyR, float? frequencyAudio, float? frequencyTone, byte? trigger)
 		{
@@ -504,6 +522,25 @@ namespace TINS.Terminal.Protocols.Genus
 
 			if (!instructions.IsEmpty)
 				SendInstructionList(instructions.GetSpan());
+		}
+
+		/// <summary>
+		/// Change stimulation parameters.
+		/// </summary>
+		/// <param name="frequency">The flicker frequency for the left panel, in Hz. Zero to shut it down completely.</param>
+		/// <param name="frequencyTone">The base frequency of the audio tone, in Hz.</param>
+		/// <param name="trigger">A trigger to emit when the stimulation frequency actually changes. If null, the emitted trigger will not change.</param>
+		public virtual void ChangeParameters(float frequency, float? frequencyTone, byte? trigger)
+		{
+			using var instructions = new Vector<Instruction>();
+
+			instructions.PushBack(Instruction.StartFlicker(Numerics.Clamp(frequency, FlickerFrequencyRange)));
+			if (frequencyTone.HasValue)
+				instructions.PushBack(Instruction.ChangeAudioTone(frequencyTone.Value));
+			if (trigger.HasValue)
+				instructions.PushBack(Instruction.EmitTrigger(trigger.Value));
+
+			SendInstructionList(instructions.GetSpan());	
 		}
 
 		/// <summary>
@@ -525,7 +562,8 @@ namespace TINS.Terminal.Protocols.Genus
 			ClosePort();
 
 			// get a serial port
-			portName ??= GetFirstSerialPortName();
+			if (string.IsNullOrEmpty(portName))
+				portName = App.GetFirstTeensyPort();
 
 			if (portName is null)
 				throw new Exception("No port has been found!");
@@ -583,20 +621,8 @@ namespace TINS.Terminal.Protocols.Genus
 			}
 		}
 
-		/// <summary>
-		/// Get the name of the first valid serial port.
-		/// </summary>
-		/// <returns>A serial port name if successful, null otherwise.</returns>
-		protected static string GetFirstSerialPortName()
-		{
-			var ports = SerialPort.GetPortNames();
-			if (ports is object && ports.Length > 0)
-				return ports[0];
 
-			return null;
-		}
-
-		protected SerialPort _port = null;
-		protected byte[] _portBuffer = new byte[sizeof(Instruction)];
+		protected SerialPort	_port		= null;
+		protected byte[]		_portBuffer	= new byte[sizeof(Instruction)];
 	}
 }

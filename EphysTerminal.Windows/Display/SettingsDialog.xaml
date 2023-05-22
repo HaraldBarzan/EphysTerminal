@@ -53,7 +53,7 @@
 
 				<ComboBox Grid.Row="1" Grid.Column="1" x:Name="cmbPort" IsEditable="false" SelectionChanged="cmbPort_SelectionChanged"/>
 				<disp:NumericTextBox Grid.Row="2" Grid.Column="1" x:Name="txbGenusFreq" Text="50"/>
-				<disp:NumericTextBox Grid.Row="3" Grid.Column="1" x:Name="txbGenusTrig" Text="129"/>
+				<disp:NumericTextBox Grid.Row="3" Grid.Column="1" x:Name="txbGenusTrig" Text="1"/>
 			</Grid>
 
 			<Grid Grid.Row="0" Grid.Column="1" Margin="5">
