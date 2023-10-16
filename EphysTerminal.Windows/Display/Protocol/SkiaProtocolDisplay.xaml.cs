@@ -54,7 +54,7 @@ namespace TINS.Terminal.Display.Protocol
 		/// 
 		/// </summary>
 		public ProtocolDisplayState State { get; set; } = ProtocolDisplayState.BlankScreen;
-		
+			
 		/// <summary>
 		/// 
 		/// </summary>

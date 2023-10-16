@@ -9,6 +9,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EphysTerminal.Windows", "Ep
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GammaHealController", "GammaHealController\GammaHealController.csproj", "{9F11A271-E109-4284-A1CB-43D16F0544CD}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenEphysInterface", "OpenEphysInterface\OpenEphysInterface.csproj", "{10E7F0CA-5BC6-4F3F-A38D-6F3484D05B71}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -55,6 +57,18 @@ Global
 		{9F11A271-E109-4284-A1CB-43D16F0544CD}.Release|x64.Build.0 = Release|Any CPU
 		{9F11A271-E109-4284-A1CB-43D16F0544CD}.Release|x86.ActiveCfg = Release|Any CPU
 		{9F11A271-E109-4284-A1CB-43D16F0544CD}.Release|x86.Build.0 = Release|Any CPU
+		{10E7F0CA-5BC6-4F3F-A38D-6F3484D05B71}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{10E7F0CA-5BC6-4F3F-A38D-6F3484D05B71}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{10E7F0CA-5BC6-4F3F-A38D-6F3484D05B71}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{10E7F0CA-5BC6-4F3F-A38D-6F3484D05B71}.Debug|x64.Build.0 = Debug|Any CPU
+		{10E7F0CA-5BC6-4F3F-A38D-6F3484D05B71}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{10E7F0CA-5BC6-4F3F-A38D-6F3484D05B71}.Debug|x86.Build.0 = Debug|Any CPU
+		{10E7F0CA-5BC6-4F3F-A38D-6F3484D05B71}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{10E7F0CA-5BC6-4F3F-A38D-6F3484D05B71}.Release|Any CPU.Build.0 = Release|Any CPU
+		{10E7F0CA-5BC6-4F3F-A38D-6F3484D05B71}.Release|x64.ActiveCfg = Release|Any CPU
+		{10E7F0CA-5BC6-4F3F-A38D-6F3484D05B71}.Release|x64.Build.0 = Release|Any CPU
+		{10E7F0CA-5BC6-4F3F-A38D-6F3484D05B71}.Release|x86.ActiveCfg = Release|Any CPU
+		{10E7F0CA-5BC6-4F3F-A38D-6F3484D05B71}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

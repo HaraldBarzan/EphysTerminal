@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net7.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="libFrontPanel-csharp">
+      <HintPath>okFrontPanel\libFrontPanel-csharp.dll</HintPath>
+    </Reference>
+    <Reference Include="TINS.Core">
+      <HintPath>..\..\TINS\bin\Release\TINS.Core.dll</HintPath>
+    </Reference>
+    <ContentWithTargetPath Include="okFrontPanel\x64\okFrontPanel.dll" CopyToOutputDirectory="Always" TargetPath="okFrontPanel.dll"/>
+    <ContentWithTargetPath Include="okFrontPanel\x64\libFrontPanel-pinv.dll" CopyToOutputDirectory="Always" TargetPath="libFrontPanel-pinv.dll"/>
+  </ItemGroup>
+</Project>

@@ -80,6 +80,52 @@
 			return null;
 		}
 
+				/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="trial"></param>
+		/// <returns></returns>
+		public static GenusCachedTrial Create(HumanGenusConfig config, HumanGenusProtocol.TrialTemplate trial)
+		{
+			if (trial.InstructionGenerator.Equals("static", System.StringComparison.InvariantCultureIgnoreCase) && 
+				trial is HumanGenusStaticTrial staticTrial)
+			{
+				return AVStatic(
+					name:					staticTrial.TrialName, 
+					frequency:				staticTrial.Frequency,
+					totalTime:				Numerics.Round(staticTrial.Duration),
+					audio:					staticTrial.UseAudioStimulation,
+					visual:					staticTrial.UseVisualStimulation,
+					audioFrequency:			staticTrial.AudioToneFrequency,
+					startTrigger:			config.StimulationStartTrigger,
+					endTrigger:				config.StimulationEndTrigger,
+					flickerTriggers:		config.FlickerTriggersBinding != FlickerTriggerAttach.None 
+											? (config.FlickerTriggersBinding, config.FlickerTriggersRiseTrigger, config.FlickerTriggersFallTrigger)
+											: null,
+					feedbackOnCompletion:	config.FeedbackOnStimulusEnd ? GenusController.Feedback.StimulationComplete : null);
+			}
+			else if (trial.InstructionGenerator.Equals("ramp", System.StringComparison.InvariantCultureIgnoreCase) &&
+				trial is HumanGenusRampTrial rampTrial)
+			{
+				return AVRamp(
+					name:					rampTrial.TrialName,
+					frequencyRange:			(rampTrial.FrequencyStart, rampTrial.FrequencyEnd),
+					stepCount:				rampTrial.FrequencySteps,
+					totalTime:				Numerics.Round(rampTrial.Duration),
+					audio:					rampTrial.UseAudioStimulation,
+					visual:					rampTrial.UseVisualStimulation,
+					audioFrequency:			rampTrial.AudioToneFrequency,
+					startTrigger:			config.StimulationStartTrigger,
+					endTrigger:				config.StimulationEndTrigger,
+					flickerTriggers:		config.FlickerTriggersBinding != FlickerTriggerAttach.None 
+											? (config.FlickerTriggersBinding, config.FlickerTriggersRiseTrigger, config.FlickerTriggersFallTrigger)
+											: null,
+					feedbackOnCompletion:	config.FeedbackOnStimulusEnd ? GenusController.Feedback.StimulationComplete : null);
+			}
+
+			return null;
+		}
+
 		/// <summary>
 		/// The list of cached instructions.
 		/// </summary>

@@ -67,26 +67,16 @@ namespace TINS.Terminal.Settings
 		}
 
 		/// <summary>
-		/// Attempt to detect and instantiate the correct input settings.
+		/// 
 		/// </summary>
-		/// <returns>True if the name is recognized, false otherwise.</returns>
-		public override bool DetectInputSettings()
-		{
-			if (!base.DetectInputSettings())
+		/// <returns></returns>
+		public override InputSettings CreateInputSettingsStub()
+			=> InputType.ToLower() switch
 			{
-				switch (InputType)
-				{
-					case "LOCAL":
-					case "USB-ME64":
-						Input = new InputSettings();
-						return true;
+				"local"		=> new InputSettings(),
+				"usb-me64"	=> new InputSettings(),
+				_			=> base.CreateInputSettingsStub()
+			};
 
-					default:
-						return false;
-				}
-
-			}
-			return true;
-		}
 	}
 }

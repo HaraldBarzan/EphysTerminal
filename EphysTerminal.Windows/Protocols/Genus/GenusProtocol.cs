@@ -490,17 +490,8 @@ namespace TINS.Terminal.Protocols.Genus
 		/// <summary>
 		/// 
 		/// </summary>
-		public GenusController.FlickerTriggerAttach FlickerTriggersBinding
-		{
-			get => (GenusController.FlickerTriggerAttach)FlickerTriggersBindingInt;
-			set => FlickerTriggersBindingInt = (int)value;
-		}
-
-		/// <summary>
-		/// 
-		/// </summary>
-		[INILine(Key = "FLICKER_TRIGGERS_BINDING", Default = 0)]
-		protected int FlickerTriggersBindingInt { get; set; }
+		[INILine(Key = "FLICKER_TRIGGERS_BINDING", Default = GenusController.FlickerTriggerAttach.None)]
+		public GenusController.FlickerTriggerAttach FlickerTriggersBinding { get; set; }
 
 		/// <summary>
 		/// 

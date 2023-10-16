@@ -139,10 +139,12 @@ namespace TINS.Terminal.Display
 					// rewind the graph and start from scratch
 					lineGraph.Rewind();
 
+					float factor = 0.1f;
+
 					// push data to the graph
-					lineGraph.MoveTo(0, -lineData[0]);
+					lineGraph.MoveTo(0, -lineData[0] * factor);
 					for (int i = 1; i < lineData.Length; ++i)
-						lineGraph.LineTo(i, -lineData[i]);
+						lineGraph.LineTo(i, -lineData[i] * factor);
 				}
 			}
 
