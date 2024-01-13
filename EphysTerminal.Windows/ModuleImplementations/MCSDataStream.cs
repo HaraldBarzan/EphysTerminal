@@ -1,9 +1,8 @@
 ﻿using Mcs.Usb;
 using System;
-using TINS.Terminal.Settings;
-using TINS.MatrixImpl;
 using TINS.Ephys.Data;
 using TINS.Ephys.Settings;
+using TINS.MatrixImpl;
 
 namespace TINS.Terminal.Data
 {
@@ -247,6 +246,12 @@ namespace TINS.Terminal.Data
 		/// <param name="info">Error information.</param>
 		protected void OnError(string message, int info)
 			=> throw new Exception($"USB-ME64 device has thrown an exception with the following message: {message} (info: {info}).");
+
+		/// <summary>
+		/// Read loop.
+		/// </summary>
+		/// <returns></returns>
+		protected override DataStreamError ReadLoop() => DataStreamError.None;
 
 		/// <summary>
 		/// Static constructor.

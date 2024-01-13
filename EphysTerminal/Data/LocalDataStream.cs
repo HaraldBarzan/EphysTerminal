@@ -66,7 +66,6 @@ namespace TINS.Ephys.Data
 		/// <returns></returns>
 		protected override DataStreamError ConnectStream()
 		{
-			BeginInvoke(new Action(ReadLoop));
 			return DataStreamError.None;
 		}
 
@@ -80,12 +79,12 @@ namespace TINS.Ephys.Data
 		/// <summary>
 		/// 
 		/// </summary>
-		protected void ReadLoop()
+		protected override DataStreamError ReadLoop()
 		{
 			Status			= DataStreamStatus.Running;
 			var t			= new Stopwatch();
 			var frameEvents = new Vector<EventMarker>();
-			frameEvents.Reserve(_events.Size);
+			frameEvents		.Reserve(_events.Size);
 
 			// raise start event
 			RaiseAcqusitionStarted();
@@ -140,7 +139,7 @@ namespace TINS.Ephys.Data
 					}
 
 					// fill digital input
-					FillDigitalInput(digitalData.GetSpan(), frameEvents, ref _lastEvent);
+					FillDigitalInput(digitalData.Span, frameEvents, ref _lastEvent);
 
 					// advance the current position
 					_currentStreamPos += analogData.Cols;
@@ -154,10 +153,10 @@ namespace TINS.Ephys.Data
 			}
 			while (Status != DataStreamStatus.Idle && !_disposed);
 
-			DisconnectStream();
-
 			// raise end event
 			RaiseAcquistionEnded();
+
+			return DataStreamError.None; 
 		}
 
 		/// <summary>
@@ -178,7 +177,7 @@ namespace TINS.Ephys.Data
 		/// <param name="buffer"></param>
 		/// <param name="frameEvents"></param>
 		/// <param name="lastEvent"></param>
-		static void FillDigitalInput(Span<int> buffer, Vector<EventMarker> frameEvents, ref int lastEvent)
+		static void FillDigitalInput(Span<uint> buffer, Vector<EventMarker> frameEvents, ref uint lastEvent)
 		{
 			int startFillPos = 0;
 			for (int i = 0; i < frameEvents.Size; ++i)
@@ -187,7 +186,7 @@ namespace TINS.Ephys.Data
 				int fillCount	= frameEvents[i].Timestamp - startFillPos;
 				buffer			.Slice(startFillPos, fillCount).Fill(lastEvent);
 				startFillPos	+= fillCount;
-				lastEvent		= frameEvents[i].EventCode;
+				lastEvent		= (uint)frameEvents[i].EventCode;
 			}
 			// finalize filling
 			buffer.Slice(startFillPos, buffer.Length - startFillPos).Fill(lastEvent);
@@ -198,7 +197,7 @@ namespace TINS.Ephys.Data
 		protected Vector<EventMarker>	_events				= new();
 		protected int					_currentStreamPos	= 0;
 		protected int					_currentEventPos	= 0;
-		protected int					_lastEvent			= 0;
+		protected uint					_lastEvent			= 0;
 		private bool					_disposed			= false;
 	}
 }

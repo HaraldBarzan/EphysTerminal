@@ -100,7 +100,7 @@ namespace TINS.Terminal.UI
 					for (int i = 0; i < waveforms.Rows; ++i)
 					{
 						// copy each waveform to its destination
-						waveforms.GetBuffer(i).CopyTo(_waveforms[iCh].GetSpan().Slice((currentCount + i) * Source.WaveformSize));
+						waveforms.GetBuffer(i).CopyTo(_waveforms[iCh].Span.Slice((currentCount + i) * Source.WaveformSize));
 					}
 				}
 			}
@@ -114,7 +114,7 @@ namespace TINS.Terminal.UI
 		/// <param name="channelIndex"></param>
 		/// <returns></returns>
 		public Span<int> GetTimestamps(int channelIndex)
-			=> _timings[channelIndex].GetSpan();
+			=> _timings[channelIndex].Span;
 
 		/// <summary>
 		/// Get a waveform from the accumulator.
@@ -123,7 +123,7 @@ namespace TINS.Terminal.UI
 		/// <param name="waveformIndex"></param>
 		/// <returns></returns>
 		public Span<float> GetWaveform(int channelIndex, int waveformIndex)
-			=> _waveforms[channelIndex].GetSpan().Slice(waveformIndex * WaveformSize, WaveformSize);
+			=> _waveforms[channelIndex].Span.Slice(waveformIndex * WaveformSize, WaveformSize);
 
 		/// <summary>
 		/// The number of supported channels.

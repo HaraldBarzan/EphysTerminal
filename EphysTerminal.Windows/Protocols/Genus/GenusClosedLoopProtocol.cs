@@ -1,6 +1,5 @@
 ﻿using System;
 using System.IO;
-using System.Text.Json.Serialization;
 using System.Threading;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -309,7 +308,6 @@ namespace TINS.Terminal.Protocols.Genus
 						_stateTimeout = _p.Config.IntertrialTimeout;
 						_pd?.ClearScreenAsync(Color.FromRgb(0, 0, 0));
 					});
-
 
 				// AWAIT
 				AddState(GenusClosedLoopState.Await,

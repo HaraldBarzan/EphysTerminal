@@ -218,7 +218,7 @@ namespace TINS.Terminal
 		/// </summary>
 		/// <param name="sender">The object making the call.</param>
 		/// <param name="e">The call parameters.</param>
-		protected override void OnProcessInput(object sender, InputDataFrame e)
+		protected override void OnProcessInput(object sender, ReadingFrame e)
 		{
 			if (!ReferenceEquals(sender, InputStream))
 				return;

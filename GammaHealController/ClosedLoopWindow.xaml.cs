@@ -20,7 +20,7 @@ namespace GammaHealController
 	/// Interaction logic for ClosedLoopWindow.xaml
 	/// </summary>
 	public partial class ClosedLoopWindow 
-		: System.Windows.Window, IDisposable
+		: Window, IDisposable
 	{
 		const float SamplingFrequency	= 32000;
 		const float PollingPeriod		= 1;
@@ -249,7 +249,7 @@ namespace GammaHealController
 		/// </summary>
 		/// <param name="sender"></param>
 		/// <param name="e"></param>
-		private void _daq_DataAvailable(object sender, InputDataFrame e)
+		private void _daq_DataAvailable(object sender, ReadingFrame e)
 		{
 			// save data if necessary
 			if (_recorder is not null)
@@ -265,7 +265,8 @@ namespace GammaHealController
 			{
 				// perform decimation and filtering
 				_lowPass.ForwardFilter(e.AnalogInput.GetSpan(), e.AnalogInput.GetSpan());
-				Numerics.Decimate(e.AnalogInput, 1, 32, result: _downsampled);
+				
+				Algorithms.Decimate(e.AnalogInput, 1, 32, result: _downsampled);
 				_highPass.ForwardFilter(_downsampled, _downsampled);
 
 				// perform superlet transform and find frequency with highest power

@@ -98,7 +98,7 @@ namespace TINS.Terminal.Display
 			{
 				// get the data and enqueue processing (to avoid blocking the data threads)
 				_data.Resize(lfp.BufferSize);
-				lfp.GetBuffer(SourceChannelIndex).CopyTo(_data.GetSpan());
+				lfp.GetBuffer(SourceChannelIndex).CopyTo(_data.Span);
 				_haveData = true;
 			}
 

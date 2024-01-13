@@ -444,7 +444,7 @@ namespace TINS.Terminal.Protocols.Genus
 		/// </summary>
 		/// <param name="instructionList">The list of instructions.</param>
 		public virtual void SendInstructionList(Vector<Instruction> instructionList)
-			=> SendInstructionList(instructionList.GetSpan());
+			=> SendInstructionList(instructionList.Span);
 
 		/// <summary>
 		/// Send a list of instructions to be executed serially.
@@ -521,7 +521,7 @@ namespace TINS.Terminal.Protocols.Genus
 			if (trigger.HasValue)			instructions.PushBack(Instruction.EmitTrigger(trigger.Value));
 
 			if (!instructions.IsEmpty)
-				SendInstructionList(instructions.GetSpan());
+				SendInstructionList(instructions.Span);
 		}
 
 		/// <summary>
@@ -540,7 +540,7 @@ namespace TINS.Terminal.Protocols.Genus
 			if (trigger.HasValue)
 				instructions.PushBack(Instruction.EmitTrigger(trigger.Value));
 
-			SendInstructionList(instructions.GetSpan());	
+			SendInstructionList(instructions.Span);	
 		}
 
 		/// <summary>
