@@ -264,7 +264,7 @@ namespace GammaHealController
 			if (_closedLoopControl && _controller is not null)
 			{
 				// perform decimation and filtering
-				_lowPass.ForwardFilter(e.AnalogInput.GetSpan(), e.AnalogInput.GetSpan());
+				_lowPass.ForwardFilter(e.AnalogInput.Span, e.AnalogInput.Span);
 				
 				Algorithms.Decimate(e.AnalogInput, 1, 32, result: _downsampled);
 				_highPass.ForwardFilter(_downsampled, _downsampled);

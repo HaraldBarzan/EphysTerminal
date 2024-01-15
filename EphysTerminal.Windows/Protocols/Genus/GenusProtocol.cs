@@ -376,7 +376,7 @@ namespace TINS.Terminal.Protocols.Genus
 
 				// shuffle if necessary
 				if (_p.Config.Randomize)
-					new RNG().Shuffle(_trials);
+					Random.Shared.Shuffle(_trials);
 
 				// assign each trial its instruction list
 				foreach (var t in _trials)

@@ -58,6 +58,7 @@ namespace TINS.Terminal
 			ProtocolFactory.RegisterProtocol(typeof(GenusProtocol),				"genus");
 			ProtocolFactory.RegisterProtocol(typeof(HumanGenusProtocol),		"genus-human");
 			ProtocolFactory.RegisterProtocol(typeof(GenusClosedLoopProtocol),	"genus-closedloop");
+			ProtocolFactory.RegisterProtocol(typeof(GenusCL2),					"genus-closedloop2");
 		}
 
 		/// <summary>
@@ -144,7 +145,7 @@ namespace TINS.Terminal
 			trials.PushBack(new Vector<GenusCachedTrial>(10, fill: GenusCachedTrial.Get("static-v-6000ms-40Hz")));
 			trials.PushBack(new Vector<GenusCachedTrial>(10, fill: GenusCachedTrial.Get("static-v-6000ms-50Hz")));
 			trials.PushBack(new Vector<GenusCachedTrial>(10, fill: GenusCachedTrial.Get("static-v-6000ms-60Hz")));
-			new RNG().Shuffle(trials);
+			Random.Shared.Shuffle(trials);
 
 			// create the text writer
 			var logger = new TrialInfoLogger(@"C:\_data\ephys\mouse\genus\raw\m079\m079_static_av_0016.eti", 
@@ -197,7 +198,7 @@ namespace TINS.Terminal
 					Binarize(il.UseFlickerTriggers),
 					Binarize(il.UseTransitionTriggers));
 
-				Thread.Sleep(new RNG().NextInt(1000, 3000));
+				Thread.Sleep(Random.Shared.Next(1000, 3000));
 			}
 
 			logger.EndFile();

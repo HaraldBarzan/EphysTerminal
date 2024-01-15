@@ -24,15 +24,12 @@ namespace TINS.Terminal.Protocols.Genus
 		: StimulationProtocol<GenusCL2Config, GenusController>
 	{
 		/// <summary>
-		/// Raised when a trial is completed.
+		/// Constructor.
 		/// </summary>
-		public event Action<int> TrialBegin;
-
-		/// <summary>
-		/// Raised when a trial run is completed.
-		/// </summary>
-		public event Action RunCompleted;
-
+		/// <param name="stream"></param>
+		/// <param name="config"></param>
+		/// <param name="controller"></param>
+		/// <exception cref="Exception"></exception>
 		public GenusCL2(EphysTerminal stream, GenusCL2Config config, GenusController controller)
 			: base(stream, config, controller)
 		{
@@ -40,6 +37,27 @@ namespace TINS.Terminal.Protocols.Genus
 			Config			= config;
 			UpdateLogger	= null;
 			TrialLogger		= null;
+
+			// check compatibility
+			if (Config.BlockPeriod != SourceStream.Settings.Input.PollingPeriod)
+				throw new Exception("The protocol's polling period does not match the current settings.");
+
+			// setup for biosemi stuff
+			if (Config.TrialSelfInitiate && !Config.UseProtocolScreen)
+			{
+				if (stream.InputStream is not BiosemiTcpStream biosemiStream)
+					throw new Exception("Trial self initiation is only compatible with the Biosemi stream.");
+				if (!biosemiStream.UseResponseSwitches && !Config.UseProtocolScreen)
+					throw new Exception("Trial self initiation requires a Biosemi stream with UseResponseSwitches set to \'true\'.");
+
+				biosemiStream.ResponseSwitchPressed += BiosemiStream_ResponseSwitchPressed;
+			}
+
+			// attach feedback detector
+			controller.FeedbackReceived += OnDeviceFeedback;
+
+			// create state machine
+			StateMachine = new CL2StateMachine(this);
 		}
 
 		/// <summary>
@@ -81,15 +99,17 @@ namespace TINS.Terminal.Protocols.Genus
 					{
 						"Trial",
 						"UpdateIndex",
-						"SourceChannel",
 						"OldFrequency",
-						"NewFrequency"
+						"NewFrequency",
+						"BlockType",
+						"BlockResult",
 					});
 				TrialLogger = new TrialInfoLogger(Path.Combine(dir, dsName + ".eti"),
 					header: new()
 					{
 						"Trial",
-						"SourceChannel",
+						"StartFrequency",
+						"NumBlocks",
 					});
 
 				Console.WriteLine("Created trial logger");
@@ -147,6 +167,9 @@ namespace TINS.Terminal.Protocols.Genus
 			RaiseUpdateProgress(StateMachine.TotalTrialCount, StateMachine.TotalTrialCount);
 		}
 
+		/// <summary>
+		/// The state machine.
+		/// </summary>
 		public CL2StateMachine StateMachine { get; protected init; }
 
 		/// <summary>
@@ -218,7 +241,28 @@ namespace TINS.Terminal.Protocols.Genus
 			TotalTrialCount		= _p.Config.TrialCount;
 			CurrentTrialIndex	= 0;
 
+			// determine trial start frequencies
+			_startFrequencies = _p.Config.RampStartingFrequency
+				? Numerics.Linspace(_p.Config.StimulationFrequencyRange, _p.Config.TrialCount)
+				: new Vector<float>(_p.Config.TrialCount, _p.Config.StartingFlickerFrequency);
+
 			// init spectrum primitives
+			if (_p.SourceStream.AnalysisPipeline.TryGetComponent(_p.Config.FrequencyAnalyzer, out var a) &&
+				a is TFSpectrumAnalyzer analyzer)
+			{
+				// set closed loop algo
+				switch (_p.Config.CLAlgVersion)
+				{
+					case ClosedLoopAlgorithmVersion.V1: _alg = new CL2AV1(_p, analyzer); break;
+					case ClosedLoopAlgorithmVersion.V2: _alg = new CL2AV2(_p, analyzer); break;
+					case ClosedLoopAlgorithmVersion.V3: _alg = new CL2AV3(_p, analyzer); break;
+					case ClosedLoopAlgorithmVersion.V4: _alg = new CL2AV4(_p, analyzer); break;
+					default:
+						throw new Exception();
+				}
+			}
+			else
+				throw new Exception("Source spectrum analyzer not found.");
 		}
 
 		/// <summary>
@@ -257,13 +301,11 @@ namespace TINS.Terminal.Protocols.Genus
 					{
 						if (CurrentTrialIndex < TotalTrialCount)
 						{
-							switch (e)
+							return e switch
 							{
-								case GenusEvent.NewBlock:
-									return Elapse(_p.Config.TrialSelfInitiate ? GenusClosedLoopState.Await : GenusClosedLoopState.Mask);
-								default:
-									return CurrentState;
-							}
+								GenusEvent.NewBlock => Elapse(_p.Config.TrialSelfInitiate ? GenusClosedLoopState.Await : GenusClosedLoopState.Mask),
+								_					=> CurrentState,
+							};
 						}
 						else
 						{
@@ -286,24 +328,24 @@ namespace TINS.Terminal.Protocols.Genus
 			AddState(GenusClosedLoopState.Await,
 				eventAction: (e) => e switch
 				{
-					GenusEvent.InitiateTrial => GenusClosedLoopState.Mask,
-					GenusEvent.Stop => GenusClosedLoopState.Idle,
-					_ => CurrentState
+					GenusEvent.InitiateTrial	=> GenusClosedLoopState.Mask,
+					GenusEvent.Stop				=> GenusClosedLoopState.Idle,
+					_							=> CurrentState
 				},
 				enterStateAction: () =>
 				{
-					_pd?.SwitchToChannelSelectAsync(Color.FromRgb(0, 0, 0),
-						_input.ChannelLabels,
-						_input.ChannelLabels.IndexOf(_sourceCh),
+					_pd?.SwitchToTextAsync(Colors.Black, 
 						"Select source channel and press SPACE or one of the EEG buttons to initiate next trial...",
-						(CurrentTrialIndex, TotalTrialCount));
+						Colors.White);
+					//_pd?.SwitchToChannelSelectAsync(Color.FromRgb(0, 0, 0),
+					//	_input.ChannelLabels,
+					//	_input.ChannelLabels.IndexOf(_sourceCh),
+					//	"Select source channel and press SPACE or one of the EEG buttons to initiate next trial...",
+					//	(CurrentTrialIndex, TotalTrialCount));
 				},
 				exitStateAction: () =>
 				{
-					//_channelSelector.
-
-					if (_pd is not null)
-						_sourceCh = _input.ChannelLabels[_pd.SelectedChannelIndex];
+					
 				});
 
 			// MASK
@@ -336,15 +378,20 @@ namespace TINS.Terminal.Protocols.Genus
 					_stimUpdateTimeout	= _p.Config.UpdateTimeout;
 					_updateIndex		= 0;
 
-					_stimFreq = _p.Config.StartingFlickerFrequency;
+					// notify algorithm of trial start
+					_alg.ResetBlockCounter();
+
+					// stimulus parameters
+					_stimFreq = _startFrequencies[CurrentTrialIndex];
 					_gc.ChangeParameters(_stimFreq, null, _stimFreq, 10000, _p.Config.StimulationStartTrigger);
 
+					// log beginning of trial
 					_p.UpdateLogger?.LogTrial(
 						CurrentTrialIndex + 1,
 						_updateIndex,
-						_sourceCh,
 						0,
-						_stimFreq);
+						_stimFreq,
+						);
 				},
 				exitStateAction: () =>
 				{
@@ -367,7 +414,7 @@ namespace TINS.Terminal.Protocols.Genus
 				},
 				exitStateAction:	() =>
 				{
-					_p.TrialLogger?.LogTrial(CurrentTrialIndex + 1, _sourceCh);
+					_p.TrialLogger?.LogTrial(CurrentTrialIndex + 1, _p.Config.StartingFlickerFrequency, _p.Config.StimulationTimeout / _p.Config.UpdateTimeout);
 					_gc.EmitTrigger(_p.Config.TrialEndTrigger);
 					CurrentTrialIndex++;
 				});
@@ -399,14 +446,13 @@ namespace TINS.Terminal.Protocols.Genus
 					_stimUpdateTimeout = _p.Config.UpdateTimeout;
 
 					float oldFreq	= _stimFreq;
-					_stimFreq		= SpectrumMax();
+					_stimFreq		= _alg.ComputeNextStimulusFrequency(_stimFreq);
 					_updateIndex++;
 
 					// emit eti line
 					_p.UpdateLogger?.LogTrial(
 						CurrentTrialIndex + 1,
 						_updateIndex,
-						_sourceCh,
 						oldFreq,
 						_stimFreq);
 
@@ -519,9 +565,10 @@ namespace TINS.Terminal.Protocols.Genus
 		float					_stimFreq;
 
 		// source analyzer and rejector
-		TFSpectrumAnalyzer		_analyzer;
-		ArtifactDetectorSD		_detectorSD;
+		ClosedLoopAlgorithm		_alg;
 
+		// starting frequencies 
+		Vector<float>			_startFrequencies;
 	}
 
 
@@ -534,9 +581,10 @@ namespace TINS.Terminal.Protocols.Genus
 		/// 
 		/// </summary>
 		/// <param name="protocol"></param>
-		public ClosedLoopAlgorithm(GenusCL2 protocol)
+		public ClosedLoopAlgorithm(GenusCL2 protocol, TFSpectrumAnalyzer analyzer)
 		{
 			Protocol = protocol;
+			SpectrumAnalyzer = analyzer;
 		}
 
 		/// <summary>
@@ -545,12 +593,53 @@ namespace TINS.Terminal.Protocols.Genus
 		public GenusCL2 Protocol { get; protected set; }
 
 		/// <summary>
+		/// Spectrum analyzer.
+		/// </summary>
+		public TFSpectrumAnalyzer SpectrumAnalyzer { get; protected set; }
+
+		/// <summary>
+		/// Reset the block counter.
+		/// </summary>
+		public void ResetBlockCounter() => _blockCounter = 0;
+
+		/// <summary>
+		/// Get the type of the current block.
+		/// </summary>
+		public abstract string CurrentBlockType { get; }
+
+		/// <summary>
 		/// Get the 1D power spectrum.
 		/// </summary>
 		/// <returns></returns>
 		public virtual Spectrum1D Get1DPowerSpectrum()
 		{
+			if (SpectrumAnalyzer.GetOutput(out var resultRing))
+			{
+				// only compute up to update block duration (if possible)
+				int resultCount = Math.Min(Protocol.Config.UpdateTimeout, resultRing.Size);
 
+				// frequency spectrum
+				var spectrum1d	= new Spectrum1D(resultRing[0].Results[0].Rows, resultRing[0].Results[0].FrequencyRange);
+				int pushedCount = 0;
+				for (int iResult = 0; iResult < resultCount; ++iResult)
+				{
+					foreach (var item in resultRing[iResult].Results)
+					{
+						for (int i = 0; i < item.Rows; ++i)
+							for (int j = 0; j < item.Cols; ++j)
+								spectrum1d[i] += item[i, j];
+						pushedCount += item.Cols;
+					}
+				}
+
+				// scale by how many columns have been pushed
+				if (pushedCount > 0)
+					spectrum1d.Scale(1f / pushedCount);
+
+				return spectrum1d;
+			}
+
+			throw new Exception("Could not fetch result ring.");
 		}
 
 		/// <summary>
@@ -558,9 +647,57 @@ namespace TINS.Terminal.Protocols.Genus
 		/// </summary>
 		/// <param name="spectrum"></param>
 		/// <returns></returns>
-		public virtual float FindPeak(Spectrum1D spectrum)
+		public virtual int FindPeak(Spectrum1D spectrum)
 		{
+			// compute necessary parameters
+			var freqRange			= spectrum.FrequencyRange;
+			var powerRange			= Numerics.GetRange(spectrum.Span);
+			using var minima		= Numerics.FindLocalMinima(spectrum);
+			using var maxima		= Numerics.FindLocalMaxima(spectrum);
+			int candidate			= -1;
 
+			// we look at maxima, searching for two flanking minima
+			if (maxima.Size < 1 || minima.Size < 2)
+				return candidate;
+
+			for (int i = 0; i < minima.Size - 1; ++i)
+			{
+				// look for maximum within 2 minima
+				int iMax = maxima.IndexOf(m => m > minima[i] && m < minima[i + 1]);
+				if (iMax > -1)
+				{
+					// get values in plot coordinates
+					float left	= spectrum.BinToFrequency(minima[i]);
+					float right = spectrum.BinToFrequency(minima[i + 1]);
+
+					// compute prominence and basis
+					float prominence	= spectrum[iMax] - Math.Max(spectrum[minima[i]], spectrum[minima[i + 1]]);
+					float basis			= spectrum[iMax] - prominence;
+
+					// check prominence criterion
+					if (prominence / basis < Protocol.Config.PeakMinPromToBasisRatio)
+						continue;
+
+					// restrict width if needed
+					if ((left, right).Size() > Protocol.Config.PeakMaxWidth)
+					{
+						float peak	= spectrum.BinToFrequency(iMax);
+						left		= Numerics.Clamp(peak - freqRange.Size() * (Protocol.Config.PeakMaxWidth / 2), freqRange);
+						right		= Numerics.Clamp(peak - freqRange.Size() + (Protocol.Config.PeakMaxWidth / 2), freqRange);
+					}
+
+					// check aspect ratio criterion (relative to freq and power ranges)
+					float aspectRatio = (prominence / powerRange.Size()) / ((left, right).Size() / freqRange.Size());
+					if (aspectRatio < Protocol.Config.PeakMinAspectRatio)
+						continue;
+
+					// save the peak if it is bigger
+					if (candidate < 0 || spectrum[candidate] < spectrum[iMax])
+						candidate = iMax;
+				}
+			}
+
+			return candidate;
 		}
 
 		/// <summary>
@@ -568,54 +705,302 @@ namespace TINS.Terminal.Protocols.Genus
 		/// and the current stimulus frequency.
 		/// </summary>
 		/// <returns></returns>
-		public abstract float ComputeNextStimulusFrequency(Spectrum1D spectrum, float currentFrequency);
+		public virtual float ComputeNextStimulusFrequency(float currentFrequency, out string blockResult)
+		{
+			blockResult = string.Empty;
+			_blockCounter++;
+			return currentFrequency;
+		}
+
+
+		protected int _blockCounter = 0;
 	}
 
 	/// <summary>
-	/// 
+	/// Closed loop algorithm variant I:
+	/// always return the frequency at max power (old version)
 	/// </summary>
 	public class CL2AV1 : ClosedLoopAlgorithm
 	{
-		public CL2AV1(GenusCL2 protocol)
-			: base(protocol)
-		{
-		}
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="protocol"></param>
+		/// <param name="analyzer"></param>
+		/// <param name="delta"></param>
+		public CL2AV1(GenusCL2 protocol, TFSpectrumAnalyzer analyzer)
+			: base(protocol, analyzer) { }
 
-		public override float ComputeNextStimulusFrequency(Spectrum1D spectrum, float currentFrequency)
+		/// <summary>
+		/// CL1 block type.
+		/// </summary>
+		public override string CurrentBlockType => "cl1";
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="currentFrequency"></param>
+		/// <returns></returns>
+		public override float ComputeNextStimulusFrequency(float currentFrequency, out string blockResult)
 		{
-			throw new NotImplementedException();
+			base.ComputeNextStimulusFrequency(currentFrequency, out blockResult);
+
+			// get frequency at peak
+			using var spec = Get1DPowerSpectrum();
+			int iPeak = spec.ArgMax();
+			blockResult = "cl1-update";
+
+			return spec.BinToFrequency(iPeak);
 		}
 	}
 
 	/// <summary>
-	/// 
+	/// Closed loop algorithm variant II:
+	/// use peak to explore in range +- delta around the current stimulus frequency.
 	/// </summary>
 	public class CL2AV2 : ClosedLoopAlgorithm
 	{
-		public CL2AV2(GenusCL2 protocol)
-			: base(protocol)
-		{
-		}
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="protocol"></param>
+		/// <param name="analyzer"></param>
+		/// <param name="delta"></param>
+		public CL2AV2(GenusCL2 protocol, TFSpectrumAnalyzer analyzer)
+			: base(protocol, analyzer) { }
 
-		public override float ComputeNextStimulusFrequency(Spectrum1D spectrum, float currentFrequency)
+		/// <summary>
+		/// 
+		/// </summary>
+		public override string CurrentBlockType => "cl2";
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="currentFrequency"></param>
+		/// <returns></returns>
+		public override float ComputeNextStimulusFrequency(float currentFrequency, out string blockResult)
 		{
-			throw new NotImplementedException();
+			base.ComputeNextStimulusFrequency(currentFrequency, out blockResult);
+
+			// get frequency at peak
+			using var spec	= Get1DPowerSpectrum();
+			var iPeak		= FindPeak(spec);
+
+			// do not change frequency if no peak is detected
+			if (iPeak < 0)
+			{
+				blockResult = "cl2-nopeak";
+				return currentFrequency;
+			}
+
+			// clamp in +-delta from currentfrequency and stimulation frequency range
+			float freq = spec.BinToFrequency(iPeak);
+			freq = Numerics.Clamp(freq, (currentFrequency - Protocol.Config.CL2Delta, currentFrequency + Protocol.Config.CL2Delta));
+			freq = Numerics.Clamp(freq, Protocol.Config.StimulationFrequencyRange);
+
+			blockResult = "cl2-update";
+			return freq;
 		}
 	}
 
 	/// <summary>
-	/// 
+	/// Closed loop algorithm variant III:
+	/// add two fixed exploration blocks at +- delta around current stimulus frequency, continue with best one
 	/// </summary>
 	public class CL2AV3 : ClosedLoopAlgorithm
 	{
-		public CL2AV3(GenusCL2 protocol)
-			: base(protocol)
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="protocol"></param>
+		/// <param name="analyzer"></param>
+		public CL2AV3(GenusCL2 protocol, TFSpectrumAnalyzer analyzer)
+			: base(protocol, analyzer) { }
+
+		/// <summary>
+		/// 
+		/// </summary>
+		public override string CurrentBlockType
 		{
+			get
+			{
+				if (!_inExplorationBlocks)
+					return "cl3";
+				else
+				{
+					if (float.IsNaN(_lowerPeakPower))
+						return "cl3-lower";
+					else
+						return "cl3-upper";
+				}
+			}
 		}
 
-		public override float ComputeNextStimulusFrequency(Spectrum1D spectrum, float currentFrequency)
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="currentFrequency"></param>
+		/// <returns></returns>
+		public override float ComputeNextStimulusFrequency(float currentFrequency, out string blockResult)
 		{
-			throw new NotImplementedException();
+			base.ComputeNextStimulusFrequency(currentFrequency, out blockResult);
+			
+			// get frequency at peak
+			using var spec	= Get1DPowerSpectrum();
+			var iPeak		= FindPeak(spec);
+
+			if (!_inExplorationBlocks)
+			{
+				// do not change stimulus frequency if no peak was found
+				// and do not create exploration blocks if we're nearing the end
+				if (iPeak < 0 || 
+					_blockCounter + 2 >= Protocol.Config.BlocksPerTrial)
+					return currentFrequency;
+
+				// prepare exploration blocks
+				_lowerPeakPower = float.NaN;
+				_upperPeakPower = float.NaN;
+
+				// determine exploration block frequencies
+				_lowerFrequency = currentFrequency - Protocol.Config.CL3Delta;
+				_upperFrequency = currentFrequency + Protocol.Config.CL3Delta;
+
+				// start lower frequency block
+				_inExplorationBlocks = true;
+				return _lowerFrequency;
+			}
+			else
+			{
+				if (float.IsNaN(_lowerPeakPower))
+				{
+					_lowerPeakPower = iPeak >= 0 ? spec[iPeak] : 0;
+
+					// go to upper frequency block
+					return _upperFrequency;
+				}
+				else if (float.IsNaN(_upperPeakPower))
+				{
+					_upperPeakPower = iPeak >= 0 ? spec[iPeak] : 0;
+
+					// set the stimulus frequency to the bigger power response
+					_inExplorationBlocks = false;
+					return _upperPeakPower > _lowerPeakPower ? _upperFrequency : _lowerFrequency;
+				}
+
+				return currentFrequency; // we should never get here though
+			}
+		}
+
+		protected bool	_inExplorationBlocks	= false;
+		protected float	_lowerFrequency			= 0;
+		protected float	_upperFrequency			= 0;
+		protected float _lowerPeakPower			= float.NaN;
+		protected float _upperPeakPower			= float.NaN;
+	}
+
+	/// <summary>
+	/// Closed loop algorithm variant IV:
+	/// set the stimulus frequency to whatever peak is the most prominent
+	/// </summary>
+	public class CL2AV4 : ClosedLoopAlgorithm
+	{
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="protocol"></param>
+		/// <param name="analyzer"></param>
+		public CL2AV4(GenusCL2 protocol, TFSpectrumAnalyzer analyzer)
+			: base(protocol, analyzer) { }
+
+
+		public override string CurrentBlockType => "cl4";
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="spectrum"></param>
+		/// <returns></returns>
+		public override int FindPeak(Spectrum1D spectrum)
+		{
+			// compute necessary parameters
+			var freqRange			= spectrum.FrequencyRange;
+			var powerRange			= Numerics.GetRange(spectrum.Span);
+			using var minima		= Numerics.FindLocalMinima(spectrum);
+			using var maxima		= Numerics.FindLocalMaxima(spectrum);
+			int candidate			= -1;
+			float candidateProm		= 0;
+
+			// we look at maxima, searching for two flanking minima
+			if (maxima.Size < 1 || minima.Size < 2)
+				return candidate;
+
+			for (int i = 0; i < minima.Size - 1; ++i)
+			{
+				// look for maximum within 2 minima
+				int iMax = maxima.IndexOf(m => m > minima[i] && m < minima[i + 1]);
+				if (iMax > -1)
+				{
+					// get values in plot coordinates
+					float left	= spectrum.BinToFrequency(minima[i]);
+					float right = spectrum.BinToFrequency(minima[i + 1]);
+
+					// compute prominence and basis
+					float prominence	= spectrum[iMax] - Math.Max(spectrum[minima[i]], spectrum[minima[i + 1]]);
+					float basis			= spectrum[iMax] - prominence;
+
+					// check prominence criterion
+					if (prominence / basis < Protocol.Config.PeakMinPromToBasisRatio)
+						continue;
+
+					// restrict width if needed
+					if ((left, right).Size() > Protocol.Config.PeakMaxWidth)
+					{
+						float peak	= spectrum.BinToFrequency(iMax);
+						left		= Numerics.Clamp(peak - freqRange.Size() * (Protocol.Config.PeakMaxWidth / 2), freqRange);
+						right		= Numerics.Clamp(peak - freqRange.Size() + (Protocol.Config.PeakMaxWidth / 2), freqRange);
+					}
+
+					// check aspect ratio criterion (relative to freq and power ranges)
+					float aspectRatio = (prominence / powerRange.Size()) / ((left, right).Size() / freqRange.Size());
+					if (aspectRatio < Protocol.Config.PeakMinAspectRatio)
+						continue;
+
+					// save the peak if its prominence is bigger
+					if (candidate < 0 || candidateProm < prominence)
+					{
+						candidate		= iMax;
+						candidateProm	= prominence;
+					}
+				}
+			}
+
+			return candidate;
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="currentFrequency"></param>
+		/// <returns></returns>
+		public override float ComputeNextStimulusFrequency(float currentFrequency, out string blockResult)
+		{
+			base.ComputeNextStimulusFrequency(currentFrequency, out blockResult);
+
+			// get frequency at peak
+			using var spec = Get1DPowerSpectrum();
+			var iPeak = FindPeak(spec);
+
+			if (iPeak >= 0)
+			{
+				blockResult = "cl4-update";
+				return spec.BinToFrequency(iPeak);
+			}
+			else
+			{
+				blockResult = "cl4-nopeak";
+				return currentFrequency;
+			}
 		}
 	}
 
@@ -626,7 +1011,8 @@ namespace TINS.Terminal.Protocols.Genus
 	{
 		V1,
 		V2, 
-		V3
+		V3,
+		V4
 	}
 
 
@@ -657,8 +1043,7 @@ namespace TINS.Terminal.Protocols.Genus
 		/// <summary>
 		/// Number of trials in the protocol.
 		/// </summary>
-		[INILine(Key = "TRIAL_COUNT", 
-			Comment = "Total number of trials.")]
+		[INILine(Key = "TRIAL_COUNT")]
 		public int TrialCount { get; set; }
 
 		/// <summary>
@@ -678,6 +1063,12 @@ namespace TINS.Terminal.Protocols.Genus
 		/// </summary>
 		[INILine(Key = "INITIAL_FREQUENCY")]
 		public float StartingFlickerFrequency { get; set; }
+
+		/// <summary>
+		/// If set, the starting frequency will ramp linearly inside the frequency range with each trial.
+		/// </summary>
+		[INILine(Key = "RAMP_STARTING_FREQUENCY", Default = false)]
+		public bool RampStartingFrequency { get; set; }
 
 		/// <summary>
 		/// The limits of the stimulation frequency.
@@ -729,10 +1120,40 @@ namespace TINS.Terminal.Protocols.Genus
 		public bool UseLog10 { get; set; }
 
 		/// <summary>
+		/// Minimum prominence to basis ratio for a peak to be considered.
+		/// </summary>
+		[INILine(Key = "PEAK_MIN_PROM_TO_BASIS_RATIO", Default = 1f)]
+		public float PeakMinPromToBasisRatio { get; set; }
+
+		/// <summary>
+		/// Maximum width of the peak in Hz.
+		/// </summary>
+		[INILine(Key = "PEAK_MAX_RELATIVE_WIDTH", Default = 0.2f)]
+		public float PeakMaxWidth { get; set; }
+
+		/// <summary>
+		/// Minimum aspect ratio (prominence/width).
+		/// </summary>
+		[INILine(Key = "PEAK_MIN_ASPECT_RATIO", Default = 1f)]
+		public float PeakMinAspectRatio { get; set; }
+
+		/// <summary>
 		/// Get the version of the algorithm to use.
 		/// </summary>
 		[INILine(Key = "CLOSED_LOOP_ALGORITHM", Default = ClosedLoopAlgorithmVersion.V1)]
 		public ClosedLoopAlgorithmVersion CLAlgVersion { get; set; }
+
+		/// <summary>
+		/// Delta parameter for closed loop algorithm variant 1.
+		/// </summary>
+		[INILine(Key = "CL1_DELTA", Default = 5f)]
+		public float CL2Delta { get; set; }
+
+		/// <summary>
+		/// Delta parameter for closed loop algorithm variant 2.
+		/// </summary>
+		[INILine(Key = "CL2_DELTA", Default = 5f)]
+		public float CL3Delta { get; set; }
 
 		/// <summary>
 		/// The intertrial timeout in blocks.
@@ -756,6 +1177,11 @@ namespace TINS.Terminal.Protocols.Genus
 		/// Get the duration of a block in seconds.
 		/// </summary>
 		public float UpdateBlockDuration => UpdateTimeout * BlockPeriod;
+
+		/// <summary>
+		/// Number of blocks per trial.
+		/// </summary>
+		public int BlocksPerTrial => StimulationTimeout / UpdateTimeout;
 
 		/// <summary>
 		/// The post-mask timeout in blocks.
