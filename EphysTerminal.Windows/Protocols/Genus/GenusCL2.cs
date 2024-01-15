@@ -7,6 +7,7 @@ using TINS.Conexus.Data;
 using TINS.Containers;
 using TINS.Ephys.Analysis;
 using TINS.Ephys.Analysis.Events;
+using TINS.Ephys.Processing;
 using TINS.IO;
 using TINS.Terminal.Display.Protocol;
 using TINS.Terminal.Stimulation;
@@ -391,7 +392,8 @@ namespace TINS.Terminal.Protocols.Genus
 						_updateIndex,
 						0,
 						_stimFreq,
-						);
+						_alg.CurrentBlockType,
+						"start");
 				},
 				exitStateAction: () =>
 				{
@@ -446,7 +448,7 @@ namespace TINS.Terminal.Protocols.Genus
 					_stimUpdateTimeout = _p.Config.UpdateTimeout;
 
 					float oldFreq	= _stimFreq;
-					_stimFreq		= _alg.ComputeNextStimulusFrequency(_stimFreq);
+					_stimFreq		= _alg.ComputeNextStimulusFrequency(_stimFreq, out var blockResult);
 					_updateIndex++;
 
 					// emit eti line
@@ -454,7 +456,9 @@ namespace TINS.Terminal.Protocols.Genus
 						CurrentTrialIndex + 1,
 						_updateIndex,
 						oldFreq,
-						_stimFreq);
+						_stimFreq,
+						_alg.CurrentBlockType,
+						blockResult);
 
 					// update trigger
 					//_gc.ChangeParameters(_stimFreq, null, _stimFreq, 10000, _p.Config.StimUpdateTrigger);

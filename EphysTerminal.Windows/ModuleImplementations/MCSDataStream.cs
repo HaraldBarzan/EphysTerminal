@@ -88,6 +88,9 @@ namespace TINS.Terminal.Data
 					continue;
 				_channelMap.PushBack(iCh);
 			}
+
+			// since we handle connection in constructor, set stream status to idle
+			Status = DataStreamStatus.Idle;
 		}
 
 		/// <summary>

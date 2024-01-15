@@ -247,7 +247,6 @@ namespace TINS.Terminal
 					UI.UpdateData(DisplayData);
 				}
 			}
-			
 		}
 
 		/// <summary>

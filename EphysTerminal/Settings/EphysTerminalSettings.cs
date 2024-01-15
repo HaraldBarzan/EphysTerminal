@@ -73,7 +73,6 @@ namespace TINS.Terminal.Settings
 		public override InputSettings CreateInputSettingsStub()
 			=> InputType.ToLower() switch
 			{
-				"local"		=> new InputSettings(),
 				"usb-me64"	=> new InputSettings(),
 				_			=> base.CreateInputSettingsStub()
 			};

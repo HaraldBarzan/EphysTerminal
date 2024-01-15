@@ -219,6 +219,7 @@ namespace TINS.Terminal
 						throw new Exception("Invalid input device specified.");
 				}
 				new Thread(() => inputStream.StartThread()).Start();
+				inputStream.AcquisitionStarted += () => Console.WriteLine("Acquisition started");
 
 				// create stream and start it on a new thread
 				EphysTerminal = new EphysTerminal(
