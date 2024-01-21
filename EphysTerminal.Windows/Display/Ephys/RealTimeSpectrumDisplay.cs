@@ -52,6 +52,23 @@ namespace TINS.Terminal.Display
 		}
 
 		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="spectrum"></param>
+		public void Plot(Spectrum1D spectrum)
+		{
+			if (InvokeRequired)
+				BeginInvoke(Plot, spectrum);
+			else
+			{
+				using var xaxis = Numerics.Linspace(spectrum.FrequencyRange, spectrum.Size);
+				Graph.SetData(xaxis, spectrum, true);
+				Graph.RescaleAxes();
+				Chart.Replot();
+			}
+		}
+
+		/// <summary>
 		/// Configure the real time analysis window.
 		/// </summary>
 		/// <param name="bufferSize"></param>

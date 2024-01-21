@@ -85,8 +85,11 @@ namespace TINS.Terminal.Stimulation
 		/// <summary>
 		/// 
 		/// </summary>
+		/// <param name="stream"></param>
 		/// <param name="protocolFile"></param>
+		/// <param name="headerSection"></param>
 		/// <returns></returns>
+		/// <exception cref="FileNotFoundException"></exception>
 		public static IStimulationProtocol LoadProtocol(EphysTerminal stream, string protocolFile, string headerSection = "PROTOCOL")
 		{
 			if (!File.Exists(protocolFile))

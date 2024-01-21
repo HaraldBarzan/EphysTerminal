@@ -1,0 +1,23 @@
+﻿<Window x:Class="TINS.Terminal.Display.Ephys.RealTimeTFRDisplay"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:TINS.Terminal.Display.Ephys"
+        mc:Ignorable="d" xmlns:disp="clr-namespace:TINS.Terminal.Display"
+		Background="#2d2d30" BorderBrush="LightGray" BorderThickness="1" ResizeMode="CanResizeWithGrip" WindowStyle="None"
+        Title="TFR Viewer" Name="Window"
+        Height="450" Width="900" MinHeight="450" MinWidth="900" AllowsTransparency="False"
+        Closing="Window_Closing">
+    <Grid>
+		<Grid.RowDefinitions>
+			<RowDefinition Height="40"/>
+			<RowDefinition Height="*"/>
+		</Grid.RowDefinitions>
+
+		<disp:TitleBar Grid.Row="0" Window="{Binding ElementName=Window}" Title="{Binding ElementName=Window, Path=Title}" Source="{StaticResource TinsIcon}"/>
+
+		<WindowsFormsHost Grid.Row="1" Margin="10" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+						  Name="chartHost" SizeChanged="chartHost_SizeChanged"/>
+	</Grid>
+</Window>

@@ -157,7 +157,7 @@ namespace TINS.Terminal
 		public IAsyncResult SetStimulationProtocolAsync(IStimulationProtocol protocol)
 		{
 			if (InvokeRequired)
-				return BeginInvoke(new Func<IStimulationProtocol, IAsyncResult>(SetStimulationProtocolAsync), protocol);
+				return BeginInvoke(SetStimulationProtocolAsync, protocol);
 			else
 			{
 				StimulationProtocol?.Stop();

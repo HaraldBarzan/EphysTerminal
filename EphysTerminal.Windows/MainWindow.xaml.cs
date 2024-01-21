@@ -84,6 +84,30 @@ namespace TINS.Terminal
 		}
 
 		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="enabled"></param>
+		public void SetRecordingState(bool enabled)
+		{
+
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		public void SetStreamingState(bool enabled)
+		{
+			if (EphysTerminal is null)
+				return;
+
+			if (!Dispatcher.CheckAccess())
+				Dispatcher.BeginInvoke(SetStreamingState, enabled);
+
+			if (IsStreaming != enabled) 
+				ToggleStreaming();
+		}
+
+		/// <summary>
 		/// Update user interface activity regarding new events.
 		/// </summary>
 		/// <param name="events">A list of new events.</param>
@@ -286,6 +310,14 @@ namespace TINS.Terminal
 				return;
 			}
 
+			ToggleStreaming();
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		protected void ToggleStreaming()
+		{
 			// toggle streaming
 			if (EphysTerminal.IsStreaming)
 			{
@@ -657,6 +689,7 @@ namespace TINS.Terminal
 				btnStreamToggle.Source		= App.GetResource<ImageSource>(stream		? "StopIcon" : "PlayIcon");
 				btnRecordToggle.Source		= App.GetResource<ImageSource>(record		? "RecordOnIcon" : "RecordOffIcon");
 				btnToggleProtocol.Source	= App.GetResource<ImageSource>(proto		? "ProtStopIcon" : "ProtStartIcon"); 
+				btnToggleProtocol.Text		= proto ? "Stop protocol" : "Start protocol";
 
 				// update status label
 				if (EphysTerminal is null)

@@ -464,14 +464,6 @@ namespace TINS.Terminal.Protocols.Genus
 				dataSpan[i + 1] = instructionList[i];
 			}
 
-			//int blockSize	= 256;
-			//int	blockStart	= 0;
-			//for (int i = 0; i < data.Length / blockSize; ++i)
-			//{
-			//	_port.Write(data, blockStart, blockSize);
-			//	blockStart += blockSize;
-			//}
-			//_port.Write(data, blockStart, data.Length - blockStart);
 			_port.Write(data, 0, data.Length);
 		}
 

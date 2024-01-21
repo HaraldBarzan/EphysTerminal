@@ -6,9 +6,9 @@ using System.Windows.Media;
 using TINS.Conexus.Data;
 using TINS.Containers;
 using TINS.Ephys.Analysis;
-using TINS.Ephys.Analysis.Events;
-using TINS.Ephys.Processing;
+using TINS.Ephys.Settings;
 using TINS.IO;
+using TINS.Terminal.Display;
 using TINS.Terminal.Display.Protocol;
 using TINS.Terminal.Stimulation;
 using TINS.Utilities;
@@ -34,6 +34,10 @@ namespace TINS.Terminal.Protocols.Genus
 		public GenusCL2(EphysTerminal stream, GenusCL2Config config, GenusController controller)
 			: base(stream, config, controller)
 		{
+			// unset the stimulus controller if debug run
+			if (!config.UseGenusController)
+				StimulusController = null;
+
 			// load the configuration
 			Config			= config;
 			UpdateLogger	= null;
@@ -54,9 +58,6 @@ namespace TINS.Terminal.Protocols.Genus
 				biosemiStream.ResponseSwitchPressed += BiosemiStream_ResponseSwitchPressed;
 			}
 
-			// attach feedback detector
-			controller.FeedbackReceived += OnDeviceFeedback;
-
 			// create state machine
 			StateMachine = new CL2StateMachine(this);
 		}
@@ -69,8 +70,6 @@ namespace TINS.Terminal.Protocols.Genus
 		{
 			//if (SourceStream.UI is not null  && SourceStream.UI is MainWindow mw)
 			//	mw.
-			if (StimulusController is not null)
-				StimulusController.FeedbackReceived -= OnDeviceFeedback;
 			if (SourceStream.InputStream is BiosemiTcpStream biosemiTcpStream)
 				biosemiTcpStream.ResponseSwitchPressed -= BiosemiStream_ResponseSwitchPressed;
 			base.Dispose(disposing);
@@ -82,14 +81,14 @@ namespace TINS.Terminal.Protocols.Genus
 		public override void Start()
 		{
 			// connect to stimulus controller
-			StimulusController.Connect();
-			StimulusController.Reset();
+			StimulusController?.Connect();
+			StimulusController?.Reset();
 
 			// start state machine
 			StateMachine.ProcessEvent(GenusEvent.Start);
 
 			// create a text writer 
-			if (SourceStream.OutputStream is object)
+			if (SourceStream.OutputStream is not null)
 			{
 				// obtain path from output 
 				SourceStream.OutputStream.GetPath(out var dir, out var dsName);
@@ -194,17 +193,6 @@ namespace TINS.Terminal.Protocols.Genus
 		public int TrialCount => StateMachine.TotalTrialCount;
 
 		/// <summary>
-		/// Raised when the device signals 
-		/// </summary>
-		/// <param name="sender"></param>
-		/// <param name="feedback"></param>
-		protected virtual void OnDeviceFeedback(object sender, GenusController.Feedback feedback)
-		{
-			if (feedback is GenusController.Feedback.StimulationComplete)
-				StateMachine.ProcessEvent(GenusEvent.StimulationComplete);
-		}
-
-		/// <summary>
 		/// 
 		/// </summary>
 		/// <param name="sender"></param>
@@ -261,6 +249,7 @@ namespace TINS.Terminal.Protocols.Genus
 					default:
 						throw new Exception();
 				}
+				_alg.OpenSpectrumViewer();
 			}
 			else
 				throw new Exception("Source spectrum analyzer not found.");
@@ -289,7 +278,7 @@ namespace TINS.Terminal.Protocols.Genus
 				enterStateAction: () =>
 				{
 					CurrentTrialIndex = 0;
-					_gc.Reset();
+					_gc?.Reset();
 					StopProtocolDisplay();
 				},
 				exitStateAction: StartProtocolDisplay);
@@ -356,7 +345,7 @@ namespace TINS.Terminal.Protocols.Genus
 				{
 					_p.NotifyTrialBegin(CurrentTrialIndex);
 					_stateTimeout = _p.Config.MaskTimeout;
-					_gc.EmitTrigger(_p.Config.TrialStartTrigger);
+					_gc?.EmitTrigger(_p.Config.TrialStartTrigger);
 					_pd?.SwitchToFixationCrossAsync(Color.FromRgb(0, 0, 0), null);
 				});
 			
@@ -366,8 +355,13 @@ namespace TINS.Terminal.Protocols.Genus
 				enterStateAction: () =>
 				{
 					_stateTimeout = _p.Config.PrestimulusTimeout;
-					_gc.EmitTrigger(_p.Config.PrestimulusStartTrigger);
+					_gc?.EmitTrigger(_p.Config.PrestimulusStartTrigger);
 					_pd?.SwitchToFixationCrossAsync(Color.FromRgb(128, 128, 128), null);
+				},
+				exitStateAction: () =>
+				{
+					if (_p.Config.UsePrestimulusBaseline && _p.Config.PrestimulusTimeout > 0)
+						_alg.AccumulateBaseline(_p.Config.PrestimulusTimeout);
 				});
 
 			// STIMULATION
@@ -384,7 +378,8 @@ namespace TINS.Terminal.Protocols.Genus
 
 					// stimulus parameters
 					_stimFreq = _startFrequencies[CurrentTrialIndex];
-					_gc.ChangeParameters(_stimFreq, null, _stimFreq, 10000, _p.Config.StimulationStartTrigger);
+					_gc?.ChangeParameters(_stimFreq, null, _stimFreq, 10000, _p.Config.StimulationStartTrigger);
+					Console.WriteLine($"Beginning trial {CurrentTrialIndex + 1}:\n\tblock 1: set start frequency to {_stimFreq}.");
 
 					// log beginning of trial
 					_p.UpdateLogger?.LogTrial(
@@ -397,14 +392,15 @@ namespace TINS.Terminal.Protocols.Genus
 				},
 				exitStateAction: () =>
 				{
-					_gc.ChangeParameters(0, null, 0, null, _p.Config.StimulationEndTrigger);
+					Console.WriteLine("Stimulation end");
+					_gc?.ChangeParameters(0, null, 0, null, _p.Config.StimulationEndTrigger);
 				});
 
 			// POSTSTIMULUS
 			AddState(GenusClosedLoopState.Poststimulus,
 				eventAction:		(e) => Elapse(GenusClosedLoopState.PostMask, e),
 				enterStateAction:	() => _stateTimeout = _p.Config.PoststimulusTimeout,
-				exitStateAction:	() => _gc.EmitTrigger(_p.Config.PoststimulusEndTrigger));
+				exitStateAction:	() => _gc?.EmitTrigger(_p.Config.PoststimulusEndTrigger));
 
 			// POST-MASK
 			AddState(GenusClosedLoopState.PostMask,
@@ -417,7 +413,7 @@ namespace TINS.Terminal.Protocols.Genus
 				exitStateAction:	() =>
 				{
 					_p.TrialLogger?.LogTrial(CurrentTrialIndex + 1, _p.Config.StartingFlickerFrequency, _p.Config.StimulationTimeout / _p.Config.UpdateTimeout);
-					_gc.EmitTrigger(_p.Config.TrialEndTrigger);
+					_gc?.EmitTrigger(_p.Config.TrialEndTrigger);
 					CurrentTrialIndex++;
 				});
 		}
@@ -446,10 +442,20 @@ namespace TINS.Terminal.Protocols.Genus
 				if (_stimUpdateTimeout == 0)
 				{
 					_stimUpdateTimeout = _p.Config.UpdateTimeout;
-
-					float oldFreq	= _stimFreq;
-					_stimFreq		= _alg.ComputeNextStimulusFrequency(_stimFreq, out var blockResult);
 					_updateIndex++;
+
+					// get next frequency
+					float oldFreq	= _stimFreq;
+					_stimFreq		= _alg.ComputeNextStimulusFrequency(
+						currentFrequency:	_stimFreq, 
+						periods:			_p.Config.UpdateTimeout, 
+						blockResult:		out var blockResult);
+					
+					// debug
+					if (oldFreq == _stimFreq)
+						Console.WriteLine($"\tblock {_updateIndex + 1}: no change in frequency ({blockResult}).");
+					else
+						Console.WriteLine($"\tblock {_updateIndex + 1}: changed frequency from {oldFreq} to {_stimFreq} ({blockResult}).");
 
 					// emit eti line
 					_p.UpdateLogger?.LogTrial(
@@ -461,12 +467,12 @@ namespace TINS.Terminal.Protocols.Genus
 						blockResult);
 
 					// update trigger
-					//_gc.ChangeParameters(_stimFreq, null, _stimFreq, 10000, _p.Config.StimUpdateTrigger);
+					//_gc?.ChangeParameters(_stimFreq, null, _stimFreq, 10000, _p.Config.StimUpdateTrigger);
 					if (_p.Config.UseAudioStimulation && _p.Config.UseVisualStimulation)
-						_gc.ChangeParameters(_stimFreq, _p.Config.AudioToneFrequency, _p.Config.StimUpdateTrigger);
+						_gc?.ChangeParameters(_stimFreq, _p.Config.AudioToneFrequency, _p.Config.StimUpdateTrigger);
 					else
 					{
-						_gc.ChangeParameters(
+						_gc?.ChangeParameters(
 							frequencyL:		_p.Config.UseVisualStimulation ? _stimFreq : null,
 							frequencyR:		null,
 							frequencyAudio: _p.Config.UseAudioStimulation ? _stimFreq : null,
@@ -475,8 +481,8 @@ namespace TINS.Terminal.Protocols.Genus
 					}
 
 					Thread.Sleep(20);
-					_gc.EmitTrigger(0);
-					//_gc.EmitTrigger(_p.Config.StimUpdateTrigger);
+					_gc?.EmitTrigger(0);
+					//_gc?.EmitTrigger(_p.Config.StimUpdateTrigger);
 				}
 			}
 
@@ -612,33 +618,126 @@ namespace TINS.Terminal.Protocols.Genus
 		public abstract string CurrentBlockType { get; }
 
 		/// <summary>
-		/// Get the 1D power spectrum.
+		/// 
 		/// </summary>
-		/// <returns></returns>
-		public virtual Spectrum1D Get1DPowerSpectrum()
+		public RealTimeSpectrumDisplay Viewer { get; protected set; }
+
+		/// <summary>
+		/// Open a spectrum viewer window.
+		/// </summary>
+		public void OpenSpectrumViewer()
+		{
+			var t = new Thread(() =>
+			{
+				Viewer = new RealTimeSpectrumDisplay();
+				Viewer.TopMost = true;
+				Viewer.FormClosing += (_, _) => Viewer = null;
+				Viewer.ShowDialog();
+			});
+			t.SetApartmentState(ApartmentState.STA);
+			t.Start();
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="blocks"></param>
+		public void AccumulateBaseline(int blocks)
 		{
 			if (SpectrumAnalyzer.GetOutput(out var resultRing))
 			{
 				// only compute up to update block duration (if possible)
-				int resultCount = Math.Min(Protocol.Config.UpdateTimeout, resultRing.Size);
+				int resultCount = Math.Min(blocks, resultRing.Size);
+
+				// create baseline object
+				_baseline = new ZScoreAccumulator(resultRing[0].Results[0].Rows);
+				if (Protocol.Config.UseLog10)
+				{
+					using var buffer = new Vector<float>(_baseline.Size);
+					for (int iResult = 0; iResult < resultCount; ++iResult)
+					{
+						foreach (var item in resultRing[iResult].Results)
+						{
+							for (int j = 0; j < item.Cols; ++j)
+							{
+								for (int i = 0; i < item.Rows; ++i)
+									buffer[i] = item[i, j];
+								_baseline.Push(buffer);
+							}
+						}
+					}
+				}
+				else
+				{
+					for (int iResult = 0; iResult < resultCount; ++iResult)
+						foreach (var item in resultRing[iResult].Results)
+							_baseline.PushColumns(item);
+				}
+
+				_baseline.Update();
+			}
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		public void ResetBaseline()
+		{
+			_baseline?.Dispose();
+			_baseline = null;
+		}
+
+		/// <summary>
+		/// Get the 1D power spectrum.
+		/// </summary>
+		/// <returns></returns>
+		public virtual Spectrum1D Get1DPowerSpectrum(int blocks)
+		{
+			if (SpectrumAnalyzer.GetOutput(out var resultRing))
+			{
+				// only compute up to update block duration (if possible)
+				int resultCount = Math.Min(blocks, resultRing.Size);
 
 				// frequency spectrum
 				var spectrum1d	= new Spectrum1D(resultRing[0].Results[0].Rows, resultRing[0].Results[0].FrequencyRange);
 				int pushedCount = 0;
-				for (int iResult = 0; iResult < resultCount; ++iResult)
+				if (Protocol.Config.UseLog10)
 				{
-					foreach (var item in resultRing[iResult].Results)
+					for (int iResult = 0; iResult < resultCount; ++iResult)
 					{
-						for (int i = 0; i < item.Rows; ++i)
-							for (int j = 0; j < item.Cols; ++j)
-								spectrum1d[i] += item[i, j];
-						pushedCount += item.Cols;
+						foreach (var item in resultRing[iResult].Results)
+						{
+							for (int i = 0; i < item.Rows; ++i)
+								for (int j = 0; j < item.Cols; ++j)
+									spectrum1d[i] += MathF.Log10(item[i, j] + 1e-6f);
+							pushedCount += item.Cols;
+						}
+					}
+				}
+				else
+				{
+					for (int iResult = 0; iResult < resultCount; ++iResult)
+					{
+						foreach (var item in resultRing[iResult].Results)
+						{
+							for (int i = 0; i < item.Rows; ++i)
+								for (int j = 0; j < item.Cols; ++j)
+									spectrum1d[i] += item[i, j];
+							pushedCount += item.Cols;
+						}
 					}
 				}
 
 				// scale by how many columns have been pushed
 				if (pushedCount > 0)
 					spectrum1d.Scale(1f / pushedCount);
+
+				if (_baseline is not null && _baseline.LinesAccumulated > 0)
+					_baseline.ZScore(spectrum1d);
+
+				// plot to viewer (clone to avoid disposal)
+				Viewer?.Plot(spectrum1d.Clone() as Spectrum1D);
+				Thread.Sleep(100);
 
 				return spectrum1d;
 			}
@@ -670,24 +769,26 @@ namespace TINS.Terminal.Protocols.Genus
 				int iMax = maxima.IndexOf(m => m > minima[i] && m < minima[i + 1]);
 				if (iMax > -1)
 				{
-					// get values in plot coordinates
-					float left	= spectrum.BinToFrequency(minima[i]);
-					float right = spectrum.BinToFrequency(minima[i + 1]);
+					int iPeak = maxima[iMax]; // get spectum index of maximum
 
 					// compute prominence and basis
-					float prominence	= spectrum[iMax] - Math.Max(spectrum[minima[i]], spectrum[minima[i + 1]]);
-					float basis			= spectrum[iMax] - prominence;
+					float prominence	= Math.Abs(spectrum[iPeak] - Math.Max(spectrum[minima[i]], spectrum[minima[i + 1]]));
+					float basis			= Math.Abs(spectrum[iPeak] - prominence - powerRange.Lower);
 
 					// check prominence criterion
 					if (prominence / basis < Protocol.Config.PeakMinPromToBasisRatio)
 						continue;
 
+					// get values in plot coordinates
+					float left	= spectrum.BinToFrequency(minima[i]);
+					float right = spectrum.BinToFrequency(minima[i + 1]);
+
 					// restrict width if needed
 					if ((left, right).Size() > Protocol.Config.PeakMaxWidth)
 					{
-						float peak	= spectrum.BinToFrequency(iMax);
+						float peak	= spectrum.BinToFrequency(iPeak);
 						left		= Numerics.Clamp(peak - freqRange.Size() * (Protocol.Config.PeakMaxWidth / 2), freqRange);
-						right		= Numerics.Clamp(peak - freqRange.Size() + (Protocol.Config.PeakMaxWidth / 2), freqRange);
+						right		= Numerics.Clamp(peak + freqRange.Size() * (Protocol.Config.PeakMaxWidth / 2), freqRange);
 					}
 
 					// check aspect ratio criterion (relative to freq and power ranges)
@@ -696,8 +797,8 @@ namespace TINS.Terminal.Protocols.Genus
 						continue;
 
 					// save the peak if it is bigger
-					if (candidate < 0 || spectrum[candidate] < spectrum[iMax])
-						candidate = iMax;
+					if (candidate < 0 || spectrum[candidate] < spectrum[iPeak])
+						candidate = iPeak;
 				}
 			}
 
@@ -709,7 +810,7 @@ namespace TINS.Terminal.Protocols.Genus
 		/// and the current stimulus frequency.
 		/// </summary>
 		/// <returns></returns>
-		public virtual float ComputeNextStimulusFrequency(float currentFrequency, out string blockResult)
+		public virtual float ComputeNextStimulusFrequency(float currentFrequency, int periods, out string blockResult)
 		{
 			blockResult = string.Empty;
 			_blockCounter++;
@@ -718,6 +819,7 @@ namespace TINS.Terminal.Protocols.Genus
 
 
 		protected int _blockCounter = 0;
+		protected ZScoreAccumulator _baseline;
 	}
 
 	/// <summary>
@@ -745,16 +847,16 @@ namespace TINS.Terminal.Protocols.Genus
 		/// </summary>
 		/// <param name="currentFrequency"></param>
 		/// <returns></returns>
-		public override float ComputeNextStimulusFrequency(float currentFrequency, out string blockResult)
+		public override float ComputeNextStimulusFrequency(float currentFrequency, int periods, out string blockResult)
 		{
-			base.ComputeNextStimulusFrequency(currentFrequency, out blockResult);
+			base.ComputeNextStimulusFrequency(currentFrequency, periods, out blockResult);
 
 			// get frequency at peak
-			using var spec = Get1DPowerSpectrum();
+			using var spec = Get1DPowerSpectrum(periods);
 			int iPeak = spec.ArgMax();
 			blockResult = "cl1-update";
 
-			return spec.BinToFrequency(iPeak);
+			return Numerics.Clamp(spec.BinToFrequency(iPeak), Protocol.Config.StimulationFrequencyRange);
 		}
 	}
 
@@ -783,12 +885,12 @@ namespace TINS.Terminal.Protocols.Genus
 		/// </summary>
 		/// <param name="currentFrequency"></param>
 		/// <returns></returns>
-		public override float ComputeNextStimulusFrequency(float currentFrequency, out string blockResult)
+		public override float ComputeNextStimulusFrequency(float currentFrequency, int periods, out string blockResult)
 		{
-			base.ComputeNextStimulusFrequency(currentFrequency, out blockResult);
+			base.ComputeNextStimulusFrequency(currentFrequency, periods, out blockResult);
 
 			// get frequency at peak
-			using var spec	= Get1DPowerSpectrum();
+			using var spec	= Get1DPowerSpectrum(periods);
 			var iPeak		= FindPeak(spec);
 
 			// do not change frequency if no peak is detected
@@ -846,12 +948,12 @@ namespace TINS.Terminal.Protocols.Genus
 		/// </summary>
 		/// <param name="currentFrequency"></param>
 		/// <returns></returns>
-		public override float ComputeNextStimulusFrequency(float currentFrequency, out string blockResult)
+		public override float ComputeNextStimulusFrequency(float currentFrequency, int periods, out string blockResult)
 		{
-			base.ComputeNextStimulusFrequency(currentFrequency, out blockResult);
+			base.ComputeNextStimulusFrequency(currentFrequency, periods, out blockResult);
 			
 			// get frequency at peak
-			using var spec	= Get1DPowerSpectrum();
+			using var spec	= Get1DPowerSpectrum(periods);
 			var iPeak		= FindPeak(spec);
 
 			if (!_inExplorationBlocks)
@@ -945,24 +1047,26 @@ namespace TINS.Terminal.Protocols.Genus
 				int iMax = maxima.IndexOf(m => m > minima[i] && m < minima[i + 1]);
 				if (iMax > -1)
 				{
-					// get values in plot coordinates
-					float left	= spectrum.BinToFrequency(minima[i]);
-					float right = spectrum.BinToFrequency(minima[i + 1]);
+					int iPeak = maxima[iMax];
 
 					// compute prominence and basis
-					float prominence	= spectrum[iMax] - Math.Max(spectrum[minima[i]], spectrum[minima[i + 1]]);
-					float basis			= spectrum[iMax] - prominence;
+					float prominence	= spectrum[iPeak] - Math.Max(spectrum[minima[i]], spectrum[minima[i + 1]]);
+					float basis			= spectrum[iPeak] - prominence;
 
 					// check prominence criterion
 					if (prominence / basis < Protocol.Config.PeakMinPromToBasisRatio)
 						continue;
 
+					// get values in plot coordinates
+					float left	= spectrum.BinToFrequency(minima[i]);
+					float right = spectrum.BinToFrequency(minima[i + 1]);
+
 					// restrict width if needed
 					if ((left, right).Size() > Protocol.Config.PeakMaxWidth)
 					{
-						float peak	= spectrum.BinToFrequency(iMax);
+						float peak	= spectrum.BinToFrequency(iPeak);
 						left		= Numerics.Clamp(peak - freqRange.Size() * (Protocol.Config.PeakMaxWidth / 2), freqRange);
-						right		= Numerics.Clamp(peak - freqRange.Size() + (Protocol.Config.PeakMaxWidth / 2), freqRange);
+						right		= Numerics.Clamp(peak + freqRange.Size() * (Protocol.Config.PeakMaxWidth / 2), freqRange);
 					}
 
 					// check aspect ratio criterion (relative to freq and power ranges)
@@ -973,11 +1077,13 @@ namespace TINS.Terminal.Protocols.Genus
 					// save the peak if its prominence is bigger
 					if (candidate < 0 || candidateProm < prominence)
 					{
-						candidate		= iMax;
+						candidate		= iPeak;
 						candidateProm	= prominence;
 					}
 				}
 			}
+
+			Console.WriteLine($"peak: {candidate}");
 
 			return candidate;
 		}
@@ -987,12 +1093,12 @@ namespace TINS.Terminal.Protocols.Genus
 		/// </summary>
 		/// <param name="currentFrequency"></param>
 		/// <returns></returns>
-		public override float ComputeNextStimulusFrequency(float currentFrequency, out string blockResult)
+		public override float ComputeNextStimulusFrequency(float currentFrequency, int periods, out string blockResult)
 		{
-			base.ComputeNextStimulusFrequency(currentFrequency, out blockResult);
+			base.ComputeNextStimulusFrequency(currentFrequency, periods, out blockResult);
 
 			// get frequency at peak
-			using var spec = Get1DPowerSpectrum();
+			using var spec = Get1DPowerSpectrum(periods);
 			var iPeak = FindPeak(spec);
 
 			if (iPeak >= 0)
@@ -1033,6 +1139,12 @@ namespace TINS.Terminal.Protocols.Genus
 		public float BlockPeriod { get; set; }
 
 		/// <summary>
+		/// Debug option for running without controller.
+		/// </summary>
+		[INILine(Key = "USE_GENUS_CONTROLLER", Default = true)]
+		public bool UseGenusController { get; set; }
+
+		/// <summary>
 		/// True if user input is required to start a trial.
 		/// </summary>
 		[INILine(Key = "TRIAL_SELF_INITIATE", Default = false)]
@@ -1056,16 +1168,16 @@ namespace TINS.Terminal.Protocols.Genus
 		[INILine(Key = "FREQUENCY_ANALYZER")]
 		public string FrequencyAnalyzer { get; set; }
 
-		/// <summary>
-		/// The name of the artifact detector.
-		/// </summary>
-		[INILine(Key = "ARTIFACT_DETECTOR")]
-		public string ArtifactDetector { get; set; }
+		///// <summary>
+		///// The name of the artifact detector.
+		///// </summary>
+		//[INILine(Key = "ARTIFACT_DETECTOR")]
+		//public string ArtifactDetector { get; set; }
 
 		/// <summary>
 		/// The initial stimulation frequency for each trial.
 		/// </summary>
-		[INILine(Key = "INITIAL_FREQUENCY")]
+		[INILine(Key = "STARTING_FREQUENCY")]
 		public float StartingFlickerFrequency { get; set; }
 
 		/// <summary>
@@ -1118,6 +1230,12 @@ namespace TINS.Terminal.Protocols.Genus
 		public bool UseVisualStimulation { get; set; }
 
 		/// <summary>
+		/// If set, a prestimulus baseline will be computed for each trial.
+		/// </summary>
+		[INILine(Key = "USE_PRESTIMULUS_BASELINE", Default = false)]
+		public bool UsePrestimulusBaseline { get; set; }
+
+		/// <summary>
 		/// If true, Log10 will be applied to the spectrum to determine result.
 		/// </summary>
 		[INILine(Key = "USE_LOG10", Default = true)]
@@ -1132,7 +1250,7 @@ namespace TINS.Terminal.Protocols.Genus
 		/// <summary>
 		/// Maximum width of the peak in Hz.
 		/// </summary>
-		[INILine(Key = "PEAK_MAX_RELATIVE_WIDTH", Default = 0.2f)]
+		[INILine(Key = "PEAK_MAX_WIDTH", Default = 0.2f)]
 		public float PeakMaxWidth { get; set; }
 
 		/// <summary>
@@ -1150,13 +1268,13 @@ namespace TINS.Terminal.Protocols.Genus
 		/// <summary>
 		/// Delta parameter for closed loop algorithm variant 1.
 		/// </summary>
-		[INILine(Key = "CL1_DELTA", Default = 5f)]
+		[INILine(Key = "CL2_DELTA", Default = 5f)]
 		public float CL2Delta { get; set; }
 
 		/// <summary>
 		/// Delta parameter for closed loop algorithm variant 2.
 		/// </summary>
-		[INILine(Key = "CL2_DELTA", Default = 5f)]
+		[INILine(Key = "CL3_DELTA", Default = 5f)]
 		public float CL3Delta { get; set; }
 
 		/// <summary>

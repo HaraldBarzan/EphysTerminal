@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using TINS.Ephys;
 using TINS.Ephys.Analysis.Events;
+using TINS.Ephys.Analysis.TimeFrequency;
 using TINS.Terminal.Display.Ephys;
 using TINS.Terminal.Settings;
 using TINS.Terminal.Settings.UI;
@@ -57,6 +58,7 @@ namespace TINS.Terminal.Display
 			if (_disposed) return;
 			if (disposing)
 			{
+				EphysTerminal.AnalysisComplete -= OnAnalysisComplete;
 				drawMua?.Dispose();
 				drawLfp?.Dispose();
 			}
@@ -70,7 +72,6 @@ namespace TINS.Terminal.Display
 		/// <param name="spikeAccumulator">Spiking activity.</param>
 		public void UpdateMUA(ContinuousDisplayAccumulator muaAccumulator, SpikeDisplayAccumulator spikeAccumulator = null)
 			=> drawMua.Update(muaAccumulator, spikeAccumulator);
-
 
 		/// <summary>
 		/// Update user interface activity regarding local field potentials.
@@ -92,7 +93,9 @@ namespace TINS.Terminal.Display
 		public void InitializeChannelDisplay(EphysTerminal terminal)
 		{
 			// set the new terminal
-			EphysTerminal	= terminal;
+			EphysTerminal = terminal;
+			EphysTerminal.AnalysisComplete += OnAnalysisComplete;
+
 			var settings	= EphysTerminal.TerminalSettings.UI as UISettingsEphys;
 			if (settings is null)
 				throw new Exception("");
@@ -140,6 +143,15 @@ namespace TINS.Terminal.Display
 			// create the Audio stream
 			AudioStream ??= new MultiunitAudioStream(EphysTerminal);
 			SetLiveChannel(settings.DefaultAudioChannel);
+
+			// assign superlet analyzer if found
+			foreach (var ac in terminal.AnalysisPipeline.Components)
+			{
+				if (ac is SuperletAnalyzer analyzer)
+				{
+					drawLfp.SuperletAnalyzer = analyzer;
+				}
+			}
 		}
 
 		/// <summary>
@@ -207,6 +219,15 @@ namespace TINS.Terminal.Display
 			}
 		}
 
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="sender"></param>
+		/// <param name="e"></param>
+		private void OnAnalysisComplete(object sender, float e)
+		{
+			drawLfp?.UpdateTFRs();
+		}
 		
 
 		/// <summary>

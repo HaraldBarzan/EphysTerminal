@@ -3,6 +3,7 @@ using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using TINS.Ephys.Analysis.TimeFrequency;
 using TINS.Terminal.UI;
 
 namespace TINS.Terminal.Display.Ephys
@@ -27,6 +28,11 @@ namespace TINS.Terminal.Display.Ephys
         }
 
         /// <summary>
+        /// Get or set the superlet analyzer (for TFRs).
+        /// </summary>
+        public SuperletAnalyzer SuperletAnalyzer { get; set; }  
+
+        /// <summary>
         /// Override setup specifically for graphs.
         /// </summary>
         /// <param name="channelMapping"></param>
@@ -38,6 +44,21 @@ namespace TINS.Terminal.Display.Ephys
                 g?.Dispose();
             _graphs.Clear();
             _graphs.Resize(channelMapping.Dimensions);
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public void UpdateTFRs()
+        {
+            if (SuperletAnalyzer is null) return;
+            if (!Dispatcher.CheckAccess())
+                Dispatcher.BeginInvoke(UpdateTFRs);
+            else
+            {
+                foreach (var tfr in _rtTFRDisplays)
+                    tfr.UpdateData();
+            }
         }
 
         /// <summary>
@@ -145,7 +166,7 @@ namespace TINS.Terminal.Display.Ephys
                 _contextMenuLocation.HasValue &&
                 TryGetChannelAt(_contextMenuLocation.Value, out var mapping, out _, out _))
             {
-                new Thread(() =>
+                var t = new Thread(() =>
                 {
                     var rts = new RealTimeSpectrumDisplay();
                     rts.Text = $"{mapping.Label} - Fourier spectrum";
@@ -158,10 +179,41 @@ namespace TINS.Terminal.Display.Ephys
                     };
                     _rtSpecDisplays.PushBack(rts);
                     rts.ShowDialog();
-                }).Start();
+                });
+                t.SetApartmentState(ApartmentState.STA);
+                t.Start();
             }
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        protected void MitRTTFR_Click(object sender, RoutedEventArgs e)
+        {
+			if (ReferenceEquals(mitRTTFR, sender) &&
+				_contextMenuLocation.HasValue &&
+				TryGetChannelAt(_contextMenuLocation.Value, out var mapping, out _, out _) &&
+                SuperletAnalyzer is not null)
+            {
+				var t = new Thread(() =>
+				{
+                    var rts = new RealTimeTFRDisplay(SuperletAnalyzer, mapping.Label);
+                    rts.Title = $"{mapping.Label} - Real time TFR viewer";
+                    rts.Topmost = true;
+                    rts.Closing += (o, _) =>
+                    {
+                        if (o is RealTimeTFRDisplay disp)
+                            _rtTFRDisplays.Remove(disp);
+                    };
+                    _rtTFRDisplays.PushBack(rts);
+                    rts.ShowDialog();
+                });
+                t.SetApartmentState(ApartmentState.STA);
+                t.Start();
+            }
+		}
 
         /// <summary>
         /// 
@@ -170,8 +222,11 @@ namespace TINS.Terminal.Display.Ephys
         {
             mitRTSpectrum = new MenuItem() { Header = "Real-time Fourier spectrum" };
             mitRTSpectrum.Click += MitRTSpectrum_Click;
-
+            mitRTTFR = new MenuItem() { Header = "Real-time Superlet spectrum" };
+            mitRTTFR.Click += MitRTTFR_Click;
+            
             ContextMenu.Items.Insert(0, mitRTSpectrum);
+            ContextMenu.Items.Insert(1, mitRTTFR);
 
             ContextMenu.Opened += (_, _) => _contextMenuLocation = Mouse.GetPosition(this);
             ContextMenu.Closed += (_, _) => _contextMenuLocation = null;
@@ -181,11 +236,13 @@ namespace TINS.Terminal.Display.Ephys
         // context menus
         protected Point?                            _contextMenuLocation;
         protected MenuItem                          mitRTSpectrum;
+        protected MenuItem                          mitRTTFR;
 
         // data
         protected SKPaint                           _graphPaint     = new();
-        protected Matrix<SKPath>                     _graphs        = new();
+        protected Matrix<SKPath>                    _graphs         = new();
         protected Vector<RealTimeSpectrumDisplay>   _rtSpecDisplays = new();
+        protected Vector<RealTimeTFRDisplay>        _rtTFRDisplays  = new();
 
     }
 }

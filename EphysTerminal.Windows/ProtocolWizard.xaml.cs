@@ -3,6 +3,7 @@ using System;
 using System.IO;
 using System.Windows;
 using TINS.Ephys.Data;
+using TINS.IO;
 using TINS.Utilities;
 
 namespace TINS.Terminal
@@ -26,25 +27,29 @@ namespace TINS.Terminal
 			_stateMachine.SetActions(
 				startRecording: (e) =>
 				{
+					_outputDir = e.DatasetDirectory;
 					Directory.CreateDirectory(e.DatasetDirectory);
 					MainWindow?.EphysTerminal?.StartRecording(this, e);
-					MainWindow?.EphysTerminal?.StartStream();
-					//MainWindow?.AudioStream?.Start();
+					MainWindow?.SetStreamingState(true);
+					//MainWindow?.EphysTerminal?.StartStream();
 				},
 				startProtocol: (path) =>
 				{
 					if (MainWindow is object && MainWindow.EphysTerminal is object && 
 						MainWindow.TryLoadProtocol(path, out var protocol, out _))
 					{
-						MainWindow?.EphysTerminal?.SetStimulationProtocolAsync(protocol);
+						MainWindow?.EphysTerminal?.SetStimulationProtocolAsync(protocol)
+							.AsyncWaitHandle.WaitOne();
+						if (!string.IsNullOrEmpty(_outputDir))
+							protocol.SaveConfigs(_outputDir);
 						MainWindow?.EphysTerminal?.StartProtocol();
 					}
 				},
 				stopProtocol:	() => MainWindow?.EphysTerminal?.StopProtocol(),
 				stopRecording:	() => 
 				{
-					//MainWindow?.AudioStream?.Stop();
-					MainWindow?.EphysTerminal?.StopStream();
+					MainWindow.SetStreamingState(false);
+					//MainWindow?.EphysTerminal?.StopStream();
 					MainWindow?.EphysTerminal?.StopRecording();
 				}); 
 		}
@@ -407,6 +412,7 @@ namespace TINS.Terminal
 
 
 		protected ProtocolWizardStateMachine	_stateMachine;
+		protected string						_outputDir;
 		private bool							_disposed		= false;
 	}
 }

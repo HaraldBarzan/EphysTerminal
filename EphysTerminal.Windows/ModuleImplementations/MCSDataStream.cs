@@ -77,9 +77,10 @@ namespace TINS.Terminal.Data
 			_channelBlockSize = Numerics.Floor(_samplingRate * settings.PollingPeriod);
 			_selectedChannels = blockSize;
 			_channelReadBuffer.Resize((_selectedChannels + (_useDigitalInput ? 1 : 0)) * _channelBlockSize);
-			
+
 			// TODO: play around so that we don't even read excluded channels
 			_device.SetSelectedData(_selectedChannels, _samplingRate, _channelBlockSize, SampleSizeNet.SampleSize16Unsigned, blockSize); 
+			//_device.ChannelBlock.SetSelectedData(_selectedChannels, _samplingRate, _channelBlockSize, SampleSizeNet.SampleSize16Unsigned, SampleDstSizeNet.SampleDstSize16, blockSize);
 
 			// map the input channels channels
 			for (int iCh = 0; iCh < settings.ChannelLabels.Size; ++iCh)
@@ -119,7 +120,7 @@ namespace TINS.Terminal.Data
 		/// 
 		/// </summary>
 		/// <returns></returns>
-		protected override DataStreamError ConnectStream()
+		public override DataStreamError StartAcquisition()
 		{
 			if (_device is null || !_device.IsConnected())
 				return DataStreamError.ConnectionFailure;
@@ -137,7 +138,9 @@ namespace TINS.Terminal.Data
 		/// <summary>
 		/// 
 		/// </summary>
-		protected override void DisconnectStream()
+		/// <param name="awaitTermination"></param>
+		/// <returns></returns>
+		public override DataStreamError StopAcquisition(bool awaitTermination = false)
 		{
 			if (_device is object && _device.IsConnected())
 			{
@@ -147,6 +150,24 @@ namespace TINS.Terminal.Data
 				// raise end event
 				RaiseAcquistionEnded();
 			}
+
+			return DataStreamError.None;
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <returns></returns>
+		protected override DataStreamError ConnectStream()
+		{
+			return DataStreamError.None;
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		protected override void DisconnectStream()
+		{
 		}
 
 		/// <summary>
@@ -194,6 +215,8 @@ namespace TINS.Terminal.Data
 			// read the newly acquired frames
 			var data = MatrixImplProvider<ushort>.Get().GetMatrixArray(_channelReadBuffer);
 			_device.ChannelBlock_ReadFramesUI16(0, data, 0, _channelBlockSize, out int frameCount);
+			//var data = _device.ChannelBlock.ReadFramesUI16(0, 0, _channelBlockSize, out int frameCount);
+
 
 			// check termination criteria
 			if (Status == DataStreamStatus.TerminationPending)

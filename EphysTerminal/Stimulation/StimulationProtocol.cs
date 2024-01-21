@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Text.Json.Serialization;
+using System.IO;
 using TINS.Ephys.Settings;
 using TINS.IO;
 
@@ -53,6 +53,12 @@ namespace TINS.Terminal.Stimulation
 		/// <param name="eventCode">Event code.</param>
 		/// <returns>True if the event code must be kept.</returns>
 		public bool EventFilter(int eventCode);
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="directory"></param>
+		public void SaveConfigs(string directory);
 
 		/// <summary>
 		/// Assert whether the protocol is running.
@@ -193,6 +199,24 @@ namespace TINS.Terminal.Stimulation
 			if (Config.SupportedTriggers is not null && !Config.SupportedTriggers.IsEmpty)
 				return Config.SupportedTriggers.Contains(eventCode);
 			return true;
+		}
+
+		/// <summary>
+		/// Save the protocol and terminal configuration files.
+		/// </summary>
+		/// <param name="directory"></param>
+		public virtual void SaveConfigs(string directory)
+		{
+			if (SourceStream is null)
+				return;
+
+			var set = new INI();
+			SourceStream.Settings.Serialize(set, SourceStream.TerminalSettings.HeaderSection, SerializationDirection.Out);
+			set.Save(Path.Combine(directory, "stream-config.ini"));
+
+			var pro = new INI();
+			Config.Serialize(pro, "PROTOCOL", SerializationDirection.Out);
+			pro.Save(Path.Combine(directory, "protocol.ini"));
 		}
 
 		/// <summary>
