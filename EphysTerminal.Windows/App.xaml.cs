@@ -8,15 +8,16 @@ using TINS.Ephys.Native;
 using TINS.Native;
 using TINS.Terminal.Display.Protocol;
 using TINS.Terminal.Protocols.Genus;
+using TINS.Terminal.Protocols.Genus.CL2;
 using TINS.Terminal.Stimulation;
 using TINS.Utilities;
 
 namespace TINS.Terminal
 {
-	/// <summary>
-	/// Interaction logic for App.xaml
-	/// </summary>
-	public partial class App : Application
+    /// <summary>
+    /// Interaction logic for App.xaml
+    /// </summary>
+    public partial class App : Application
 	{
 		/// <summary>
 		/// Teensy factory (for the application).

@@ -23,7 +23,8 @@ struct Instruction
         Reset,                      // reset all parameters and stop flickering
         Feedback,                   // send feedback to the computer
         TriggerPinSetting,          // set if feedback should be emitted on trigger pin change
-        DigitalWrite                // write a digital value on pin 19
+        DigitalWrite,               // write a digital value on pin 19
+        ChangePhase                 // set the phase of the flickers (start with HIGH or LOW)
   };
 
   Commands  Command;
@@ -86,6 +87,7 @@ byte                    LedRiseTrigger      = 0;
 byte                    LedFallTrigger      = 0  ;
 float                   DefaultAudioTone    = 10000;
 FlickerTriggerAttach    FlickerTriggers     = FlickerTriggerAttach::None;
+byte                    Phase               = LOW;
 
 // helpers
 void PutTrigger(byte value)
@@ -202,7 +204,7 @@ void _FreqFlickerL(float frequency)
     PutTrigger(LedFallTrigger);
 
   // drive line down
-  LedStateL = LOW;
+  LedStateL = Phase;
   digitalWrite(LedPinL, LedStateL);
 
   // start again if frequency is non-zero
@@ -219,7 +221,7 @@ void _FreqFlickerR(float frequency)
     PutTrigger(LedFallTrigger);
   
   // drive line down
-  LedStateR = LOW;
+  LedStateR = Phase;
   digitalWrite(LedPinR, LedStateR);
 
   // start again if frequency is non-zero
@@ -235,8 +237,8 @@ void _FreqFlickerAudio(float frequency)
   if (AudioState && FlickerTriggers == FlickerTriggerAttach::AudioFlicker)
     PutTrigger(LedFallTrigger);
 
-  AudioState = LOW;
-  AudioSine.amplitude(AudioAmpOff);
+  AudioState = Phase;
+  AudioSine.amplitude(Phase == LOW ? AudioAmpOff : AudioAmpOn);
 
   // start again if frequency is non-zero
   if (frequency > 0)
@@ -254,12 +256,12 @@ void _FreqFlickerAll(float frequency)
         (LedStateR && FlickerTriggers == FlickerTriggerAttach::LedRightFlicker) ||
         (AudioState && FlickerTriggers == FlickerTriggerAttach::AudioFlicker))
     {
-        PutTrigger(LedFallTrigger);        
+        PutTrigger(Phase == LOW ? LedFallTrigger : LedRiseTrigger);        
     }
 
-    LedStateL = LOW;
-    LedStateR = LOW;
-    AudioState = LOW;
+    LedStateL = Phase;
+    LedStateR = Phase;
+    AudioState = Phase;
 
     digitalWrite(LedPinL, LedStateL);
     digitalWrite(LedPinR, LedStateR);
@@ -276,15 +278,15 @@ void _Reset()
   TimerFlickerAudio.end();
   TimerFlickerAll.end();
   
-  digitalWrite(LedPinL, LOW);
-  digitalWrite(LedPinR, LOW);
+  digitalWrite(LedPinL, Phase);
+  digitalWrite(LedPinR, Phase);
   AudioSine.frequency(10000);
-  AudioSine.amplitude(AudioAmpOff);
+  AudioSine.amplitude(Phase ? AudioAmpOff : AudioAmpOn);
   PutTrigger(0);
   
-  LedStateL = LOW;
-  LedStateR = LOW;
-  AudioState = LOW;
+  LedStateL = Phase;
+  LedStateR = Phase;
+  AudioState = Phase;
   
   FlickerTriggers = FlickerTriggerAttach::None;
   LedRiseTrigger = 0;
@@ -390,6 +392,9 @@ void Instruction::ProcessInstruction()
         else
             digitalWrite(TTLPin, LOW);
         break;
+
+    case Commands::ChangePhase:
+
 
     // DEFAULT
     default:

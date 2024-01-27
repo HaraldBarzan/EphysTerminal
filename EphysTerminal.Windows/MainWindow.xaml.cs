@@ -61,7 +61,7 @@ namespace TINS.Terminal
 		public void UpdateData(AbstractDisplayData displayData)
 		{
 			if (!Dispatcher.CheckAccess())
-				Dispatcher.BeginInvoke(new Action<AbstractDisplayData>(UpdateData), displayData);
+				Dispatcher.BeginInvoke(UpdateData, displayData);
 			else
 			{
 				// update MUA

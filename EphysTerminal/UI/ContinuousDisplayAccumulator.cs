@@ -55,19 +55,22 @@ namespace TINS.Terminal.UI
 		{
 			if (countPreviousLeftover) 
 				updatePeriod += _previousLeftover;
-			if (!Source.GetMostRecentPeriod(updatePeriod, out MatrixSpan<float> buffers))
-				return IsFull;
-
 			if (IsFull)
 				Reset();
 
-			// perform copy
-			int copyCount = Math.Min(buffers.Cols, Capacity - CurrentFillIndex);
-			for (int i = 0; i < buffers.Rows; ++i)
-				buffers.GetRowSpan(i).Slice(0, copyCount).CopyTo(GetBuffer(i).Slice(CurrentFillIndex));
+			lock (Source)
+			{
+				if (!Source.GetMostRecentPeriod(updatePeriod, out MatrixSpan<float> buffers))
+					return IsFull;
 
-			CurrentFillIndex += copyCount;
-			return IsFull;
+				// perform copy
+				int copyCount = Math.Min(buffers.Cols, Capacity - CurrentFillIndex);
+				for (int i = 0; i < buffers.Rows; ++i)
+					buffers.GetRowSpan(i).Slice(0, copyCount).CopyTo(GetBuffer(i).Slice(CurrentFillIndex));
+
+				CurrentFillIndex += copyCount;
+				return IsFull;
+			}
 		}
 
 		/// <summary>
