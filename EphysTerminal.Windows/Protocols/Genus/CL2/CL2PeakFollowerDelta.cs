@@ -1,4 +1,5 @@
-﻿using TINS.Containers;
+﻿using System;
+using TINS.Containers;
 using TINS.Ephys.Analysis;
 
 namespace TINS.Terminal.Protocols.Genus.CL2
@@ -9,15 +10,14 @@ namespace TINS.Terminal.Protocols.Genus.CL2
 	/// Closed loop algorithm variant II:
 	/// use peak to explore in range +- delta around the current stimulus frequency.
 	/// </summary>
-	public class CL2V2 : CL2Algorithm
+	public class CL2PeakFollowerDelta : CL2Algorithm
 	{
 		/// <summary>
 		/// 
 		/// </summary>
 		/// <param name="protocol"></param>
 		/// <param name="analyzer"></param>
-		/// <param name="delta"></param>
-		public CL2V2(GenusCL2 protocol, TFSpectrumAnalyzer analyzer)
+		public CL2PeakFollowerDelta(GenusCL2 protocol, TFSpectrumAnalyzer analyzer)
 			: base(protocol, analyzer) { }
 
 		/// <summary>
@@ -46,7 +46,7 @@ namespace TINS.Terminal.Protocols.Genus.CL2
 			}
 
 			// clamp in +-delta from currentfrequency and stimulation frequency range
-			float freq = spec.BinToFrequency(iPeak);
+			float freq = MathF.Round(spec.BinToFrequency(iPeak));
 			freq = Numerics.Clamp(freq, (currentFrequency - Protocol.Config.CL2Delta, currentFrequency + Protocol.Config.CL2Delta));
 			freq = Numerics.Clamp(freq, Protocol.Config.StimulationFrequencyRange);
 

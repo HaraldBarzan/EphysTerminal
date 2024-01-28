@@ -16,19 +16,22 @@ namespace TINS.Terminal.Settings
 		/// <summary>
 		/// The section name for the stimulation section.
 		/// </summary>
-		[INILine(Key = "STIMULATION_SECTION", Default = "STIMULATION")]
+		[INILine("STIMULATION_SECTION", "STIMULATION",
+			"The section name for the stimulation section.")]
 		public string StimulationSection { get; set; }
 		
 		/// <summary>
-		/// Get or set the type of UI.
+		/// The type of UI to use. Choice between EPHYS (intracortical-type recordings) and EEG.
 		/// </summary>
-		[INILine(Key = "UI_TYPE", Default = "EPHYS")]
+		[INILine("UI_TYPE", "EPHYS",
+			"The type of UI to use. Choice between EPHYS (intracortical-type recordings) and EEG.")]
 		public string UIType { get; protected set; }
 
 		/// <summary>
 		/// The section name for the graphical user interface (GUI) section.
 		/// </summary>
-		[INILine(Key = "UI_SECTION", Default = "UI")]
+		[INILine("UI_SECTION", "UI", 
+			"The section name for the graphical user interface (GUI) section.")]
 		public string UISection { get; set; }
 
 		/// <summary>

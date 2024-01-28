@@ -1,4 +1,5 @@
-﻿using TINS.Containers;
+﻿using System;
+using TINS.Containers;
 using TINS.Ephys.Analysis;
 
 namespace TINS.Terminal.Protocols.Genus.CL2
@@ -10,7 +11,7 @@ namespace TINS.Terminal.Protocols.Genus.CL2
 	/// Closed loop algorithm variant I:
 	/// always return the frequency at max power (old version)
 	/// </summary>
-	public class CL2V1 : CL2Algorithm
+	public class CL2ArgMaxFollower : CL2Algorithm
 	{
 		/// <summary>
 		/// 
@@ -18,7 +19,7 @@ namespace TINS.Terminal.Protocols.Genus.CL2
 		/// <param name="protocol"></param>
 		/// <param name="analyzer"></param>
 		/// <param name="delta"></param>
-		public CL2V1(GenusCL2 protocol, TFSpectrumAnalyzer analyzer)
+		public CL2ArgMaxFollower(GenusCL2 protocol, TFSpectrumAnalyzer analyzer)
 			: base(protocol, analyzer) { }
 
 		/// <summary>
@@ -40,7 +41,7 @@ namespace TINS.Terminal.Protocols.Genus.CL2
 			int iPeak = spec.ArgMax();
 			blockResult = "cl1-update";
 
-			return Numerics.Clamp(spec.BinToFrequency(iPeak), Protocol.Config.StimulationFrequencyRange);
+			return Numerics.Clamp(MathF.Round(spec.BinToFrequency(iPeak)), Protocol.Config.StimulationFrequencyRange);
 		}
 	}
 }

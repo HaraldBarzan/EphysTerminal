@@ -16,25 +16,29 @@ namespace TINS.Terminal.Settings.UI
 		/// <summary>
 		/// Display electroencephalography data.
 		/// </summary>
-		[INILine(Key = "SHOW_EEG", Default = true)]
+		[INILine("SHOW_EEG", true, 
+			"Display electroencephalography data.")]
 		public bool ShowEEG { get; set; }
 
 		/// <summary>
 		/// The period of the EEG update, in seconds.
 		/// </summary>
-		[INILine(Key = "EEG_UPDATE_PERIOD", Default = 1)]
-		public int EEGUpdatePeriod { get; set; }
+		[INILine("EEG_UPDATE_PERIOD", 1, 
+			"The period of the EEG update, in seconds.")]
+		public float EEGUpdatePeriod { get; set; }
 
 		/// <summary>
 		/// EEG display buffer name.
 		/// </summary>
-		[INILine(Key = "EEG_DISPLAY_BUFFER")]
+		[INILine("EEG_DISPLAY_BUFFER",
+			Comment = "Name of the source buffer (defined in the PROCESSING settings) for the EEG display.")]
 		public string EEGInputBuffer { get; set; }
 
 		/// <summary>
 		/// The channels to display, in top-to-bottom order.
 		/// </summary>
-		[INIVector(Key = "DISPLAY_CHANNELS_COUNT", ValueMask = "DISPLAY_CHANNEL_*_NAME")]
+		[INIVector("DISPLAY_CHANNELS_COUNT", "DISPLAY_CHANNEL_*_NAME", 
+			"The channels to display, in top-to-bottom order.")]
 		public Vector<string> DisplayChannels { get; set; } = new();
 	}
 }

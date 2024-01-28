@@ -14,12 +14,11 @@ namespace TINS.Terminal.Protocols.Genus.CL2
 	/// </summary>
 	public enum CL2AlgorithmVersion
 	{
-		V1,
-		V2,
-		V3,
-		V4
+		ArgMaxFollower,
+		PeakFollowerDelta,
+		DichotomicExplorator,
+		Washout
 	}
-
 
 	/// <summary>
 	/// 

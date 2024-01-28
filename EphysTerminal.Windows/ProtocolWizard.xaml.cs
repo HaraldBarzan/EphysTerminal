@@ -388,7 +388,7 @@ namespace TINS.Terminal
 		/// </summary>
 		/// <returns>The name of a dataset.</returns>
 		protected string GetDatasetName()
-			=> $"{txbAnimalName.Text}_{txbProtoName.Text}_{ntxbDatasetID.IntegerValue}";
+			=> $"{txbAnimalName.Text}_{txbProtoName.Text}_{ntxbDatasetID.Text}";
 
 		/// <summary>
 		/// 

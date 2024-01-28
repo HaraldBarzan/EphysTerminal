@@ -249,7 +249,7 @@ namespace TINS.Terminal
 				EphysTerminal = new EphysTerminal(
 					settings:			settings,		// the settings item
 					ui:					this,			// the UI for the streamer
-					dataInputStream:	inputStream);	// the input stream (platform specific));
+					dataInputStream:	inputStream);	// the input stream (platform specific)
 				EphysTerminal.StateChanged	+= UpdateInterfaceControls;
 				EphysTerminal.InputReceived	+= (_, _) => ProtocolWizard.NotifyNewBlock();
 				new Thread(() => EphysTerminal.StartThread()).Start();
@@ -282,7 +282,7 @@ namespace TINS.Terminal
 				displayPanel.Children.Add(ChannelDisplay as UIElement);
 			}
 			
-			if (ChannelDisplay.DisplayType == displayType)
+			if (ChannelDisplay.DisplayType == displayType && EphysTerminal is not null)
 				ChannelDisplay.InitializeChannelDisplay(EphysTerminal);
 			else
 			{

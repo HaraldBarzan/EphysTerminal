@@ -1,11 +1,9 @@
 ﻿using System;
 using System.Windows;
 using System.Windows.Controls;
-using TINS.Ephys;
 using TINS.Ephys.Analysis.Events;
 using TINS.Ephys.Analysis.TimeFrequency;
 using TINS.Terminal.Display.Ephys;
-using TINS.Terminal.Settings;
 using TINS.Terminal.Settings.UI;
 using TINS.Terminal.UI;
 
@@ -141,7 +139,8 @@ namespace TINS.Terminal.Display
 				yRange: (-settings.LFPYRange, settings.LFPYRange));
 
 			// create the Audio stream
-			AudioStream ??= new MultiunitAudioStream(EphysTerminal);
+			AudioStream?.Dispose();
+			AudioStream = new MultiunitAudioStream(EphysTerminal);
 			SetLiveChannel(settings.DefaultAudioChannel);
 
 			// assign superlet analyzer if found
