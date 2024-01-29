@@ -166,7 +166,7 @@ namespace TINS.Terminal.Protocols.Genus.CL2
 		/// </summary>
 		[INILine("PEAK_FOLLOWER_DELTA", 5f, 
 			"Delta parameter for the peak follower algorithm.")]
-		public float CL2Delta { get; set; }
+		public float PeakFollowerDelta { get; set; }
 
 		/// <summary>
 		/// Delta parameter for closed loop algorithm variant 2.

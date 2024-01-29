@@ -63,8 +63,11 @@ namespace TINS.Terminal.Protocols.Genus.CL2
 				_currentBlock.PeakIdx		= iPeak;
 				_currentBlock.PeakPower		= pow;
 				_currentBlock.PeakFrequency = freq;
-				if (_currentBlock.PeakIdx >= 0)
+				if (_currentBlock.PeakIdx >= 0 && Numerics.IsClamped(freq, (_currentBlock.StimFrequency - Protocol.Config.ExplorationSigma,
+																			_currentBlock.StimFrequency + Protocol.Config.ExplorationSigma)))
+				{
 					_validBlocks.PushBack(_currentBlock);
+				}
 
 				// check if there is a next block
 				if (_queuedBlocks.Count == 0)
@@ -101,7 +104,8 @@ namespace TINS.Terminal.Protocols.Genus.CL2
 			else
 			{
 				// check if we have peak. we start exploration only on valid peaks
-				if (iPeak >= 0)
+				if (iPeak >= 0 && Numerics.IsClamped(freq, (currentFrequency - Protocol.Config.ExplorationSigma,
+															currentFrequency + Protocol.Config.ExplorationSigma)))
 				{
 					// save current block as exploration block
 					_validBlocks.PushBack(new ExplorationBlock()
@@ -116,11 +120,13 @@ namespace TINS.Terminal.Protocols.Genus.CL2
 					_currentBlock =			new ExplorationBlock { StimFrequency = currentFrequency - Protocol.Config.ExplorationDelta };
 					_queuedBlocks.Enqueue(	new ExplorationBlock { StimFrequency = currentFrequency + Protocol.Config.ExplorationDelta });
 
+					blockResult = "cl3-exp";
 					return _currentBlock.StimFrequency;
 				}
 				else
 				{
 					// keep going at current frequency
+					blockResult = "cl3-noupdate";
 					return currentFrequency;
 				}
 			}

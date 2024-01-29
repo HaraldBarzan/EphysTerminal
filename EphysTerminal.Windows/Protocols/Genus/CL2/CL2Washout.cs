@@ -57,7 +57,9 @@ namespace TINS.Terminal.Protocols.Genus.CL2
 
 			if (iPeak >= 0)
 			{
+				// clamp in +-delta from currentfrequency and stimulation frequency range
 				frequency = MathF.Round(spec.BinToFrequency(iPeak));
+				frequency = Numerics.Clamp(frequency, (currentFrequency - Protocol.Config.PeakFollowerDelta, currentFrequency + Protocol.Config.PeakFollowerDelta));
 				frequency = Numerics.Clamp(frequency, Protocol.Config.StimulationFrequencyRange);
 			}
 
@@ -73,7 +75,8 @@ namespace TINS.Terminal.Protocols.Genus.CL2
 						// end of washout, but no peak
 						ConsecutivePeaklessBlocks++;
 						blockResult = "cl4-nopeak";
-						return currentFrequency;
+						//return currentFrequency;
+						return Protocol.Config.StartingFlickerFrequency;
 					}
 					else
 					{
@@ -117,7 +120,6 @@ namespace TINS.Terminal.Protocols.Genus.CL2
 					return frequency;
 				}
 			}
-
 		}
 
 

@@ -47,7 +47,7 @@ namespace TINS.Terminal.Protocols.Genus.CL2
 
 			// clamp in +-delta from currentfrequency and stimulation frequency range
 			float freq = MathF.Round(spec.BinToFrequency(iPeak));
-			freq = Numerics.Clamp(freq, (currentFrequency - Protocol.Config.CL2Delta, currentFrequency + Protocol.Config.CL2Delta));
+			freq = Numerics.Clamp(freq, (currentFrequency - Protocol.Config.PeakFollowerDelta, currentFrequency + Protocol.Config.PeakFollowerDelta));
 			freq = Numerics.Clamp(freq, Protocol.Config.StimulationFrequencyRange);
 
 			blockResult = "cl2-update";
