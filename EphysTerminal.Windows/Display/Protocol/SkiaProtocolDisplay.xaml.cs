@@ -122,7 +122,7 @@ namespace TINS.Terminal.Display.Protocol
 		public void SwitchToTextAsync(Color? backgroundColor, string text, Color? textColor)
 		{
 			if (!Dispatcher.CheckAccess())
-				Dispatcher.BeginInvoke(new Action<Color?, string, Color?>(SwitchToTextAsync), backgroundColor, text, textColor);
+				Dispatcher.BeginInvoke(SwitchToTextAsync, backgroundColor, text, textColor);
 			else
 			{
 				if (text is not null)
@@ -130,7 +130,7 @@ namespace TINS.Terminal.Display.Protocol
 				if (backgroundColor.HasValue)
 					BackgroundColor = backgroundColor.Value;
 				if (textColor.HasValue)
-					BackgroundColor = textColor.Value;
+					TextColor = textColor.Value;
 				State = ProtocolDisplayState.Text;
 				Cursor = Cursors.None;
 				skc.InvalidateVisual();

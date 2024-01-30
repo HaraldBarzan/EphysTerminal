@@ -87,7 +87,7 @@ byte                    LedRiseTrigger      = 0;
 byte                    LedFallTrigger      = 0  ;
 float                   DefaultAudioTone    = 10000;
 FlickerTriggerAttach    FlickerTriggers     = FlickerTriggerAttach::None;
-byte                    Phase               = LOW;
+byte                    Phase               = HIGH;
 
 // helpers
 void PutTrigger(byte value)
@@ -203,13 +203,19 @@ void _FreqFlickerL(float frequency)
   if (LedStateL && FlickerTriggers == FlickerTriggerAttach::LedLeftFlicker)
     PutTrigger(LedFallTrigger);
 
-  // drive line down
-  LedStateL = Phase;
-  digitalWrite(LedPinL, LedStateL);
-
   // start again if frequency is non-zero
   if (frequency > 0)
+  {
+    // drive line down
+    LedStateL = Phase;
+    digitalWrite(LedPinL, LedStateL);
     TimerFlickerL.begin(ToggleL, GetMicrosecondHalfPeriod(frequency));
+  }
+  else
+  {
+    LedStateL = LOW;
+    digitalWrite(LedPinL, LedStateL);
+  }
 }
 
 void _FreqFlickerR(float frequency)
@@ -220,13 +226,19 @@ void _FreqFlickerR(float frequency)
   if (LedStateR && FlickerTriggers == FlickerTriggerAttach::LedRightFlicker)
     PutTrigger(LedFallTrigger);
   
-  // drive line down
-  LedStateR = Phase;
-  digitalWrite(LedPinR, LedStateR);
-
   // start again if frequency is non-zero
   if (frequency > 0)
+  {
+    // drive line down
+    LedStateR = Phase;
+    digitalWrite(LedPinR, LedStateR);
     TimerFlickerR.begin(ToggleR, GetMicrosecondHalfPeriod(frequency));
+  }
+  else
+  {
+    LedStateR = LOW;
+    digitalWrite(LedPinR, LedStateR);
+  }
 }
 
 void _FreqFlickerAudio(float frequency)
@@ -237,12 +249,19 @@ void _FreqFlickerAudio(float frequency)
   if (AudioState && FlickerTriggers == FlickerTriggerAttach::AudioFlicker)
     PutTrigger(LedFallTrigger);
 
-  AudioState = Phase;
-  AudioSine.amplitude(Phase == LOW ? AudioAmpOff : AudioAmpOn);
-
   // start again if frequency is non-zero
   if (frequency > 0)
+  {
+    // drive line down
+    AudioState = Phase;
+    AudioSine.amplitude(Phase == LOW ? AudioAmpOff : AudioAmpOn);
     TimerFlickerAudio.begin(ToggleAudio, GetMicrosecondHalfPeriod(frequency));
+  }
+  else
+  {
+    AudioState = LOW;
+    AudioSine.amplitude(AudioAmpOff);
+  }
 }
 
 void _FreqFlickerAll(float frequency)
@@ -259,16 +278,27 @@ void _FreqFlickerAll(float frequency)
         PutTrigger(Phase == LOW ? LedFallTrigger : LedRiseTrigger);        
     }
 
-    LedStateL = Phase;
-    LedStateR = Phase;
-    AudioState = Phase;
-
-    digitalWrite(LedPinL, LedStateL);
-    digitalWrite(LedPinR, LedStateR);
-    AudioSine.amplitude(AudioAmpOff);
-
     if (frequency > 0)
-        TimerFlickerAll.begin(ToggleAll, GetMicrosecondHalfPeriod(frequency));
+    {
+      LedStateL = Phase;
+      LedStateR = Phase;
+      AudioState = Phase;
+
+      digitalWrite(LedPinL, LedStateL);
+      digitalWrite(LedPinR, LedStateR);
+      AudioSine.amplitude(Phase == LOW ? AudioAmpOff : AudioAmpOn);
+
+      TimerFlickerAll.begin(ToggleAll, GetMicrosecondHalfPeriod(frequency));
+    }
+    else
+    {
+      LedStateL = LOW;
+      LedStateR = LOW;
+      AudioState = LOW;
+      digitalWrite(LedPinL, LedStateL);
+      digitalWrite(LedPinR, LedStateR);
+      AudioSine.amplitude(AudioAmpOff);
+    }
 }
 
 void _Reset()
@@ -278,15 +308,15 @@ void _Reset()
   TimerFlickerAudio.end();
   TimerFlickerAll.end();
   
-  digitalWrite(LedPinL, Phase);
-  digitalWrite(LedPinR, Phase);
+  digitalWrite(LedPinL, LOW);
+  digitalWrite(LedPinR, LOW);
   AudioSine.frequency(10000);
-  AudioSine.amplitude(Phase ? AudioAmpOff : AudioAmpOn);
+  AudioSine.amplitude(AudioAmpOff);
   PutTrigger(0);
   
-  LedStateL = Phase;
-  LedStateR = Phase;
-  AudioState = Phase;
+  LedStateL = LOW;
+  LedStateR = LOW;
+  AudioState = LOW;
   
   FlickerTriggers = FlickerTriggerAttach::None;
   LedRiseTrigger = 0;

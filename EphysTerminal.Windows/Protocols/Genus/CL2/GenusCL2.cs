@@ -46,14 +46,15 @@ namespace TINS.Terminal.Protocols.Genus
 				throw new Exception("The protocol's polling period does not match the current settings.");
 
 			// setup for biosemi stuff
-			if (Config.TrialSelfInitiate && !Config.UseProtocolScreen)
+			if (Config.TrialSelfInitiate)
 			{
 				if (stream.InputStream is not BiosemiTcpStream biosemiStream)
 					throw new Exception("Trial self initiation is only compatible with the Biosemi stream.");
 				if (!biosemiStream.UseResponseSwitches && !Config.UseProtocolScreen)
-					throw new Exception("Trial self initiation requires a Biosemi stream with UseResponseSwitches set to \'true\'.");
+					throw new Exception("Trial self initiation requires a Biosemi stream with UseResponseSwitches set to \'true\', or a functioning protocol display.");
 
-				biosemiStream.ResponseSwitchPressed += BiosemiStream_ResponseSwitchPressed;
+				if (biosemiStream.UseResponseSwitches)
+					biosemiStream.ResponseSwitchPressed += BiosemiStream_ResponseSwitchPressed;
 			}
 
 			// create state machine
@@ -196,7 +197,10 @@ namespace TINS.Terminal.Protocols.Genus
 		/// <param name="sender"></param>
 		/// <param name="e"></param>
 		private void BiosemiStream_ResponseSwitchPressed(object sender, Ephys.Settings.BiosemiResponseSwitch e)
-			=> ProcessEvent(GenusEvent.InitiateTrial);
+		{
+			Console.WriteLine("mata");
+			ProcessEvent(GenusEvent.InitiateTrial);
+		}
 
 		/// <summary>
 		/// 

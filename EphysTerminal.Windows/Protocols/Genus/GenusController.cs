@@ -526,6 +526,7 @@ namespace TINS.Terminal.Protocols.Genus
 		{
 			using var instructions = new Vector<Instruction>();
 
+			//instructions.PushBack(Instruction.StartLedFlickerLeft(Numerics.Clamp(frequency, FlickerFrequencyRange)));
 			instructions.PushBack(Instruction.StartFlicker(Numerics.Clamp(frequency, FlickerFrequencyRange)));
 			if (frequencyTone.HasValue)
 				instructions.PushBack(Instruction.ChangeAudioTone(frequencyTone.Value));

@@ -1,22 +1,9 @@
 ﻿using SkiaSharp;
 using SkiaSharp.Views.Desktop;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 using TINS.Terminal.Settings.UI;
 using TINS.Terminal.UI;
-using TINS.Visual.Axes;
 
 namespace TINS.Terminal.Display
 {
@@ -161,7 +148,11 @@ namespace TINS.Terminal.Display
 			EphysTerminal = terminal;
 			var settings = EphysTerminal.TerminalSettings.UI as UISettingsEEG;
 			if (settings is null)
-				throw new Exception("");
+				throw new Exception("Could not load EEG UI settings.");
+
+			// get source buffer
+			if (!terminal.ProcessingPipeline.TryGetBuffer(settings.EEGInputBuffer, out var sourceBuffer))
+				throw new Exception($"Could not find source buffer \"{settings.EEGInputBuffer}\".");
 
 			// create channel mapping vector
 			var sourceChannels	= settings.DisplayChannels;
@@ -172,7 +163,7 @@ namespace TINS.Terminal.Display
 			{
 				int sourceIndex;
 				if (!string.IsNullOrEmpty(sourceChannels[i]) &&
-					(sourceIndex = terminal.Settings.Input.ChannelLabels.IndexOf(sourceChannels[i])) >= 0)
+					(sourceIndex = sourceBuffer.ChannelLabels.IndexOf(sourceChannels[i])) >= 0)
 				{
 					_channelMapping[i] = new() { Label = sourceChannels[i], SourceIndex = sourceIndex };
 				}

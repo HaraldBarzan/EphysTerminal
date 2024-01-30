@@ -1,10 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using TINS.Ephys;
-using TINS.Ephys.Analysis;
-using TINS.Ephys.Analysis.Events;
 using TINS.Ephys.Data;
-using TINS.Ephys.Processing;
 using TINS.Terminal.Settings;
 using TINS.Terminal.Stimulation;
 using TINS.Terminal.UI;
