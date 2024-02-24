@@ -60,8 +60,17 @@
 			<disp:BigButton Grid.Column="9" x:Name="btnToggleProtocol" Click="btnToggleProtocol_Click" 
 						  ToolTip="Start protocol" Source="{StaticResource ProtStartIcon}" Text="Start protocol"/>
 
-			<Label Grid.Column="11" Name="lblTrigger" Foreground="White" FontSize="28" Content="0" 
-				   VerticalAlignment="Center" HorizontalAlignment="Center" ToolTip="Trigger"/>
+			<Grid Grid.Column="11">
+				<Grid.RowDefinitions>
+					<RowDefinition Height="*"/>
+					<RowDefinition Height="auto"/>
+				</Grid.RowDefinitions>
+				<Label Grid.Row="0" Name="lblTrigger" Foreground="White" FontSize="20" Content="0" 
+					VerticalAlignment="Center" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" ToolTip="Trigger value"/>
+				<Label Grid.Row="1" Name="lblTriggerBinary" Foreground="White" FontSize="10" Content="00000000" 
+					VerticalAlignment="Center" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" ToolTip="Trigger binary value"/>
+			</Grid>
+			
 
 			<disp:BigButton Grid.Column="12" x:Name="btnFieldAnalyzer" Click="btnFieldAnalyzer_Click" 
 						  ToolTip="Start the field analyzer" Source="{StaticResource RobotIcon}" Text="Field analyzer"/>

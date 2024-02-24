@@ -237,6 +237,9 @@ namespace TINS.Terminal.Protocols.Genus
 				? Numerics.Linspace(_p.Config.StimulationFrequencyRange, _p.Config.TrialCount)
 				: new Vector<float>(_p.Config.TrialCount, _p.Config.StartingFlickerFrequency);
 
+			if (_p.Config.ShuffleStartingFrequencies)
+				Random.Shared.Shuffle(_startFrequencies);
+
 			// init spectrum primitives
 			if (_p.SourceStream.AnalysisPipeline.TryGetComponent(_p.Config.FrequencyAnalyzer, out var a) &&
 				a is TFSpectrumAnalyzer analyzer)
@@ -248,6 +251,7 @@ namespace TINS.Terminal.Protocols.Genus
 					case CL2AlgorithmVersion.PeakFollowerDelta:		_alg = new CL2PeakFollowerDelta(_p, analyzer);		break;
 					case CL2AlgorithmVersion.DichotomicExplorator:	_alg = new CL2DichotomicExplorator(_p, analyzer);	break;
 					case CL2AlgorithmVersion.Washout:				_alg = new CL2Washout(_p, analyzer);				break;
+					case CL2AlgorithmVersion.Static:				_alg = new CL2Static(_p, analyzer);					break;
 					default:
 						throw new Exception();
 				}
@@ -358,7 +362,8 @@ namespace TINS.Terminal.Protocols.Genus
 				{
 					_stateTimeout = _p.Config.PrestimulusTimeout;
 					_gc?.EmitTrigger(_p.Config.PrestimulusStartTrigger);
-					_pd?.SwitchToFixationCrossAsync(Color.FromRgb(128, 128, 128), null);
+					//_pd?.SwitchToFixationCrossAsync(Color.FromRgb(128, 128, 128), null);
+					_pd?.SwitchToFixationCrossAsync(Color.FromRgb(0, 0, 0), null);
 				},
 				exitStateAction: () =>
 				{
@@ -379,15 +384,15 @@ namespace TINS.Terminal.Protocols.Genus
 					_alg.ResetBlockCounter();
 
 					// stimulus parameters
-					_stimFreq = _startFrequencies[CurrentTrialIndex];
-					_gc?.ChangeParameters(_stimFreq, null, _stimFreq, 10000, _p.Config.StimulationStartTrigger);
+					_stimFreq = MathF.Round(_startFrequencies[CurrentTrialIndex]);
+					_gc?.ChangeParameters(_stimFreq, _p.Config.AudioToneFrequency, _p.Config.StimulationStartTrigger);
 					Console.WriteLine($"Beginning trial {CurrentTrialIndex + 1}:\n\tblock 1: set start frequency to {_stimFreq}.");
 
 					// log beginning of trial
 					_p.UpdateLogger?.LogTrial(
 						CurrentTrialIndex + 1,
 						_updateIndex,
-						0,
+						_stimFreq,
 						_stimFreq,
 						_alg.CurrentBlockType,
 						"start");
@@ -395,7 +400,8 @@ namespace TINS.Terminal.Protocols.Genus
 				exitStateAction: () =>
 				{
 					Console.WriteLine("Stimulation end");
-					_gc?.ChangeParameters(0, null, 0, null, _p.Config.StimulationEndTrigger);
+					//_gc?.ChangeParameters(0, 0, 0, null, _p.Config.StimulationEndTrigger);
+					_gc?.ChangeParameters(0, null, _p.Config.StimulationEndTrigger);
 				});
 
 			// POSTSTIMULUS
@@ -469,18 +475,22 @@ namespace TINS.Terminal.Protocols.Genus
 						blockResult);
 
 					// update trigger
-					//_gc?.ChangeParameters(_stimFreq, null, _stimFreq, 10000, _p.Config.StimUpdateTrigger);
-					if (_p.Config.UseAudioStimulation && _p.Config.UseVisualStimulation)
+					if (oldFreq != _stimFreq)
 						_gc?.ChangeParameters(_stimFreq, _p.Config.AudioToneFrequency, _p.Config.StimUpdateTrigger);
 					else
-					{
-						_gc?.ChangeParameters(
-							frequencyL:		_p.Config.UseVisualStimulation ? _stimFreq : null,
-							frequencyR:		null,
-							frequencyAudio: _p.Config.UseAudioStimulation ? _stimFreq : null,
-							frequencyTone:	_p.Config.AudioToneFrequency,
-							trigger:		_p.Config.StimUpdateTrigger);
-					}
+						_gc?.EmitTrigger(_p.Config.StimUpdateTrigger);
+
+					//if (_p.Config.UseAudioStimulation && _p.Config.UseVisualStimulation)
+					//	_gc?.ChangeParameters(_stimFreq, _p.Config.AudioToneFrequency, _p.Config.StimUpdateTrigger);
+					//else
+					//{
+					//	_gc?.ChangeParameters(
+					//		frequencyL:		_p.Config.UseVisualStimulation ? _stimFreq : null,
+					//		frequencyR:		null,
+					//		frequencyAudio: _p.Config.UseAudioStimulation ? _stimFreq : null,
+					//		frequencyTone:	_p.Config.AudioToneFrequency,
+					//		trigger:		_p.Config.StimUpdateTrigger);
+					//}
 
 					Thread.Sleep(20);
 					_gc?.EmitTrigger(0);

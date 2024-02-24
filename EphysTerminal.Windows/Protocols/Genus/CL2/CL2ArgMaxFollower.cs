@@ -39,7 +39,7 @@ namespace TINS.Terminal.Protocols.Genus.CL2
 			// get frequency at peak
 			using var spec = Get1DPowerSpectrum(periods);
 			int iPeak = spec.ArgMax();
-			blockResult = "cl1-update";
+			blockResult = "update";
 
 			return Numerics.Clamp(MathF.Round(spec.BinToFrequency(iPeak)), Protocol.Config.StimulationFrequencyRange);
 		}

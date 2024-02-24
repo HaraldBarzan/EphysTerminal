@@ -86,6 +86,13 @@ namespace TINS.Terminal.Protocols.Genus.CL2
 		}
 
 		/// <summary>
+		/// Shuffle the starting frequencies.
+		/// </summary>
+		[INILine("SHUFFLE_STARTING_FREQUENCIES", false,
+            "Shuffle the starting frequencies.")]
+		public bool ShuffleStartingFrequencies { get; set; }
+
+		/// <summary>
 		/// The lower range of the stimulation frequency.
 		/// </summary>
 		[INILine("FREQUENCY_RANGE_LOWER", 20f,

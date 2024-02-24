@@ -74,21 +74,21 @@ namespace TINS.Terminal.Protocols.Genus.CL2
 					{
 						// end of washout, but no peak
 						ConsecutivePeaklessBlocks++;
-						blockResult = "cl4-nopeak";
+						blockResult = "nopeak";
 						//return currentFrequency;
 						return Protocol.Config.StartingFlickerFrequency;
 					}
 					else
 					{
 						// end of washout, we found a peak (go to it)
-						blockResult = "cl4-update";
+						blockResult = "update";
 						return frequency;
 					}
 				}
 				else
 				{
 					// still in washout (return washout frequency)
-					blockResult = "cl4-washout";
+					blockResult = "washout";
 					return Protocol.Config.WashoutFrequency;
 				}
 			}
@@ -98,17 +98,18 @@ namespace TINS.Terminal.Protocols.Genus.CL2
 				{
 					// not in washout, no peak. increment counter and check for washout trigger
 					ConsecutivePeaklessBlocks++;
-					if (ConsecutivePeaklessBlocks >= Protocol.Config.WashoutTriggerBlocks)
+					if (ConsecutivePeaklessBlocks >= Protocol.Config.WashoutTriggerBlocks &&
+						_blockCounter + Protocol.Config.WashoutTimeoutBlocks < Protocol.Config.BlocksPerTrial)
 					{
 						// starting washout
 						BeginWashout();
-						blockResult = "cl4-washout";
+						blockResult = "washout";
 						return Protocol.Config.WashoutFrequency;
 					}
 					else
 					{
 						// no peak, but no washout trigger either. just try again at the current frequency
-						blockResult = "cl4-nopeak";
+						blockResult = "nopeak";
 						return currentFrequency;
 					}
 				}
@@ -116,7 +117,7 @@ namespace TINS.Terminal.Protocols.Genus.CL2
 				{
 					// found peak, we update the stimulation frequency
 					ConsecutivePeaklessBlocks = 0;
-					blockResult = "cl4-update";
+					blockResult = "update";
 					return frequency;
 				}
 			}

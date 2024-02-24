@@ -117,9 +117,12 @@ namespace TINS.Terminal
 				return;
 
 			if (!Dispatcher.CheckAccess())
-				Dispatcher.BeginInvoke(new Action<Vector<int>>(UpdateEvents), events);
+				Dispatcher.BeginInvoke(UpdateEvents, events);
 			else
-				lblTrigger.Content = events.Back.ToString();
+			{
+				lblTriggerBinary.Content	= App.BinStr((byte)events.Back);
+				lblTrigger.Content			= events.Back.ToString();
+			}
 		}
 
 		/// <summary>
@@ -381,8 +384,8 @@ namespace TINS.Terminal
 					var sfd = new SaveFileDialog()
 					{
 						Title				= "Save EEG Processor Dataset",
+						InitialDirectory	= App.GetPropOrDefault("RecordInitialDir", @"C:\_data\ephys\mouse"),
 						Filter				= "EEG Processor Dataset (*.epd) | *.epd",
-						InitialDirectory	= @"C:\_data\ephys\mouse"
 					};
 
 					// open the file dialog
@@ -417,6 +420,9 @@ namespace TINS.Terminal
 							DatasetDirectory	= dir.ToString(),
 							DatasetName			= name
 						});
+
+						// save the initial dir
+						App.SetProp("RecordInitialDir", Path.GetDirectoryName(newPath));
 					}
 				});
 				t.SetApartmentState(ApartmentState.STA);
@@ -455,7 +461,7 @@ namespace TINS.Terminal
 				var ofd = new OpenFileDialog()
 				{
 					Title				= "Open configuration file",
-					InitialDirectory	= @"C:\_code\ephysterminal\settings\configurations",
+					InitialDirectory	= App.GetPropOrDefault("StreamConfigInitialDir", @"C:\_code\ephysterminal\settings\configurations"),
 					Filter				= "Settings files (*.ini) | *.ini",
 					Multiselect			= false
 				};
@@ -466,18 +472,25 @@ namespace TINS.Terminal
 						var settings = new EphysTerminalSettings();
 						settings.Serialize(new INI(ofd.FileName), settings.HeaderSection, SerializationDirection.In);
 
+						// save the initial dir to settings
+						App.SetProp("StreamConfigInitialDir", Path.GetDirectoryName(ofd.FileName));
+
 						// get local dataset path
 						string localDatasetPath = null;
 						if (settings.InputType == "LOCAL")
 						{
 							ofd = new OpenFileDialog()
 							{
-								InitialDirectory	= @"C:\_werk\CircuitGENUS\testLocalInput\",
+								Title				= "Open local EEG Processor dataset",
+								InitialDirectory	= App.GetPropOrDefault("LocalDatasetInitialDir", @"C:\_werk\CircuitGENUS\testLocalInput"),
 								Filter				= "EEG Processor Dataset files (*.epd) | *.epd",
 								Multiselect			= false
 							};
 							if (ofd.ShowDialog() == true)
+							{
 								localDatasetPath = ofd.FileName;
+								App.SetProp("LocalDatasetInitialDir", Path.GetDirectoryName(localDatasetPath));
+							}
 							else
 								MessageBox.Show("A local dataset must be selected for input device \'Local\'.", "Error!", MessageBoxButton.OK, MessageBoxImage.Error);
 						}
@@ -519,8 +532,6 @@ namespace TINS.Terminal
 			EphysTerminal	?.Dispose();
 			ProtocolWizard	?.Dispose();
 			SettingsDialog	?.Close();
-
-			Environment.Exit(0);
 		}
 		
 		/// <summary>
@@ -552,7 +563,7 @@ namespace TINS.Terminal
 				var ofd = new OpenFileDialog()
 				{
 					Title				= "Open protocol configuration file",
-					InitialDirectory	= @"C:\_code\ephysstream\settings\protocols",
+					InitialDirectory	= App.GetPropOrDefault("ProtocolsInitialDir", @"C:\_code\ephysstream\settings\protocols"),
 					Filter				= "Protocol configuration files (*.ini) | *.ini",
 					Multiselect			= false
 				};
@@ -564,6 +575,7 @@ namespace TINS.Terminal
 					{
 						// register the protocol
 						EphysTerminal.SetStimulationProtocolAsync(protocol);
+						App.SetProp("ProtocolsInitialDir", Path.GetDirectoryName(ofd.FileName));
 					}
 					else 
 					{
@@ -708,5 +720,5 @@ namespace TINS.Terminal
 		}
 
 		#endregion
-    }
+	}
 }

@@ -218,12 +218,14 @@ namespace GammaHealController
 			}
 
 			if (int.TryParse(ntbTriggers.Text, out var triggerValue) &&
-				Numerics.IsClamped(triggerValue, (0, 63)))
+				Numerics.IsClamped(triggerValue, GenusController.TriggerRange))
 			{
 				_controller.EmitTrigger((byte)triggerValue);
 			}
 			else
-				MessageBox.Show("Please provide an integer numerical value between 0 and 63.");
+			{
+				MessageBox.Show($"Please provide an integer numerical value between {GenusController.TriggerRange.Lower} and {GenusController.TriggerRange.Upper}.");
+			}
 		}
 
 

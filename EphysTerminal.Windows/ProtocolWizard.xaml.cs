@@ -3,7 +3,6 @@ using System;
 using System.IO;
 using System.Windows;
 using TINS.Ephys.Data;
-using TINS.IO;
 using TINS.Utilities;
 
 namespace TINS.Terminal
@@ -21,8 +20,9 @@ namespace TINS.Terminal
         public ProtocolWizard(MainWindow mainWindow)
         {
             InitializeComponent();
-			MainWindow		= mainWindow;
-			_stateMachine	= new ProtocolWizardStateMachine(this);
+			MainWindow			= mainWindow;
+			_stateMachine		= new ProtocolWizardStateMachine(this);
+			txbOutputPath.Text  = App.GetPropOrDefault("DatasetOutputInitialDir", "");
 
 			_stateMachine.SetActions(
 				startRecording: (e) =>
@@ -318,7 +318,8 @@ namespace TINS.Terminal
 			// open a file dialog
 			var ofd = new OpenFileDialog()
 			{
-				InitialDirectory	= @"C:\_code\ephysstream\settings\protocols",
+				Title				= "Open protocol file",
+				InitialDirectory	= App.GetPropOrDefault("ProtocolsInitialDir", @"C:\_code\ephysstream\settings\protocols"),
 				Filter				= "Protocol configuration files (*.ini) | *.ini",
 				Multiselect			= false
 			};
@@ -330,6 +331,7 @@ namespace TINS.Terminal
 				txbProtoName.Text		= Path.GetFileNameWithoutExtension(ofd.FileName);
 				lblPrerunSec.Content	= $"x {MainWindow?.EphysTerminal?.Settings.Input.PollingPeriod} seconds";
 				lblPostrunSec.Content	= $"x {MainWindow?.EphysTerminal?.Settings.Input.PollingPeriod} seconds";
+				App.SetProp("ProtocolsInitialDir", Path.GetDirectoryName(ofd.FileName));
 			}
 		}
 
@@ -346,7 +348,8 @@ namespace TINS.Terminal
 			// open a file dialog
 			var sfd = new SaveFileDialog()
 			{
-				InitialDirectory	= @"C:\_code\ephysstream\settings",
+				Title				= "Dataset collection output path",
+				InitialDirectory	= App.GetPropOrDefault("DatasetOutputInitialDir", @"C:\_code\ephysstream\settings"),
 				FileName			= "Select the output folder."
 			};
 
@@ -355,6 +358,7 @@ namespace TINS.Terminal
 			{
 				var outputDir = Path.GetDirectoryName(sfd.FileName);
 				txbOutputPath.Text = outputDir;
+				App.SetProp("DatasetOutputInitialDir", outputDir);
 			}
 		}
 

@@ -29,7 +29,7 @@ namespace TINS.Terminal.Protocols.Genus
 		/// <summary>
 		/// Trigger range (lower inclusive, upper exclusive).
 		/// </summary>
-		public static (byte Lower, byte Upper) TriggerRange { get; } = (0, 64);
+		public static (byte Lower, byte Upper) TriggerRange { get; } = (0, 255);
 
 		/// <summary>
 		/// Signal the receival of a feedback.

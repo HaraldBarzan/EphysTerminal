@@ -41,7 +41,7 @@ namespace TINS.Terminal.Protocols.Genus.CL2
 			// do not change frequency if no peak is detected
 			if (iPeak < 0)
 			{
-				blockResult = "cl2-nopeak";
+				blockResult = "nopeak";
 				return currentFrequency;
 			}
 
@@ -50,7 +50,7 @@ namespace TINS.Terminal.Protocols.Genus.CL2
 			freq = Numerics.Clamp(freq, (currentFrequency - Protocol.Config.PeakFollowerDelta, currentFrequency + Protocol.Config.PeakFollowerDelta));
 			freq = Numerics.Clamp(freq, Protocol.Config.StimulationFrequencyRange);
 
-			blockResult = "cl2-update";
+			blockResult = freq == currentFrequency ? "noupdate" : "update";
 			return freq;
 		}
 	}

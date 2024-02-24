@@ -1,24 +1,34 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.IO;
+using System.IO.IsolatedStorage;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using TeensyNet;
-using TINS.Analysis;
 using TINS.Ephys.Native;
 using TINS.Native;
 using TINS.Terminal.Display.Protocol;
 using TINS.Terminal.Protocols.Genus;
-using TINS.Terminal.Protocols.Genus.CL2;
 using TINS.Terminal.Stimulation;
 using TINS.Utilities;
 
 namespace TINS.Terminal
 {
-    /// <summary>
-    /// Interaction logic for App.xaml
-    /// </summary>
-    public partial class App : Application
+	/// <summary>
+	/// Interaction logic for App.xaml
+	/// </summary>
+	public partial class App : Application
 	{
+		/// <summary>
+		/// 
+		/// </summary>
+		public App()
+		{
+			Instance = this;
+		}
+
 		/// <summary>
 		/// Teensy factory (for the application).
 		/// </summary>
@@ -34,7 +44,7 @@ namespace TINS.Terminal
 			=> Current.TryFindResource(resourceName) as T;
 
 		/// <summary>
-		/// Startup routine.
+		/// On app startup.
 		/// </summary>
 		/// <param name="e"></param>
 		protected override void OnStartup(StartupEventArgs e)
@@ -60,6 +70,55 @@ namespace TINS.Terminal
 			ProtocolFactory.RegisterProtocol(typeof(HumanGenusProtocol),		"genus-human");
 			ProtocolFactory.RegisterProtocol(typeof(GenusClosedLoopProtocol),	"genus-closedloop");
 			ProtocolFactory.RegisterProtocol(typeof(GenusCL2),					"genus-closedloop2");
+
+			// load persistent storage
+			LoadPersistentStorageFile();
+		}
+
+		protected override void OnExit(ExitEventArgs e)
+		{
+			SavePersistentStorageFile();
+			base.OnExit(e);
+		}
+
+		/// <summary>
+		/// Get the running App instance.
+		/// </summary>
+		public static App Instance { get; protected set; }
+
+		/// <summary>
+		/// Properties.
+		/// </summary>
+		public static HybridDictionary Persistent
+			=> Instance is not null
+				? Instance.Properties as HybridDictionary
+				: null;
+
+		/// <summary>
+		/// Get the value for a given key, or a default value if the key is missing.
+		/// </summary>
+		/// <param name="key">The key.</param>
+		/// <param name="defaultValue">A default value if the key is missing.</param>
+		/// <returns>The value for the key, or a default value if the key is missing.</returns>
+		public static string GetPropOrDefault(string key, string defaultValue = null)
+		{
+			if (Persistent is null)
+				return defaultValue;
+			if (Persistent.Contains(key))
+				return Persistent[key] as string;
+			return defaultValue;
+		}
+
+		/// <summary>
+		/// Set the value for a given key. The key is created if missing.
+		/// </summary>
+		/// <param name="key">The key.</param>
+		/// <param name="value">The new value for the key.</param>
+		public static void SetProp(string key, string value)
+		{
+			if (Persistent is null)
+				return;
+			Persistent[key] = value;
 		}
 
 		/// <summary>
@@ -206,6 +265,55 @@ namespace TINS.Terminal
 			Environment.Exit(0);
 		}
 
+		/// <summary>
+		/// 
+		/// </summary>
+		protected void LoadPersistentStorageFile()
+		{
+			var storage = IsolatedStorageFile.GetUserStoreForDomain();
+			try
+			{
+				var prop			= Persistent;
+				using var stream	= new IsolatedStorageFileStream("persistent.txt", FileMode.Open, storage);
+				using var reader	= new StreamReader(stream);
 
+				while (!reader.EndOfStream)
+				{
+					var kvp = reader.ReadLine().Split(',');
+					prop[kvp[0]] = kvp[1];
+				}
+			}
+			catch
+			{
+
+			}
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		protected void SavePersistentStorageFile()
+		{
+			var storage			= IsolatedStorageFile.GetUserStoreForDomain();
+			var prop			= Persistent;
+			using var stream	= new IsolatedStorageFileStream("persistent.txt", FileMode.OpenOrCreate, storage);
+			using var writer	= new StreamWriter(stream);
+
+			foreach (var key in prop.Keys)
+				writer.WriteLine($"{key},{prop[key]}");
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="value"></param>
+		/// <returns></returns>
+		public static string BinStr(byte value)
+		{
+			Span<char> chars = stackalloc char[8];
+			for (int i = 0; i < chars.Length; ++i)
+				chars[7 - i] = (value & (1 << i)) != 0 ? '1' : '0';
+			return new string(chars);
+		}
 	}
 }

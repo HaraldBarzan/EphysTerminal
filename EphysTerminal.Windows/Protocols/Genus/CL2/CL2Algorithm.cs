@@ -17,7 +17,8 @@ namespace TINS.Terminal.Protocols.Genus.CL2
 		ArgMaxFollower,
 		PeakFollowerDelta,
 		DichotomicExplorator,
-		Washout
+		Washout,
+		Static
 	}
 
 	/// <summary>

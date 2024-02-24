@@ -73,7 +73,7 @@ namespace TINS.Terminal.Protocols.Genus.CL2
 				if (_queuedBlocks.Count == 0)
 				{
 					float result	= currentFrequency;
-					blockResult		= "cl3-nopeak";
+					blockResult		= "nopeak";
 
 					// find winner within valid blocks
 					if (_validBlocks.Size > 0)
@@ -85,7 +85,7 @@ namespace TINS.Terminal.Protocols.Genus.CL2
 
 						// set results
 						result		= _validBlocks[iMax].PeakFrequency;
-						blockResult = "cl3-update";
+						blockResult = "update";
 					}
 
 					// end exploration mode
@@ -97,7 +97,7 @@ namespace TINS.Terminal.Protocols.Genus.CL2
 				{
 					// continue with the next block
 					_currentBlock	= _queuedBlocks.Dequeue();
-					blockResult		= "cl3-exp";
+					blockResult		= "exp";
 					return _currentBlock.StimFrequency;
 				}
 			}
@@ -120,13 +120,13 @@ namespace TINS.Terminal.Protocols.Genus.CL2
 					_currentBlock =			new ExplorationBlock { StimFrequency = currentFrequency - Protocol.Config.ExplorationDelta };
 					_queuedBlocks.Enqueue(	new ExplorationBlock { StimFrequency = currentFrequency + Protocol.Config.ExplorationDelta });
 
-					blockResult = "cl3-exp";
+					blockResult = "exp";
 					return _currentBlock.StimFrequency;
 				}
 				else
 				{
 					// keep going at current frequency
-					blockResult = "cl3-noupdate";
+					blockResult = "noupdate";
 					return currentFrequency;
 				}
 			}
